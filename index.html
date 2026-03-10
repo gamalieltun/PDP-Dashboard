@@ -668,9 +668,11 @@
 // ═══════════════════════════════════════════════════
 const WORKER_URL = 'https://pdp-dashboard.gamalieltun282.workers.dev/';
 // ↑ Replace with your Cloudflare Worker URL after deploying
-// No password or API key lives here — they're safely in the Worker.
 
-const TOTAL_CW = 52;
+const TOTAL_CW   = 52;
+// CURRENT_CW is computed live from today's date (see updateHeaderDate below)
+// Using a getter so all code referencing CURRENT_CW automatically gets today's value
+Object.defineProperty(window, 'CURRENT_CW', { get: () => window.CURRENT_CW_DYNAMIC || 10 });
 
 // ─── Filter state (per-tab) ───────────────────────
 // activeQ: 'Q1'|'Q2'|'Q3'|'Q4'|null
@@ -927,7 +929,10 @@ async function loadFromWorker() {
     const e = await res.json();
     throw new Error(e.error || `HTTP ${res.status}`);
   }
-  const { sheets } = await res.json();
+  const { sheets, errors } = await res.json();
+  if (errors && Object.keys(errors).length > 0) {
+    console.warn('Some sheets had errors:', errors);
+  }
   parseSheetData(sheets);
 }
 
