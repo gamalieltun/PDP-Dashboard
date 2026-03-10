@@ -849,8 +849,8 @@ let DATA = JSON.parse(JSON.stringify(FALLBACK));
 //  AUTH — password checked by Worker, never in HTML
 // ═══════════════════════════════════════════════════
 const SESSION_KEY = 'pdp_auth';
-// We store a hashed token, not the raw password, in sessionStorage
-let SESSION_PASSWORD = null; // held in memory only for this page session
+const SESSION_PW_KEY = 'pdp_pw';
+let SESSION_PASSWORD = sessionStorage.getItem(SESSION_PW_KEY) || null;
 
 function doLogin() {
   const pw  = document.getElementById('pw-input').value;
@@ -871,8 +871,9 @@ function doLogin() {
   .then(r => r.json())
   .then(data => {
     if (data.ok) {
-      SESSION_PASSWORD = pw; // keep in memory, never written to disk
+      SESSION_PASSWORD = pw;
       sessionStorage.setItem(SESSION_KEY, '1');
+      sessionStorage.setItem(SESSION_PW_KEY, pw); // survives refresh, clears on tab close
       document.getElementById('login-screen').classList.add('hiding');
       setTimeout(() => {
         document.getElementById('login-screen').style.display = 'none';
@@ -899,6 +900,8 @@ function doLogin() {
 
 function doLogout() {
   sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_PW_KEY);
+  SESSION_PASSWORD = null;
   location.reload();
 }
 
