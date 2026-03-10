@@ -994,7 +994,7 @@ function parseSheetData(sheets) {
   }
 }
 
-// ─── Auto-refresh every 5 minutes ─────────────────
+// ─── Auto-refresh every minute ─────────────────
 let refreshTimer = null;
 function startAutoRefresh() {
   if (refreshTimer) clearInterval(refreshTimer);
@@ -1007,7 +1007,7 @@ function startAutoRefresh() {
     } catch(e) {
       console.warn('Auto-refresh failed:', e.message);
     }
-  }, 5 * 60 * 1000); // 5 minutes
+  }, 60 * 1000); // 1 minute
 }
 
 // ═══════════════════════════════════════════════════
@@ -1024,7 +1024,7 @@ async function initDashboard() {
     document.getElementById('hdr-status').textContent =
       'Live · updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     renderAll();
-    startAutoRefresh(); // silently refresh every 5 minutes
+    startAutoRefresh(); // silently refresh every minute
   } catch(e) {
     document.getElementById('hdr-status').textContent = 'Using sample data — ' + e.message;
   }
