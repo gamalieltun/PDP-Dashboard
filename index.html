@@ -627,6 +627,28 @@
 
   /* tab visibility control */
   .tab-hidden { display:none !important; }
+
+  /* ── TASK CHECKLIST IN MODAL ── */
+  .ci-task-item {
+    display:flex; align-items:flex-start; gap:12px; padding:11px 14px;
+    border-bottom:1px solid var(--gray-100); cursor:pointer;
+    transition:background 0.12s; user-select:none;
+  }
+  .ci-task-item:last-child { border-bottom:none; }
+  .ci-task-item:hover { background:var(--gray-50); }
+  .ci-task-item.delivered { background:#f0fdf4; }
+  .ci-task-item.delivered .ci-task-name { color:var(--green); text-decoration:line-through; }
+  .ci-checkbox {
+    width:18px; height:18px; border-radius:5px; border:2px solid var(--gray-300);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    margin-top:1px; transition:all 0.15s;
+  }
+  .ci-task-item.delivered .ci-checkbox {
+    background:var(--green); border-color:var(--green); color:#fff;
+  }
+  .ci-task-name { font-size:13px; font-weight:600; color:var(--gray-800); line-height:1.4; }
+  .ci-task-detail { font-size:11px; color:var(--gray-400); margin-top:2px; }
+  .ci-task-overdue { color:var(--red); font-weight:700; }
 </style>
 </head>
 <body>
@@ -1039,58 +1061,79 @@
      WEEKLY CHECK-IN MODAL
 ════════════════════════════════════ -->
 <div class="modal-overlay hidden" id="checkin-modal">
-  <div class="modal-box">
-    <div class="modal-title">📝 Weekly Check-in</div>
-    <div class="modal-sub" id="checkin-modal-sub">Report your week — takes 2 minutes</div>
+  <div class="modal-box" style="max-width:600px;">
+    <div class="modal-title">📝 Weekly Check-in — <span id="ci-modal-cw"></span></div>
+    <div class="modal-sub">Tick tasks you completed this week. Changes update Google Sheets live.</div>
 
-    <div class="form-field">
-      <div class="form-label">Your Name</div>
-      <select class="form-select" id="ci-name">
-        <option value="">— Select your name —</option>
-        <option>Alex</option>
-        <option>Daniel</option>
-        <option>Grace</option>
-        <option>John</option>
-        <option>Maria</option>
-        <option>Sarah</option>
-      </select>
-    </div>
-
-    <div class="form-field">
-      <div class="form-label">Project(s) you worked on this week</div>
-      <select class="form-select" id="ci-project">
-        <option value="">— Select project —</option>
-        <option>P1 – Education Development</option>
-        <option>P2 – Wash Program</option>
-        <option>P3 – Disaster Management</option>
-        <option>P4 – Development</option>
-        <option>P5 – Sustainability</option>
-        <option>Multiple projects</option>
-      </select>
-    </div>
-
-    <div class="form-row">
-      <div class="form-field">
-        <div class="form-label">Tasks completed this week</div>
-        <input class="form-input" type="number" id="ci-done" min="0" placeholder="e.g. 3">
+    <!-- Name row — pre-filled if logged in -->
+    <div class="form-row" style="margin-bottom:16px;">
+      <div class="form-field" style="margin-bottom:0">
+        <div class="form-label">Your Name</div>
+        <select class="form-select" id="ci-name">
+          <option value="">— Select —</option>
+          <option>Alex</option><option>Daniel</option><option>Grace</option>
+          <option>John</option><option>Maria</option><option>Sarah</option>
+        </select>
       </div>
-      <div class="form-field">
-        <div class="form-label">Tasks planned but not done</div>
-        <input class="form-input" type="number" id="ci-missed" min="0" placeholder="e.g. 1">
+      <div class="form-field" style="margin-bottom:0">
+        <div class="form-label">Primary Project This Week</div>
+        <select class="form-select" id="ci-project">
+          <option value="">— Select —</option>
+          <option>P1 – Education Development</option>
+          <option>P2 – Wash Program</option>
+          <option>P3 – Disaster Management</option>
+          <option>P4 – Development</option>
+          <option>P5 – Sustainability</option>
+          <option>Multiple projects</option>
+        </select>
       </div>
     </div>
 
+    <!-- Task checklist -->
     <div class="form-field">
-      <div class="form-label">Any blockers or issues? <span style="color:var(--gray-400);font-weight:400">(optional)</span></div>
-      <textarea class="form-textarea" id="ci-blockers" placeholder="Describe any challenges, delays or blockers this week…"></textarea>
+      <div class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>My Tasks <span id="ci-task-count" style="color:var(--gray-400);font-weight:400;font-size:11px;"></span></span>
+        <span id="ci-tasks-loading" style="font-size:11px;color:var(--gray-400);">Select your name to load tasks</span>
+      </div>
+      <div id="ci-task-list" style="max-height:280px;overflow-y:auto;border:1.5px solid var(--gray-200);border-radius:9px;margin-top:6px;">
+        <div style="padding:20px;text-align:center;color:var(--gray-400);font-size:13px;" id="ci-task-placeholder">
+          Select your name above to see your tasks.
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary row — auto-calculated -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;padding:12px;background:var(--gray-50);border-radius:8px;">
+      <div style="text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--green)" id="ci-summary-done">0</div>
+        <div style="font-size:11px;color:var(--gray-400);">Ticked Delivered</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--gray-400)" id="ci-summary-planned">0</div>
+        <div style="font-size:11px;color:var(--gray-400);">Remaining Planned</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--blue)" id="ci-summary-total">0</div>
+        <div style="font-size:11px;color:var(--gray-400);">Total My Tasks</div>
+      </div>
     </div>
 
     <div class="form-field">
-      <div class="form-label">Notes / highlights <span style="color:var(--gray-400);font-weight:400">(optional)</span></div>
-      <textarea class="form-textarea" id="ci-notes" placeholder="Key achievements, progress updates, anything worth noting…"></textarea>
+      <div class="form-label">Blockers / Issues <span style="color:var(--gray-400);font-weight:400">(optional)</span></div>
+      <textarea class="form-textarea" id="ci-blockers" placeholder="Any challenges or delays this week…" style="min-height:60px;"></textarea>
     </div>
 
-    <div id="ci-submit-msg" style="display:none;font-size:13px;margin-top:8px;"></div>
+    <div class="form-field">
+      <div class="form-label">Notes / Highlights <span style="color:var(--gray-400);font-weight:400">(optional)</span></div>
+      <textarea class="form-textarea" id="ci-notes" placeholder="Key achievements, updates…" style="min-height:60px;"></textarea>
+    </div>
+
+    <div id="ci-submit-msg" style="display:none;font-size:13px;margin-top:8px;padding:10px 14px;border-radius:8px;"></div>
+
+    <!-- KPI refresh countdown -->
+    <div id="ci-refresh-countdown" style="display:none;font-size:12px;color:var(--blue);text-align:center;margin-top:8px;padding:8px;background:var(--blue-lt);border-radius:8px;">
+      ⏳ KPI will refresh in <strong id="ci-countdown-sec">30</strong>s…
+    </div>
 
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeCheckinModal()">Cancel</button>
@@ -1931,32 +1974,182 @@ function renderCheckinTab() {
     </div>`).join('');
 }
 
+// Task status state for current modal session
+// { taskId: 'Delivered' | 'Planned' }
+let CI_TASK_STATES = {};
+
 function openCheckinModal() {
-  document.getElementById('checkin-modal').classList.remove('hidden');
+  CI_TASK_STATES = {};
+  const modal = document.getElementById('checkin-modal');
+  modal.classList.remove('hidden');
   document.getElementById('ci-submit-msg').style.display = 'none';
+  document.getElementById('ci-refresh-countdown').style.display = 'none';
   document.getElementById('ci-submit-btn').disabled = false;
   document.getElementById('ci-submit-btn').textContent = 'Submit Check-in →';
+  document.getElementById('ci-modal-cw').textContent = `CW ${CURRENT_CW}`;
+
+  // Pre-fill name if logged in as staff
+  const nameEl = document.getElementById('ci-name');
+  if (CURRENT_USER?.name && CURRENT_USER.name !== 'Admin') {
+    nameEl.value = CURRENT_USER.name;
+    loadTasksForName(CURRENT_USER.name);
+  }
+
+  // Re-load tasks when name changes
+  nameEl.onchange = () => loadTasksForName(nameEl.value);
+}
+
+function loadTasksForName(name) {
+  if (!name) return;
+  CI_TASK_STATES = {};
+
+  const listEl      = document.getElementById('ci-task-list');
+  const loadingEl   = document.getElementById('ci-tasks-loading');
+  const placeholder = document.getElementById('ci-task-placeholder');
+
+  // Gather all tasks owned by this person
+  const myTasks = [];
+  DATA.projects.forEach(p => {
+    if (!p.taskList) return;
+    p.taskList.forEach((t, idx) => {
+      if (String(t['Owner'] || '') === name) {
+        myTasks.push({ ...t, projectName: p.name, projectId: p.id, _pIdx: DATA.projects.indexOf(p), _tIdx: idx });
+      }
+    });
+  });
+
+  if (loadingEl) loadingEl.textContent = `${myTasks.length} tasks found`;
+
+  if (myTasks.length === 0) {
+    listEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--gray-400);font-size:13px;">No tasks assigned to ${name}.</div>`;
+    updateCheckinSummary();
+    return;
+  }
+
+  // Seed state from current data
+  myTasks.forEach(t => {
+    const key = `${t._pIdx}-${t._tIdx}`;
+    CI_TASK_STATES[key] = String(t['Status'] || 'Planned');
+  });
+
+  // Sort: overdue planned first, then by CW
+  const cw = CURRENT_CW;
+  myTasks.sort((a, b) => {
+    const aCW = parseFloat(a['CW']) || 99, bCW = parseFloat(b['CW']) || 99;
+    const aOv = aCW < cw && CI_TASK_STATES[`${a._pIdx}-${a._tIdx}`] === 'Planned';
+    const bOv = bCW < cw && CI_TASK_STATES[`${b._pIdx}-${b._tIdx}`] === 'Planned';
+    if (aOv && !bOv) return -1;
+    if (!aOv && bOv) return 1;
+    return aCW - bCW;
+  });
+
+  listEl.innerHTML = myTasks.map(t => {
+    const key      = `${t._pIdx}-${t._tIdx}`;
+    const status   = CI_TASK_STATES[key] || 'Planned';
+    const taskCW   = parseFloat(t['CW']) || 0;
+    const overdue  = taskCW < cw && status === 'Planned';
+    const isDone   = status === 'Delivered';
+    return `
+      <div class="ci-task-item ${isDone ? 'delivered' : ''}" onclick="toggleTaskState('${key}', this)"
+           data-key="${key}" data-task="${encodeURIComponent(t['Task Name']||'')}"
+           data-project="${t.projectId}" data-pidx="${t._pIdx}" data-tidx="${t._tIdx}">
+        <div class="ci-checkbox">${isDone ? '✓' : ''}</div>
+        <div style="flex:1">
+          <div class="ci-task-name">${t['Task Name'] || 'Unnamed'}</div>
+          <div class="ci-task-detail">
+            ${t.projectName} · CW ${taskCW}
+            ${overdue ? '<span class="ci-task-overdue"> · ⚠ Overdue</span>' : ''}
+          </div>
+        </div>
+        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;
+          background:${isDone ? '#dcfce7' : '#f3f4f6'};
+          color:${isDone ? 'var(--green)' : 'var(--gray-400)'};">
+          ${isDone ? 'Delivered' : 'Planned'}
+        </span>
+      </div>`;
+  }).join('');
+
+  document.getElementById('ci-task-count').textContent = `(${myTasks.length} tasks)`;
+  updateCheckinSummary();
+}
+
+function toggleTaskState(key, el) {
+  const current = CI_TASK_STATES[key] || 'Planned';
+  const next    = current === 'Planned' ? 'Delivered' : 'Planned';
+  CI_TASK_STATES[key] = next;
+
+  const isDone  = next === 'Delivered';
+  el.classList.toggle('delivered', isDone);
+  el.querySelector('.ci-task-name').style.textDecoration = isDone ? 'line-through' : '';
+  el.querySelector('.ci-checkbox').textContent = isDone ? '✓' : '';
+  el.querySelector('.ci-checkbox').style.background = isDone ? 'var(--green)' : '';
+  el.querySelector('.ci-checkbox').style.borderColor = isDone ? 'var(--green)' : 'var(--gray-300)';
+  el.querySelector('.ci-checkbox').style.color = isDone ? '#fff' : '';
+
+  const badge = el.querySelector('span:last-child');
+  badge.textContent = isDone ? 'Delivered' : 'Planned';
+  badge.style.background = isDone ? '#dcfce7' : '#f3f4f6';
+  badge.style.color = isDone ? 'var(--green)' : 'var(--gray-400)';
+
+  updateCheckinSummary();
+}
+
+function updateCheckinSummary() {
+  const states  = Object.values(CI_TASK_STATES);
+  const done    = states.filter(s => s === 'Delivered').length;
+  const planned = states.filter(s => s === 'Planned').length;
+  const total   = states.length;
+  const doneEl  = document.getElementById('ci-summary-done');
+  const planEl  = document.getElementById('ci-summary-planned');
+  const totEl   = document.getElementById('ci-summary-total');
+  if (doneEl) doneEl.textContent = done;
+  if (planEl) planEl.textContent = planned;
+  if (totEl)  totEl.textContent  = total;
 }
 
 function closeCheckinModal() {
   document.getElementById('checkin-modal').classList.add('hidden');
+  CI_TASK_STATES = {};
 }
 
 async function submitCheckin() {
   const name     = document.getElementById('ci-name').value;
   const project  = document.getElementById('ci-project').value;
-  const done     = parseInt(document.getElementById('ci-done').value) || 0;
-  const missed   = parseInt(document.getElementById('ci-missed').value) || 0;
   const blockers = document.getElementById('ci-blockers').value.trim();
   const notes    = document.getElementById('ci-notes').value.trim();
   const msg      = document.getElementById('ci-submit-msg');
   const btn      = document.getElementById('ci-submit-btn');
 
-  if (!name || !project) {
+  if (!name) {
     msg.style.display = 'block';
-    msg.innerHTML = '<span style="color:var(--red)">⚠ Please select your name and project.</span>';
+    msg.style.background = 'var(--red-lt)';
+    msg.style.color = 'var(--red)';
+    msg.textContent = '⚠ Please select your name.';
     return;
   }
+
+  // Build list of task status changes
+  const taskItems  = document.querySelectorAll('#ci-task-list .ci-task-item');
+  const taskUpdates = [];
+  taskItems.forEach(el => {
+    const key    = el.dataset.key;
+    const pIdx   = parseInt(el.dataset.pidx);
+    const tIdx   = parseInt(el.dataset.tidx);
+    const newSt  = CI_TASK_STATES[key] || 'Planned';
+    const origSt = DATA.projects[pIdx]?.taskList?.[tIdx]?.['Status'] || 'Planned';
+    if (newSt !== origSt) {
+      taskUpdates.push({
+        projectId:  el.dataset.project,
+        taskName:   decodeURIComponent(el.dataset.task),
+        oldStatus:  origSt,
+        newStatus:  newSt,
+        pIdx, tIdx,
+      });
+    }
+  });
+
+  const done   = Object.values(CI_TASK_STATES).filter(s => s === 'Delivered').length;
+  const missed = Object.values(CI_TASK_STATES).filter(s => s === 'Planned').length;
 
   btn.disabled = true;
   btn.textContent = 'Submitting…';
@@ -1966,39 +2159,79 @@ async function submitCheckin() {
     cw: CURRENT_CW, name, project, done, missed, blockers, notes,
     time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }),
     date: new Date().toLocaleDateString(),
+    taskUpdates,
   };
 
+  // Send to Worker — writes task statuses + appends Weekly Report row
+  let workerOk = false;
   try {
-    // Send to Worker → Google Sheets
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'checkin', password: SESSION_PASSWORD, entry })
     });
+    workerOk = res.ok || res.status === 501;
     if (!res.ok && res.status !== 501) throw new Error(`Server error ${res.status}`);
   } catch(e) {
-    console.warn('Worker checkin write failed, saving locally:', e.message);
+    console.warn('Worker write failed, updating locally:', e.message);
   }
 
-  // Always save locally so UI updates even if Worker write fails
+  // Update local DATA immediately so KPI recalculates without waiting
+  taskUpdates.forEach(u => {
+    if (DATA.projects[u.pIdx]?.taskList?.[u.tIdx]) {
+      DATA.projects[u.pIdx].taskList[u.tIdx]['Status'] = u.newStatus;
+    }
+    // Recalculate project delivered count
+    const p = DATA.projects[u.pIdx];
+    if (p) p.delivered = p.taskList.filter(t => String(t['Status']).startsWith('Delivered')).length;
+  });
+
+  // Save check-in locally
   loadCheckins();
   CHECKINS.push(entry);
   saveCheckins();
 
+  // Show success
   msg.style.display = 'block';
-  msg.innerHTML = '<span style="color:var(--green)">✓ Check-in submitted successfully!</span>';
+  msg.style.background = '#f0fdf4';
+  msg.style.color = 'var(--green)';
+  msg.textContent = `✓ Check-in submitted! ${taskUpdates.length} task(s) updated in Google Sheets.`;
   btn.textContent = 'Submitted ✓';
 
-  setTimeout(() => {
-    closeCheckinModal();
-    renderCheckinTab();
-    renderDigest();
-    // Reset form
-    ['ci-name','ci-project','ci-done','ci-missed','ci-blockers','ci-notes'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
-    });
-  }, 1200);
+  // Render immediately with local data
+  renderAll();
+
+  // Start 30s countdown then re-fetch from Sheets to confirm
+  if (taskUpdates.length > 0) {
+    const countdownEl = document.getElementById('ci-refresh-countdown');
+    const secEl       = document.getElementById('ci-countdown-sec');
+    countdownEl.style.display = 'block';
+    let secs = 30;
+    const timer = setInterval(() => {
+      secs--;
+      if (secEl) secEl.textContent = secs;
+      if (secs <= 0) {
+        clearInterval(timer);
+        countdownEl.textContent = '🔄 Refreshing KPI from Google Sheets…';
+        loadFromWorker().then(() => {
+          renderAll();
+          countdownEl.textContent = '✅ KPI updated from Google Sheets!';
+          setTimeout(() => closeCheckinModal(), 1500);
+        }).catch(() => {
+          countdownEl.textContent = '⚠ Could not reach server — data updated locally.';
+          setTimeout(() => closeCheckinModal(), 2000);
+        });
+      }
+    }, 1000);
+  } else {
+    setTimeout(() => closeCheckinModal(), 1500);
+  }
+
+  // Reset form fields (not the checklist — user can see what they ticked)
+  document.getElementById('ci-blockers').value = '';
+  document.getElementById('ci-notes').value = '';
+  renderCheckinTab();
+  renderDigest();
 }
 
 // ═══════════════════════════════════════════════════
