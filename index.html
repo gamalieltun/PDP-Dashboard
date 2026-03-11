@@ -680,31 +680,45 @@
   <div class="login-card">
     <div class="login-logo">PDP</div>
     <div class="login-title">Staff Dashboard</div>
-    <div class="login-sub" id="login-sub-text">Enter your access password to continue</div>
+    <div class="login-sub">Sign in with your personal credentials</div>
 
-    <div class="login-field">
-      <div class="login-label">Password</div>
-      <input class="login-input" type="password" id="pw-input"
-        placeholder="Enter password" autocomplete="current-password"
-        onkeydown="if(event.key==='Enter') doLogin()">
+    <!-- Normal login -->
+    <div id="login-form">
+      <div class="login-field">
+        <div class="login-label">Username</div>
+        <input class="login-input" type="text" id="un-input"
+          placeholder="Enter username" autocomplete="username"
+          onkeydown="if(event.key==='Enter') document.getElementById('pw-input').focus()">
+      </div>
+      <div class="login-field">
+        <div class="login-label">Password</div>
+        <input class="login-input" type="password" id="pw-input"
+          placeholder="Enter password" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <div id="login-lockout" style="display:none;font-size:12px;color:var(--red);text-align:center;margin-bottom:8px;padding:8px;background:#fef2f2;border-radius:6px;"></div>
+      <button class="login-btn" id="login-btn" onclick="doLogin()">Sign In →</button>
+      <div class="login-error" id="login-error" style="display:none;"></div>
     </div>
 
-    <!-- Name selector — shown only for staff password -->
-    <div class="login-field" id="name-field" style="display:none;">
-      <div class="login-label">Your Name</div>
-      <select class="login-input" id="name-select" style="cursor:pointer;">
-        <option value="">— Select your name —</option>
-        <option>Alex</option>
-        <option>Daniel</option>
-        <option>Grace</option>
-        <option>John</option>
-        <option>Maria</option>
-        <option>Sarah</option>
-      </select>
+    <!-- Force password change (first login / admin reset) -->
+    <div id="change-pw-form" style="display:none;">
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#92400e;">
+        🔒 You must set a new password before continuing.
+      </div>
+      <div class="login-field">
+        <div class="login-label">New Password</div>
+        <input class="login-input" type="password" id="new-pw1" placeholder="Min 8 characters"
+          onkeydown="if(event.key==='Enter') document.getElementById('new-pw2').focus()">
+      </div>
+      <div class="login-field">
+        <div class="login-label">Confirm Password</div>
+        <input class="login-input" type="password" id="new-pw2" placeholder="Confirm new password"
+          onkeydown="if(event.key==='Enter') doFirstLoginPasswordChange()">
+      </div>
+      <button class="login-btn" id="cpw-btn" onclick="doFirstLoginPasswordChange()">Set Password & Sign In →</button>
+      <div class="login-error" id="cpw-error" style="display:none;"></div>
     </div>
-
-    <button class="login-btn" id="login-btn" onclick="doLogin()">Sign In →</button>
-    <div class="login-error" id="login-error">Incorrect password. Please try again.</div>
 
     <div class="login-footer">
       Project Delivery Platform · Church Development Department<br>
@@ -737,7 +751,34 @@
         <span id="user-name-label"></span>
         <span class="role-badge" id="user-role-badge"></span>
       </div>
+      <button class="logout-btn" onclick="showChangePasswordModal()" style="background:transparent;border:1px solid var(--gray-200);" title="Change password">🔑</button>
       <button class="logout-btn" onclick="doLogout()">Log out</button>
+    </div>
+  </div>
+
+  <!-- CHANGE PASSWORD MODAL -->
+  <div id="cpw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:none;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:32px;width:100%;max-width:380px;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="font-size:18px;font-weight:800;color:var(--gray-900);margin-bottom:6px;">🔑 Change Password</div>
+      <div style="font-size:13px;color:var(--gray-400);margin-bottom:20px;">Your new password is stored securely and never visible to admins.</div>
+      <div class="rm-field">
+        <div class="rm-label">Current Password</div>
+        <input type="password" id="cpw-current" class="form-input" placeholder="Current password" style="font-family:var(--font);width:100%;box-sizing:border-box;">
+      </div>
+      <div class="rm-field">
+        <div class="rm-label">New Password</div>
+        <input type="password" id="cpw-new1" class="form-input" placeholder="Min 8 characters" style="font-family:var(--font);width:100%;box-sizing:border-box;">
+      </div>
+      <div class="rm-field" style="margin-bottom:20px;">
+        <div class="rm-label">Confirm New Password</div>
+        <input type="password" id="cpw-new2" class="form-input" placeholder="Repeat new password" style="font-family:var(--font);width:100%;box-sizing:border-box;"
+          onkeydown="if(event.key==='Enter') submitChangePassword()">
+      </div>
+      <div id="cpw-modal-msg" style="font-size:12px;margin-bottom:12px;display:none;padding:8px;border-radius:6px;"></div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="closeChangePasswordModal()" style="flex:1;padding:10px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;">Cancel</button>
+        <button onclick="submitChangePassword()" id="cpw-submit-btn" style="flex:2;padding:10px;border:none;border-radius:8px;background:var(--gray-900);color:#fff;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:700;">Update Password →</button>
+      </div>
     </div>
   </div>
 
@@ -1021,7 +1062,52 @@
     <!-- TAB: ROLE MANAGEMENT -->
     <div class="tab-pane" id="tab-roles">
       <div class="admin-section-title">🔐 Role Management</div>
-      <div class="admin-section-sub">Assign roles, projects and feature access for each staff member. Changes take effect immediately on their next login.</div>
+      <div class="admin-section-sub">Manage user accounts and assign roles. Credentials are stored securely in Cloudflare — never in this file.</div>
+
+      <!-- USER MANAGEMENT -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-title" style="margin-bottom:14px;">👥 User Accounts</div>
+        <div id="um-user-list" style="margin-bottom:16px;"></div>
+
+        <!-- Add new user -->
+        <div style="border-top:1px solid var(--gray-100);padding-top:16px;">
+          <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:12px;">➕ Add New User</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;">
+            <div>
+              <div class="rm-label">Username</div>
+              <input class="form-input" id="nu-username" placeholder="e.g. john_d" style="font-family:var(--font);">
+            </div>
+            <div>
+              <div class="rm-label">Display Name</div>
+              <input class="form-input" id="nu-name" placeholder="e.g. John" style="font-family:var(--font);">
+            </div>
+            <div>
+              <div class="rm-label">Role</div>
+              <select class="rm-select" id="nu-role">
+                <option value="staff">Staff</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <button class="pm-add-task-btn" onclick="addNewUser()" id="nu-btn" style="padding:8px 16px;white-space:nowrap;">Create User</button>
+          </div>
+          <div style="font-size:11px;color:var(--gray-400);margin-top:8px;">A temporary password will be generated. The user will be forced to change it on first login.</div>
+          <div id="nu-msg" style="font-size:12px;margin-top:8px;display:none;padding:8px;border-radius:6px;"></div>
+          <!-- Show temp password after creation -->
+          <div id="nu-temp-pw-box" style="display:none;margin-top:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;">
+            <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:4px;">✓ User created! Share this temporary password securely:</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <code id="nu-temp-pw-display" style="font-size:14px;font-weight:800;color:#15803d;background:#dcfce7;padding:6px 12px;border-radius:6px;letter-spacing:0.05em;"></code>
+              <button onclick="copyTempPw()" style="font-size:11px;padding:5px 10px;border:1px solid #86efac;border-radius:6px;background:#fff;cursor:pointer;font-family:var(--font);">Copy</button>
+            </div>
+            <div style="font-size:11px;color:#15803d;margin-top:6px;">User will be required to change this on first login.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--gray-100);margin-bottom:16px;"></div>
+      <div style="font-size:14px;font-weight:700;color:var(--gray-700);margin-bottom:14px;">🎭 Role & Project Assignment</div>
+      <div class="admin-section-sub" style="margin-bottom:14px;">Assign projects and feature access for each staff member. Changes take effect on their next login.</div>
 
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-title" style="margin-bottom:4px;">Access Tiers</div>
@@ -1456,8 +1542,10 @@ let DATA = JSON.parse(JSON.stringify(FALLBACK));
 // ═══════════════════════════════════════════════════
 const SESSION_KEY    = 'pdp_auth';
 const SESSION_PW_KEY = 'pdp_pw';
-const SESSION_USER_KEY = 'pdp_user';  // { name, role, projects, features }
+const SESSION_UN_KEY = 'pdp_un';
+const SESSION_USER_KEY = 'pdp_user';  // { name, role, projects, features, username }
 let SESSION_PASSWORD = sessionStorage.getItem(SESSION_PW_KEY) || null;
+let SESSION_USERNAME = sessionStorage.getItem(SESSION_UN_KEY) || null;
 let CURRENT_USER     = JSON.parse(sessionStorage.getItem(SESSION_USER_KEY) || 'null');
 
 // ─── Default role config (overridden by Worker STAFF_ROLES secret) ────────────
@@ -1533,94 +1621,186 @@ function setTabVisible(name, visible) {
   // Don't hide panes, just buttons — panes are controlled by switchTab
 }
 
-// ─── Login ────────────────────────────────────────────────────────────────────
-// Show name selector when password field loses focus (detect staff vs admin)
-document.addEventListener('DOMContentLoaded', () => {
-  const pwInput = document.getElementById('pw-input');
-  if (pwInput) {
-    pwInput.addEventListener('input', () => {
-      // Show name field after typing — will be validated on submit
-      const nameField = document.getElementById('name-field');
-      if (nameField) nameField.style.display = pwInput.value.length > 0 ? 'flex' : 'none';
-    });
-  }
-});
+// ─── Login — failed attempt tracking (client-side lockout) ───────────────────
+let LOGIN_ATTEMPTS = 0;
+let LOGIN_LOCKED_UNTIL = 0;
+let PENDING_LOGIN_USERNAME = null; // stored during force-change-password flow
 
 function doLogin() {
-  const pw      = document.getElementById('pw-input').value;
-  const nameEl  = document.getElementById('name-select');
-  const inp     = document.getElementById('pw-input');
-  const err     = document.getElementById('login-error');
-  const btn     = document.getElementById('login-btn');
+  const un  = (document.getElementById('un-input').value || '').trim();
+  const pw  = document.getElementById('pw-input').value;
+  const err = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  const lockoutEl = document.getElementById('login-lockout');
 
-  if (!pw) return;
-  btn.disabled = true;
-  btn.textContent = 'Checking…';
   err.style.display = 'none';
+  lockoutEl.style.display = 'none';
+
+  if (!un || !pw) {
+    err.textContent = 'Please enter your username and password.';
+    err.style.display = 'block';
+    return;
+  }
+
+  // Client-side lockout check
+  if (Date.now() < LOGIN_LOCKED_UNTIL) {
+    const secs = Math.ceil((LOGIN_LOCKED_UNTIL - Date.now()) / 1000);
+    lockoutEl.textContent = `Too many failed attempts. Please wait ${secs}s before trying again.`;
+    lockoutEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
 
   fetch(WORKER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'auth', password: pw })
+    body: JSON.stringify({ action: 'auth', username: un, password: pw })
   })
   .then(r => r.json())
   .then(data => {
-    if (data.ok) {
-      SESSION_PASSWORD = pw;
-      sessionStorage.setItem(SESSION_KEY, '1');
-      sessionStorage.setItem(SESSION_PW_KEY, pw);
+    btn.disabled = false;
+    btn.textContent = 'Sign In →';
 
-      // Determine role from Worker response or password type
-      if (data.role === 'admin' || data.isAdmin) {
-        // Admin password
-        CURRENT_USER = { name: 'Admin', role: 'admin', projects: ALL_PROJECTS, features: ALL_FEATURES };
-      } else {
-        // Staff password — require name selection
-        const selectedName = nameEl?.value;
-        if (!selectedName) {
-          err.textContent = 'Please select your name.';
-          err.style.display = 'block';
-          btn.disabled = false;
-          btn.textContent = 'Sign In →';
-          return;
-        }
-        const cfg = ROLE_CONFIG[selectedName] || { role:'staff', projects:[], features:[] };
-        CURRENT_USER = { name: selectedName, role: cfg.role, projects: cfg.projects, features: cfg.features };
+    if (data.ok) {
+      LOGIN_ATTEMPTS = 0;
+
+      // Force password change on first login / admin reset
+      if (data.mustChangePassword) {
+        PENDING_LOGIN_USERNAME = un;
+        SESSION_PASSWORD = pw; // temp — will be replaced after change
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('change-pw-form').style.display = 'block';
+        return;
       }
 
-      sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(CURRENT_USER));
+      completeLogin(data, un, pw);
 
-      document.getElementById('login-screen').classList.add('hiding');
-      setTimeout(() => {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('dashboard').classList.add('visible');
-        applyRBAC();
-        initDashboard();
-      }, 400);
     } else {
-      inp.classList.add('error');
-      err.textContent = 'Incorrect password. Please try again.';
-      err.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = 'Sign In →';
-      inp.value = '';
-      inp.focus();
-      setTimeout(() => inp.classList.remove('error'), 1500);
+      LOGIN_ATTEMPTS++;
+      if (LOGIN_ATTEMPTS >= 3) {
+        LOGIN_LOCKED_UNTIL = Date.now() + 60000;
+        LOGIN_ATTEMPTS = 0;
+        lockoutEl.textContent = 'Too many failed attempts. Locked for 60 seconds.';
+        lockoutEl.style.display = 'block';
+        // Start countdown
+        const interval = setInterval(() => {
+          const secs = Math.ceil((LOGIN_LOCKED_UNTIL - Date.now()) / 1000);
+          if (secs <= 0) {
+            clearInterval(interval);
+            lockoutEl.style.display = 'none';
+          } else {
+            lockoutEl.textContent = `Too many failed attempts. Please wait ${secs}s before trying again.`;
+          }
+        }, 1000);
+      } else {
+        const left = 3 - LOGIN_ATTEMPTS;
+        err.textContent = `Incorrect username or password. ${left} attempt${left===1?'':'s'} remaining.`;
+        err.style.display = 'block';
+      }
+      document.getElementById('pw-input').value = '';
+      document.getElementById('pw-input').focus();
     }
   })
   .catch(() => {
-    err.textContent = 'Cannot reach server. Check your connection.';
-    err.style.display = 'block';
     btn.disabled = false;
     btn.textContent = 'Sign In →';
+    const err = document.getElementById('login-error');
+    err.textContent = 'Cannot reach server. Check your connection.';
+    err.style.display = 'block';
   });
+}
+
+function doFirstLoginPasswordChange() {
+  const pw1  = document.getElementById('new-pw1').value;
+  const pw2  = document.getElementById('new-pw2').value;
+  const err  = document.getElementById('cpw-error');
+  const btn  = document.getElementById('cpw-btn');
+  err.style.display = 'none';
+
+  if (pw1.length < 8) {
+    err.textContent = 'Password must be at least 8 characters.';
+    err.style.display = 'block'; return;
+  }
+  if (pw1 !== pw2) {
+    err.textContent = 'Passwords do not match.';
+    err.style.display = 'block'; return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'change_password',
+      username: PENDING_LOGIN_USERNAME,
+      oldPassword: SESSION_PASSWORD,
+      newPassword: pw1
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.textContent = 'Set Password & Sign In →';
+    if (data.ok) {
+      completeLogin(data.user, PENDING_LOGIN_USERNAME, pw1);
+    } else {
+      err.textContent = data.error || 'Failed to update password.';
+      err.style.display = 'block';
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.textContent = 'Set Password & Sign In →';
+    err.textContent = 'Cannot reach server.';
+    err.style.display = 'block';
+  });
+}
+
+function completeLogin(data, username, password) {
+  SESSION_PASSWORD = password;
+  SESSION_USERNAME = username;
+  sessionStorage.setItem(SESSION_KEY, '1');
+  sessionStorage.setItem(SESSION_PW_KEY, password);
+  sessionStorage.setItem(SESSION_UN_KEY, username);
+
+  const cfg = data.role === 'admin'
+    ? { role:'admin', projects: ALL_PROJECTS, features: ALL_FEATURES }
+    : data.role === 'manager'
+      ? { role:'manager', projects: ALL_PROJECTS, features: ALL_FEATURES }
+      : { role: data.role || 'staff', projects: data.projects || [], features: data.features || [] };
+
+  CURRENT_USER = { name: data.name || username, role: cfg.role, projects: cfg.projects, features: cfg.features, username };
+
+  if (data.roleConfig) {
+    ROLE_CONFIG = data.roleConfig;
+    sessionStorage.setItem('pdp_role_config', JSON.stringify(ROLE_CONFIG));
+  }
+  if (data.users) {
+    USERS_LIST = data.users;
+  }
+
+  sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(CURRENT_USER));
+
+  document.getElementById('login-screen').classList.add('hiding');
+  setTimeout(() => {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').classList.add('visible');
+    applyRBAC();
+    initDashboard();
+  }, 400);
 }
 
 function doLogout() {
   sessionStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(SESSION_PW_KEY);
+  sessionStorage.removeItem(SESSION_UN_KEY);
   sessionStorage.removeItem(SESSION_USER_KEY);
   SESSION_PASSWORD = null;
+  SESSION_USERNAME = null;
   CURRENT_USER     = null;
   location.reload();
 }
@@ -1639,7 +1819,7 @@ async function loadFromWorker() {
   const res = await fetch(WORKER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'data', password: SESSION_PASSWORD })
+    body: JSON.stringify({ action: 'data', username: SESSION_USERNAME, password: SESSION_PASSWORD })
   });
   if (res.status === 401) {
     // Session expired or wrong password — force re-login
@@ -2024,7 +2204,7 @@ function renderAll() {
   renderCheckinTab();
   renderDigest();
   renderMyTasks();
-  if (isAdmin()) { renderRoleManagement(); renderProjectManagement(); }
+  if (isAdmin()) { renderRoleManagement(); renderProjectManagement(); renderUserManagement(); }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2347,7 +2527,7 @@ async function submitCheckin() {
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'checkin', password: SESSION_PASSWORD, entry })
+      body: JSON.stringify({ action: 'checkin', username: SESSION_USERNAME, password: SESSION_PASSWORD, entry })
     });
     workerOk = res.ok || res.status === 501;
     if (!res.ok && res.status !== 501) {
@@ -2638,6 +2818,261 @@ function renderTeamFeed() {
 }
 
 // ═══════════════════════════════════════════════════
+//  USER MANAGEMENT (Admin only)
+// ═══════════════════════════════════════════════════
+
+let USERS_LIST = []; // loaded from Worker on admin login
+
+function renderUserManagement() {
+  const el = document.getElementById('um-user-list');
+  if (!el) return;
+  if (!USERS_LIST.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--gray-400);text-align:center;padding:16px;">Loading users…</div>';
+    return;
+  }
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--gray-100);">
+          <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--gray-400);font-weight:700;text-transform:uppercase;">Username</th>
+          <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--gray-400);font-weight:700;text-transform:uppercase;">Display Name</th>
+          <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--gray-400);font-weight:700;text-transform:uppercase;">Role</th>
+          <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--gray-400);font-weight:700;text-transform:uppercase;">Status</th>
+          <th style="padding:8px 12px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${USERS_LIST.map(u => `
+          <tr style="border-bottom:1px solid var(--gray-100);">
+            <td style="padding:10px 12px;font-weight:600;color:var(--gray-900);font-family:monospace;">${u.username}</td>
+            <td style="padding:10px 12px;color:var(--gray-700);">${u.name}</td>
+            <td style="padding:10px 12px;">
+              <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
+                background:${u.role==='admin'?'#e0e7ff':u.role==='manager'?'#dcfce7':'#eff6ff'};
+                color:${u.role==='admin'?'#4338ca':u.role==='manager'?'#15803d':'#1d4ed8'}">
+                ${u.role}
+              </span>
+            </td>
+            <td style="padding:10px 12px;">
+              ${u.mustChangePassword
+                ? '<span style="font-size:11px;color:#d97706;font-weight:600;">⚠ Temp password</span>'
+                : '<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Active</span>'}
+            </td>
+            <td style="padding:10px 12px;text-align:right;">
+              ${u.username !== CURRENT_USER?.username ? `
+                <button onclick="resetUserPassword('${u.username}','${u.name}')"
+                  style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-200);border-radius:6px;background:#fff;cursor:pointer;font-family:var(--font);margin-right:4px;">
+                  Reset PW
+                </button>
+                <button onclick="deleteUser('${u.username}','${u.name}')"
+                  style="font-size:11px;padding:4px 10px;border:1px solid #fecaca;border-radius:6px;background:#fff;color:var(--red);cursor:pointer;font-family:var(--font);">
+                  Delete
+                </button>
+              ` : '<span style="font-size:11px;color:var(--gray-400);">You</span>'}
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function addNewUser() {
+  const username = document.getElementById('nu-username').value.trim().toLowerCase().replace(/\s+/g,'_');
+  const name     = document.getElementById('nu-name').value.trim();
+  const role     = document.getElementById('nu-role').value;
+  const btn      = document.getElementById('nu-btn');
+  const msg      = document.getElementById('nu-msg');
+  const tempBox  = document.getElementById('nu-temp-pw-box');
+
+  msg.style.display = 'none';
+  tempBox.style.display = 'none';
+
+  if (!username || !name) {
+    showUM('nu-msg', '⚠ Please fill in username and display name.', 'error'); return;
+  }
+  if (USERS_LIST.find(u => u.username === username)) {
+    showUM('nu-msg', `⚠ Username "${username}" already exists.`, 'error'); return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Creating…';
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'add_user', username: CURRENT_USER.username,
+        password: SESSION_PASSWORD, newUser: { username, name, role }
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Failed');
+
+    // Show temp password
+    document.getElementById('nu-temp-pw-display').textContent = data.tempPassword;
+    tempBox.style.display = 'block';
+    showUM('nu-msg', `✓ User "${name}" created successfully.`, 'success');
+
+    // Clear form
+    ['nu-username','nu-name'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('nu-role').value = 'staff';
+
+    // Reload user list
+    USERS_LIST = data.users || USERS_LIST;
+    renderUserManagement();
+  } catch(e) {
+    showUM('nu-msg', '⚠ ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Create User';
+}
+
+async function resetUserPassword(username, name) {
+  if (!confirm(`Reset password for "${name}"? They will be forced to set a new password on next login.`)) return;
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'reset_user_password', username: CURRENT_USER.username,
+        password: SESSION_PASSWORD, targetUsername: username
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Failed');
+
+    // Show temp password in a prominent alert
+    const tempBox = document.getElementById('nu-temp-pw-box');
+    document.getElementById('nu-temp-pw-display').textContent = data.tempPassword;
+    tempBox.style.display = 'block';
+    tempBox.scrollIntoView({ behavior:'smooth', block:'center' });
+    showUM('nu-msg', `✓ Password reset for "${name}". Share the temp password above.`, 'success');
+    document.getElementById('nu-msg').style.display = 'block';
+
+    USERS_LIST = data.users || USERS_LIST;
+    renderUserManagement();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function deleteUser(username, name) {
+  if (!confirm(`Delete user "${name}" (${username})? This cannot be undone.`)) return;
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'delete_user', username: CURRENT_USER.username,
+        password: SESSION_PASSWORD, targetUsername: username
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Failed');
+
+    USERS_LIST = data.users || USERS_LIST;
+    renderUserManagement();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function copyTempPw() {
+  const pw = document.getElementById('nu-temp-pw-display').textContent;
+  navigator.clipboard.writeText(pw).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+function showUM(elId, text, type) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.color = type === 'success' ? 'var(--green)' : 'var(--red)';
+  el.style.background = type === 'success' ? '#f0fdf4' : '#fef2f2';
+  el.style.padding = '8px 12px';
+  el.style.borderRadius = '6px';
+  el.textContent = text;
+  if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+// ─── Change Password Modal ─────────────────────────────────────────────────
+
+function showChangePasswordModal() {
+  document.getElementById('cpw-modal').style.display = 'flex';
+  document.getElementById('cpw-current').value = '';
+  document.getElementById('cpw-new1').value = '';
+  document.getElementById('cpw-new2').value = '';
+  document.getElementById('cpw-modal-msg').style.display = 'none';
+  setTimeout(() => document.getElementById('cpw-current').focus(), 50);
+}
+
+function closeChangePasswordModal() {
+  document.getElementById('cpw-modal').style.display = 'none';
+}
+
+async function submitChangePassword() {
+  const current = document.getElementById('cpw-current').value;
+  const pw1     = document.getElementById('cpw-new1').value;
+  const pw2     = document.getElementById('cpw-new2').value;
+  const msg     = document.getElementById('cpw-modal-msg');
+  const btn     = document.getElementById('cpw-submit-btn');
+
+  msg.style.display = 'none';
+
+  if (!current) {
+    showModalMsg('cpw-modal-msg', 'Please enter your current password.', 'error'); return;
+  }
+  if (pw1.length < 8) {
+    showModalMsg('cpw-modal-msg', 'New password must be at least 8 characters.', 'error'); return;
+  }
+  if (pw1 !== pw2) {
+    showModalMsg('cpw-modal-msg', 'New passwords do not match.', 'error'); return;
+  }
+  if (current === pw1) {
+    showModalMsg('cpw-modal-msg', 'New password must be different from current.', 'error'); return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Updating…';
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'change_password',
+        username: SESSION_USERNAME || CURRENT_USER?.username,
+        oldPassword: current,
+        newPassword: pw1
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Failed');
+
+    // Update session with new password
+    SESSION_PASSWORD = pw1;
+    sessionStorage.setItem(SESSION_PW_KEY, pw1);
+
+    showModalMsg('cpw-modal-msg', '✓ Password updated successfully!', 'success');
+    setTimeout(() => closeChangePasswordModal(), 1800);
+  } catch(e) {
+    showModalMsg('cpw-modal-msg', '⚠ ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Update Password →';
+}
+
+function showModalMsg(elId, text, type) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.color = type === 'success' ? '#15803d' : 'var(--red)';
+  el.style.background = type === 'success' ? '#f0fdf4' : '#fef2f2';
+  el.textContent = text;
+}
+
+// ═══════════════════════════════════════════════════
 //  PROJECT MANAGEMENT
 // ═══════════════════════════════════════════════════
 
@@ -2715,7 +3150,7 @@ async function addNewProject() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'add_project', password: SESSION_PASSWORD,
+        action: 'add_project', username: SESSION_USERNAME, password: SESSION_PASSWORD,
         project: { id, name, start, end, startQuarter: sq, endQuarter: eq,
           duration: end - start + 1 }
       })
@@ -2764,7 +3199,7 @@ async function addNewTask() {
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'add_task', password: SESSION_PASSWORD, task })
+      body: JSON.stringify({ action: 'add_task', username: SESSION_USERNAME, password: SESSION_PASSWORD, task })
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -2912,7 +3347,7 @@ async function saveRoleConfig() {
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save_roles', password: SESSION_PASSWORD, config: ROLE_CONFIG })
+      body: JSON.stringify({ action: 'save_roles', username: SESSION_USERNAME, password: SESSION_PASSWORD, config: ROLE_CONFIG })
     });
     if (res.ok) {
       if (msgEl) { msgEl.style.display='block'; msgEl.style.color='var(--green)'; msgEl.textContent='✓ Role config saved to Worker successfully!'; }
