@@ -1021,8 +1021,6 @@
               <div class="rm-label">Assign To</div>
               <select class="rm-select" id="nt-owner">
                 <option value="">— Select staff —</option>
-                <option>Alex</option><option>Daniel</option><option>Grace</option>
-                <option>John</option><option>Maria</option><option>Sarah</option>
               </select>
             </div>
             <div class="rm-field" style="flex:1">
@@ -1553,6 +1551,14 @@ const STAFF_COLORS = {
   Alex:'#2563eb', Daniel:'#16a34a', Grace:'#d97706',
   John:'#9333ea', Maria:'#0891b2', Sarah:'#dc2626'
 };
+const AUTO_COLORS = ['#2563eb','#16a34a','#d97706','#9333ea','#0891b2','#dc2626','#0d9488','#7c3aed','#db2777','#ea580c'];
+function getStaffColor(name) {
+  if (STAFF_COLORS[name]) return STAFF_COLORS[name];
+  // Generate consistent color from name
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AUTO_COLORS[Math.abs(hash) % AUTO_COLORS.length];
+}
 const ALL_PROJECTS  = ['P1','P2','P3','P4','P5'];
 const ALL_FEATURES  = ['digest','export','staff_perf','all_projects'];
 
@@ -1627,7 +1633,7 @@ let LOGIN_LOCKED_UNTIL = 0;
 let PENDING_LOGIN_USERNAME = null; // stored during force-change-password flow
 
 function doLogin() {
-  const un  = (document.getElementById('un-input').value || '').trim();
+  const un  = (document.getElementById('un-input').value || '').trim().toLowerCase();
   const pw  = document.getElementById('pw-input').value;
   const err = document.getElementById('login-error');
   const btn = document.getElementById('login-btn');
@@ -3084,6 +3090,14 @@ function renderProjectManagement() {
       DATA.projects.map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
   }
 
+  // Populate owner dropdown dynamically from users list
+  const ownerSel = document.getElementById('nt-owner');
+  if (ownerSel) {
+    const names = getStaffNames();
+    ownerSel.innerHTML = '<option value="">— Select staff —</option>' +
+      names.map(n => `<option value="${n}">${n}</option>`).join('');
+  }
+
   // Auto-suggest next project ID
   const npId = document.getElementById('np-id');
   if (npId && !npId.value) {
@@ -3229,7 +3243,13 @@ function showPMMsg(elId, text, type) {
 // ═══════════════════════════════════════════════════
 //  ROLE MANAGEMENT PANEL
 // ═══════════════════════════════════════════════════
-const STAFF_NAMES    = ['Alex','Daniel','Grace','John','Maria','Sarah'];
+// Dynamic — uses USERS_LIST when available, falls back to ROLE_CONFIG keys
+function getStaffNames() {
+  if (USERS_LIST && USERS_LIST.length) {
+    return USERS_LIST.map(u => u.name);
+  }
+  return Object.keys(ROLE_CONFIG);
+}
 const FEATURE_LABELS = {
   digest:     'Manager Digest',
   export:     'Export / Print',
@@ -3242,9 +3262,9 @@ function renderRoleManagement() {
   const grid = document.getElementById('rm-cards');
   if (!grid) return;
 
-  grid.innerHTML = STAFF_NAMES.map(name => {
+  grid.innerHTML = getStaffNames().map(name => {
     const cfg    = ROLE_CONFIG[name] || { role:'staff', projects:[], features:[] };
-    const color  = STAFF_COLORS[name] || '#6b7280';
+    const color  = getStaffColor(name);
 
     const projectToggles = ALL_PROJECTS.map(pid => {
       const on = cfg.projects?.includes(pid);
