@@ -1927,15 +1927,19 @@ function renderCheckinTab() {
   const thisCWCheckins = CHECKINS.filter(c => c.cw === cw);
   const submitted = thisCWCheckins.length;
 
-  // Banner
+  // Banner — always show submit button, show completion status separately
+  const alreadySubmitted = CURRENT_USER?.name ? hasSubmittedThisWeek(CURRENT_USER.name) : false;
+  const btnLabel = alreadySubmitted ? 'Update My Check-in →' : 'Submit My Check-in →';
+
   if (submitted >= totalStaff) {
     bannerArea.innerHTML = `
       <div class="checkin-submitted">
         <div class="ci-icon">✅</div>
-        <div>
-          <h4>All ${totalStaff} staff have submitted their check-in for CW ${cw}!</h4>
-          <p>Great work — all reports are in. View the Manager Digest for a summary.</p>
+        <div style="flex:1">
+          <h4>All ${totalStaff} staff have submitted for CW ${cw}!</h4>
+          <p>View the Manager Digest for a full summary.</p>
         </div>
+        <button class="checkin-open-btn" onclick="openCheckinModal()" style="margin-left:16px;flex-shrink:0;">${btnLabel}</button>
       </div>`;
   } else {
     bannerArea.innerHTML = `
@@ -1944,7 +1948,7 @@ function renderCheckinTab() {
           <h3>📝 Weekly Check-in — CW ${cw}</h3>
           <p>${submitted} of ${totalStaff} staff have submitted · ${totalStaff - submitted} remaining</p>
         </div>
-        <button class="checkin-open-btn" onclick="openCheckinModal()">Submit My Check-in →</button>
+        <button class="checkin-open-btn" onclick="openCheckinModal()">${btnLabel}</button>
       </div>`;
   }
 
@@ -1987,6 +1991,11 @@ function openCheckinModal() {
   document.getElementById('ci-submit-btn').disabled = false;
   document.getElementById('ci-submit-btn').textContent = 'Submit Check-in →';
   document.getElementById('ci-modal-cw').textContent = `CW ${CURRENT_CW}`;
+
+  // Check if already submitted this week — show Update label
+  const alreadySubmitted = CURRENT_USER?.name ? hasSubmittedThisWeek(CURRENT_USER.name) : false;
+  const submitBtn = document.getElementById('ci-submit-btn');
+  if (submitBtn) submitBtn.textContent = alreadySubmitted ? 'Update Check-in →' : 'Submit Check-in →';
 
   // Pre-fill name if logged in as staff
   const nameEl = document.getElementById('ci-name');
