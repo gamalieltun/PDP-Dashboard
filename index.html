@@ -536,6 +536,97 @@
     background:var(--amber-lt); border:1px solid #fde68a; border-radius:8px;
     padding:10px 14px; font-size:12px; color:var(--amber); margin-bottom:16px;
   }
+
+  /* ── ROLE BADGE ── */
+  .role-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700;
+    letter-spacing:0.03em; flex-shrink:0;
+  }
+  .role-admin   { background:#1e3a5f; color:#93c5fd; }
+  .role-manager { background:#14532d; color:#86efac; }
+  .role-staff   { background:#f3f4f6; color:#374151; border:1px solid #e5e7eb; }
+  .user-name-badge {
+    font-size:13px; font-weight:700; color:var(--gray-700);
+    display:flex; align-items:center; gap:6px;
+  }
+
+  /* ── MY TASKS WIDGET ── */
+  .mytasks-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px; flex-wrap:wrap; gap:10px;
+  }
+  .mytasks-greeting { font-size:20px; font-weight:800; color:var(--gray-900); }
+  .mytasks-sub      { font-size:13px; color:var(--gray-400); margin-top:2px; }
+  .task-card {
+    background:#fff; border:1px solid var(--gray-200); border-radius:10px;
+    padding:14px 16px; display:flex; align-items:center; gap:14px;
+    margin-bottom:8px; transition:box-shadow 0.15s;
+  }
+  .task-card:hover { box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+  .task-status-dot {
+    width:10px; height:10px; border-radius:50%; flex-shrink:0;
+  }
+  .dot-delivered { background:var(--green); }
+  .dot-planned   { background:var(--gray-300); }
+  .dot-inprogress{ background:var(--amber); }
+  .task-name  { font-size:13px; font-weight:600; color:var(--gray-900); flex:1; }
+  .task-meta  { font-size:11px; color:var(--gray-400); margin-top:2px; }
+  .task-cw-badge {
+    font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px;
+    background:var(--blue-lt); color:var(--blue); white-space:nowrap;
+  }
+  .task-cw-overdue { background:var(--red-lt); color:var(--red); }
+
+  /* ── TEAM FEED ── */
+  .feed-empty { text-align:center; padding:32px; color:var(--gray-400); font-size:13px; }
+
+  /* ── ROLE MANAGEMENT PANEL ── */
+  .rm-grid {
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px;
+    margin-top:16px;
+  }
+  .rm-card {
+    background:#fff; border:1px solid var(--gray-200); border-radius:12px;
+    padding:18px; position:relative;
+  }
+  .rm-card-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .rm-avatar {
+    width:38px; height:38px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-size:15px; font-weight:800; color:#fff; flex-shrink:0;
+  }
+  .rm-name  { font-size:14px; font-weight:700; color:var(--gray-900); }
+  .rm-field { margin-bottom:12px; }
+  .rm-label { font-size:11px; font-weight:700; color:var(--gray-400); margin-bottom:5px;
+    text-transform:uppercase; letter-spacing:0.05em; }
+  .rm-select {
+    width:100%; padding:7px 10px; border:1.5px solid var(--gray-200); border-radius:8px;
+    font-family:var(--font); font-size:12px; outline:none; background:#fff;
+    transition:border-color 0.15s; cursor:pointer;
+  }
+  .rm-select:focus { border-color:var(--blue); }
+  .rm-toggle-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .rm-toggle {
+    display:inline-flex; align-items:center; gap:5px; padding:4px 10px;
+    border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;
+    border:1.5px solid var(--gray-200); color:var(--gray-600); background:#fff;
+    transition:all 0.13s; user-select:none;
+  }
+  .rm-toggle.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .rm-save-btn {
+    width:100%; margin-top:14px; padding:9px; border-radius:8px;
+    background:var(--gray-900); border:none; color:#fff; font-family:var(--font);
+    font-size:12px; font-weight:700; cursor:pointer; transition:background 0.13s;
+  }
+  .rm-save-btn:hover { background:var(--gray-700); }
+  .rm-saved-msg { font-size:11px; color:var(--green); text-align:center; margin-top:6px; display:none; }
+  .admin-section-title {
+    font-size:16px; font-weight:800; color:var(--gray-900); margin-bottom:4px;
+  }
+  .admin-section-sub { font-size:13px; color:var(--gray-400); margin-bottom:16px; }
+
+  /* tab visibility control */
+  .tab-hidden { display:none !important; }
 </style>
 </head>
 <body>
@@ -547,7 +638,7 @@
   <div class="login-card">
     <div class="login-logo">PDP</div>
     <div class="login-title">Staff Dashboard</div>
-    <div class="login-sub">Enter your access password to continue</div>
+    <div class="login-sub" id="login-sub-text">Enter your access password to continue</div>
 
     <div class="login-field">
       <div class="login-label">Password</div>
@@ -556,11 +647,25 @@
         onkeydown="if(event.key==='Enter') doLogin()">
     </div>
 
+    <!-- Name selector — shown only for staff password -->
+    <div class="login-field" id="name-field" style="display:none;">
+      <div class="login-label">Your Name</div>
+      <select class="login-input" id="name-select" style="cursor:pointer;">
+        <option value="">— Select your name —</option>
+        <option>Alex</option>
+        <option>Daniel</option>
+        <option>Grace</option>
+        <option>John</option>
+        <option>Maria</option>
+        <option>Sarah</option>
+      </select>
+    </div>
+
     <button class="login-btn" id="login-btn" onclick="doLogin()">Sign In →</button>
     <div class="login-error" id="login-error">Incorrect password. Please try again.</div>
 
     <div class="login-footer">
-      Project Delivery Platform · Internal Use Only<br>
+      Project Delivery Platform · Church Development Department<br>
       Contact your admin if you need access.
     </div>
   </div>
@@ -586,21 +691,51 @@
       <div class="pill pill-green" id="live-pill" style="display:none;">
         <div class="live-dot"></div>Live
       </div>
+      <div class="user-name-badge" id="user-name-badge" style="display:none;">
+        <span id="user-name-label"></span>
+        <span class="role-badge" id="user-role-badge"></span>
+      </div>
       <button class="logout-btn" onclick="doLogout()">Log out</button>
     </div>
   </div>
 
   <!-- TABS -->
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('progress',this)">Project Progress</button>
-    <button class="tab"        onclick="switchTab('kpi',this)">Weekly KPI</button>
-    <button class="tab"        onclick="switchTab('staff',this)">Staff Performance</button>
-    <button class="tab"        onclick="switchTab('checkin',this)">📝 Weekly Check-in</button>
-    <button class="tab"        onclick="switchTab('digest',this)">📋 Manager Digest</button>
-    <button class="tab"        onclick="switchTab('setup',this)">⚙ Setup</button>
+    <button class="tab" id="tab-btn-mytasks" onclick="switchTab('mytasks',this)">🏠 My Tasks</button>
+    <button class="tab active" id="tab-btn-progress" onclick="switchTab('progress',this)">Project Progress</button>
+    <button class="tab" id="tab-btn-kpi" onclick="switchTab('kpi',this)">Weekly KPI</button>
+    <button class="tab" id="tab-btn-staff" onclick="switchTab('staff',this)">Staff Performance</button>
+    <button class="tab" id="tab-btn-checkin" onclick="switchTab('checkin',this)">📝 Weekly Check-in</button>
+    <button class="tab" id="tab-btn-digest" onclick="switchTab('digest',this)">📋 Manager Digest</button>
+    <button class="tab" id="tab-btn-roles" onclick="switchTab('roles',this)">🔐 Role Management</button>
+    <button class="tab" id="tab-btn-setup" onclick="switchTab('setup',this)">⚙ Setup</button>
   </div>
 
   <div class="main">
+
+    <!-- TAB: MY TASKS -->
+    <div class="tab-pane" id="tab-mytasks">
+      <div class="mytasks-header">
+        <div>
+          <div class="mytasks-greeting" id="mytasks-greeting">Welcome back!</div>
+          <div class="mytasks-sub" id="mytasks-sub"></div>
+        </div>
+      </div>
+      <div class="grid-2 mb16">
+        <div>
+          <div class="panel-title" style="margin-bottom:12px;">📋 My Assigned Tasks</div>
+          <div id="mytasks-list"></div>
+        </div>
+        <div>
+          <div class="panel-title" style="margin-bottom:12px;">👥 Project Team Feed</div>
+          <div id="team-feed"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">📊 My Project Progress</div>
+        <div id="my-project-progress" style="margin-top:12px;"></div>
+      </div>
+    </div>
 
     <!-- TAB: PROGRESS -->
     <div class="tab-pane active" id="tab-progress">
@@ -732,6 +867,45 @@
       <div class="panel">
         <div class="panel-title">🔴 Overdue Tasks <span id="digest-overdue-count" class="alert-badge"></span></div>
         <div id="digest-overdue-table" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <!-- TAB: ROLE MANAGEMENT -->
+    <div class="tab-pane" id="tab-roles">
+      <div class="admin-section-title">🔐 Role Management</div>
+      <div class="admin-section-sub">Assign roles, projects and feature access for each staff member. Changes take effect immediately on their next login.</div>
+
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-title" style="margin-bottom:4px;">Access Tiers</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;">
+          <div style="background:var(--gray-50);border-radius:8px;padding:14px;border-left:4px solid #1e3a5f;">
+            <div style="font-size:13px;font-weight:700;color:#1e3a5f;">Admin</div>
+            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Full access · Role management · All projects · Export · Digest</div>
+          </div>
+          <div style="background:var(--gray-50);border-radius:8px;padding:14px;border-left:4px solid var(--green);">
+            <div style="font-size:13px;font-weight:700;color:var(--green);">Manager</div>
+            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Read-only full view · All projects · Digest · No role management</div>
+          </div>
+          <div style="background:var(--gray-50);border-radius:8px;padding:14px;border-left:4px solid var(--blue);">
+            <div style="font-size:13px;font-weight:700;color:var(--blue);">Staff</div>
+            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Own tasks · Assigned projects · Check-in · Team feed only</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rm-grid" id="rm-cards"></div>
+
+      <div class="panel" style="margin-top:16px;">
+        <div class="panel-title" style="margin-bottom:12px;">💾 Save Configuration to Worker</div>
+        <div style="font-size:13px;color:var(--gray-600);margin-bottom:12px;">
+          After adjusting roles below, save the configuration. Staff will see their updated access on next login.
+        </div>
+        <button class="digest-print-btn" onclick="saveRoleConfig()" style="background:var(--blue);">Save All Role Assignments →</button>
+        <div id="rm-global-msg" style="font-size:13px;margin-top:10px;display:none;"></div>
+        <div style="margin-top:16px;background:var(--gray-50);border-radius:8px;padding:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--gray-700);margin-bottom:6px;">Current config JSON (copy to STAFF_ROLES secret in Cloudflare):</div>
+          <div id="rm-config-json" style="font-family:monospace;font-size:11px;color:var(--gray-600);white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto;"></div>
+        </div>
       </div>
     </div>
 
@@ -1111,15 +1285,103 @@ let DATA = JSON.parse(JSON.stringify(FALLBACK));
 // ═══════════════════════════════════════════════════
 //  AUTH — password checked by Worker, never in HTML
 // ═══════════════════════════════════════════════════
-const SESSION_KEY = 'pdp_auth';
+const SESSION_KEY    = 'pdp_auth';
 const SESSION_PW_KEY = 'pdp_pw';
+const SESSION_USER_KEY = 'pdp_user';  // { name, role, projects, features }
 let SESSION_PASSWORD = sessionStorage.getItem(SESSION_PW_KEY) || null;
+let CURRENT_USER     = JSON.parse(sessionStorage.getItem(SESSION_USER_KEY) || 'null');
+
+// ─── Default role config (overridden by Worker STAFF_ROLES secret) ────────────
+const STAFF_COLORS = {
+  Alex:'#2563eb', Daniel:'#16a34a', Grace:'#d97706',
+  John:'#9333ea', Maria:'#0891b2', Sarah:'#dc2626'
+};
+const ALL_PROJECTS  = ['P1','P2','P3','P4','P5'];
+const ALL_FEATURES  = ['digest','export','staff_perf','all_projects'];
+
+// Default roles — Admin overrides these via Role Management panel
+let ROLE_CONFIG = JSON.parse(sessionStorage.getItem('pdp_role_config') || 'null') || {
+  Alex:   { role:'staff',   projects:['P1','P4'], features:[] },
+  Daniel: { role:'staff',   projects:['P2','P5'], features:[] },
+  Grace:  { role:'staff',   projects:['P2','P3'], features:[] },
+  John:   { role:'staff',   projects:['P1','P3'], features:[] },
+  Maria:  { role:'manager', projects:ALL_PROJECTS, features:['digest','export','staff_perf','all_projects'] },
+  Sarah:  { role:'staff',   projects:['P4','P5'], features:[] },
+};
+
+function userCan(feature) {
+  if (!CURRENT_USER) return false;
+  if (CURRENT_USER.role === 'admin') return true;
+  if (CURRENT_USER.role === 'manager') return ['digest','export','staff_perf','all_projects'].includes(feature);
+  return (CURRENT_USER.features || []).includes(feature);
+}
+
+function isAdmin()   { return CURRENT_USER?.role === 'admin'; }
+function isManager() { return CURRENT_USER?.role === 'manager' || isAdmin(); }
+function isStaff()   { return CURRENT_USER?.role === 'staff'; }
+
+// ─── Apply RBAC to tabs ───────────────────────────────────────────────────────
+function applyRBAC() {
+  if (!CURRENT_USER) return;
+
+  // Show My Tasks for all, hide role management for non-admin
+  setTabVisible('mytasks', true);
+  setTabVisible('progress', isAdmin() || isManager() || userCan('all_projects'));
+  setTabVisible('staff',    isAdmin() || isManager() || userCan('staff_perf'));
+  setTabVisible('digest',   isAdmin() || isManager() || userCan('digest'));
+  setTabVisible('roles',    isAdmin());
+  setTabVisible('kpi',      true);
+  setTabVisible('checkin',  true);
+  setTabVisible('setup',    isAdmin());
+
+  // Update header badge
+  const nameBadge = document.getElementById('user-name-badge');
+  const nameLabel = document.getElementById('user-name-label');
+  const roleBadge = document.getElementById('user-role-badge');
+  if (nameBadge && CURRENT_USER.name) {
+    nameBadge.style.display = 'flex';
+    nameLabel.textContent   = CURRENT_USER.name;
+    const roleLabels = { admin:'Admin', manager:'Manager', staff:'Staff' };
+    const roleClasses = { admin:'role-admin', manager:'role-manager', staff:'role-staff' };
+    roleBadge.textContent  = roleLabels[CURRENT_USER.role] || CURRENT_USER.role;
+    roleBadge.className    = `role-badge ${roleClasses[CURRENT_USER.role] || 'role-staff'}`;
+  }
+
+  // If staff — default to My Tasks tab
+  if (isStaff()) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-mytasks').classList.add('active');
+    document.getElementById('tab-btn-mytasks')?.classList.add('active');
+  }
+}
+
+function setTabVisible(name, visible) {
+  const btn  = document.getElementById(`tab-btn-${name}`);
+  const pane = document.getElementById(`tab-${name}`);
+  if (btn)  btn.classList.toggle('tab-hidden', !visible);
+  // Don't hide panes, just buttons — panes are controlled by switchTab
+}
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+// Show name selector when password field loses focus (detect staff vs admin)
+document.addEventListener('DOMContentLoaded', () => {
+  const pwInput = document.getElementById('pw-input');
+  if (pwInput) {
+    pwInput.addEventListener('input', () => {
+      // Show name field after typing — will be validated on submit
+      const nameField = document.getElementById('name-field');
+      if (nameField) nameField.style.display = pwInput.value.length > 0 ? 'flex' : 'none';
+    });
+  }
+});
 
 function doLogin() {
-  const pw  = document.getElementById('pw-input').value;
-  const inp = document.getElementById('pw-input');
-  const err = document.getElementById('login-error');
-  const btn = document.getElementById('login-btn');
+  const pw      = document.getElementById('pw-input').value;
+  const nameEl  = document.getElementById('name-select');
+  const inp     = document.getElementById('pw-input');
+  const err     = document.getElementById('login-error');
+  const btn     = document.getElementById('login-btn');
 
   if (!pw) return;
   btn.disabled = true;
@@ -1136,15 +1398,38 @@ function doLogin() {
     if (data.ok) {
       SESSION_PASSWORD = pw;
       sessionStorage.setItem(SESSION_KEY, '1');
-      sessionStorage.setItem(SESSION_PW_KEY, pw); // survives refresh, clears on tab close
+      sessionStorage.setItem(SESSION_PW_KEY, pw);
+
+      // Determine role from Worker response or password type
+      if (data.role === 'admin' || data.isAdmin) {
+        // Admin password
+        CURRENT_USER = { name: 'Admin', role: 'admin', projects: ALL_PROJECTS, features: ALL_FEATURES };
+      } else {
+        // Staff password — require name selection
+        const selectedName = nameEl?.value;
+        if (!selectedName) {
+          err.textContent = 'Please select your name.';
+          err.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Sign In →';
+          return;
+        }
+        const cfg = ROLE_CONFIG[selectedName] || { role:'staff', projects:[], features:[] };
+        CURRENT_USER = { name: selectedName, role: cfg.role, projects: cfg.projects, features: cfg.features };
+      }
+
+      sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(CURRENT_USER));
+
       document.getElementById('login-screen').classList.add('hiding');
       setTimeout(() => {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('dashboard').classList.add('visible');
+        applyRBAC();
         initDashboard();
       }, 400);
     } else {
       inp.classList.add('error');
+      err.textContent = 'Incorrect password. Please try again.';
       err.style.display = 'block';
       btn.disabled = false;
       btn.textContent = 'Sign In →';
@@ -1164,7 +1449,9 @@ function doLogin() {
 function doLogout() {
   sessionStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(SESSION_PW_KEY);
+  sessionStorage.removeItem(SESSION_USER_KEY);
   SESSION_PASSWORD = null;
+  CURRENT_USER     = null;
   location.reload();
 }
 
@@ -1195,9 +1482,14 @@ async function loadFromWorker() {
     const e = await res.json();
     throw new Error(e.error || `HTTP ${res.status}`);
   }
-  const { sheets, errors } = await res.json();
+  const { sheets, errors, roleConfig } = await res.json();
   if (errors && Object.keys(errors).length > 0) {
     console.warn('Some sheets had errors:', errors);
+  }
+  // If Worker returned role config (admin login), merge it
+  if (roleConfig) {
+    ROLE_CONFIG = roleConfig;
+    sessionStorage.setItem('pdp_role_config', JSON.stringify(ROLE_CONFIG));
   }
   parseSheetData(sheets);
 }
@@ -1224,7 +1516,8 @@ function parseSheetData(sheets) {
       start:     parseFloat(r['Start CW']) || 1,
       end:       parseFloat(r['End CW'])   || 52,
       total:     tasks.length,
-      delivered: tasks.filter(t => String(t['Status']).startsWith('Delivered')).length
+      delivered: tasks.filter(t => String(t['Status']).startsWith('Delivered')).length,
+      taskList:  tasks,   // ← stored for My Tasks widget
     };
   });
 
@@ -1529,9 +1822,15 @@ function switchTab(name, btn) {
   btn.classList.add('active');
 }
 
-function renderAll() { renderProgress(); renderKpi(); renderStaff(); renderCheckinTab(); renderDigest(); }
-
-function renderAll() { renderProgress(); renderKpi(); renderStaff(); renderCheckinTab(); renderDigest(); }
+function renderAll() {
+  renderProgress();
+  renderKpi();
+  renderStaff();
+  renderCheckinTab();
+  renderDigest();
+  renderMyTasks();
+  if (isAdmin()) renderRoleManagement();
+}
 
 // ═══════════════════════════════════════════════════
 //  DEADLINE ALERTS — flag overdue tasks
@@ -1796,6 +2095,271 @@ function printDigest() {
 }
 
 // ═══════════════════════════════════════════════════
+//  MY TASKS WIDGET
+// ═══════════════════════════════════════════════════
+function renderMyTasks() {
+  if (!CURRENT_USER) return;
+  const name = CURRENT_USER.name;
+  const cw   = CURRENT_CW;
+
+  // Greeting
+  const greetEl = document.getElementById('mytasks-greeting');
+  const subEl   = document.getElementById('mytasks-sub');
+  if (greetEl) greetEl.textContent = `Welcome back, ${name}! 👋`;
+  if (subEl)   subEl.textContent   = `CW ${cw} · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}`;
+
+  // Gather my tasks from all projects
+  const myTasks = [];
+  DATA.projects.forEach(p => {
+    if (!p.taskList) return;
+    // For staff, filter to their assigned projects
+    if (isStaff() && !CURRENT_USER.projects?.includes(p.id)) return;
+    p.taskList.forEach(t => {
+      if (!isAdmin() && !isManager() && String(t['Owner']||'') !== name) return;
+      myTasks.push({ ...t, projectName: p.name, projectId: p.id, projectColor: p.color });
+    });
+  });
+
+  const listEl = document.getElementById('mytasks-list');
+  if (!listEl) return;
+
+  if (myTasks.length === 0) {
+    listEl.innerHTML = `<div style="text-align:center;padding:32px;color:var(--gray-400);font-size:13px;">No tasks assigned to you yet.</div>`;
+  } else {
+    // Sort: overdue first, then by CW
+    myTasks.sort((a,b) => {
+      const aCW = parseFloat(a['CW'])||99, bCW = parseFloat(b['CW'])||99;
+      const aOv = aCW < cw && a['Status']==='Planned';
+      const bOv = bCW < cw && b['Status']==='Planned';
+      if (aOv && !bOv) return -1;
+      if (!aOv && bOv) return 1;
+      return aCW - bCW;
+    });
+
+    listEl.innerHTML = myTasks.map(t => {
+      const taskCW  = parseFloat(t['CW'])||0;
+      const status  = String(t['Status']||'Planned');
+      const overdue = taskCW < cw && status === 'Planned';
+      const dotClass = status === 'Delivered' ? 'dot-delivered' : overdue ? 'dot-inprogress' : 'dot-planned';
+      const cwClass  = overdue ? 'task-cw-badge task-cw-overdue' : 'task-cw-badge';
+      return `
+        <div class="task-card">
+          <div class="task-status-dot ${dotClass}"></div>
+          <div style="flex:1">
+            <div class="task-name">${t['Task Name']||'Unnamed task'}</div>
+            <div class="task-meta">${t.projectName} · ${status}${overdue ? ' · ⚠ Overdue' : ''}</div>
+          </div>
+          <span class="${cwClass}">CW ${taskCW}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // My project progress bars
+  const projEl = document.getElementById('my-project-progress');
+  if (projEl) {
+    const myProjects = DATA.projects.filter(p =>
+      isAdmin() || isManager() ? true : CURRENT_USER.projects?.includes(p.id)
+    );
+    if (myProjects.length === 0) {
+      projEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No projects assigned.</div>';
+    } else {
+      projEl.innerHTML = myProjects.map(p => {
+        const pct = p.total > 0 ? Math.round((p.delivered/p.total)*100) : 0;
+        const color = p.color || 'var(--blue)';
+        return `
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+              <span style="font-size:13px;font-weight:600;color:var(--gray-900)">${p.id} — ${p.name}</span>
+              <span style="font-size:12px;font-weight:700;color:${color}">${pct}%</span>
+            </div>
+            <div style="height:8px;background:var(--gray-200);border-radius:4px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width 0.6s;"></div>
+            </div>
+            <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">${p.delivered||0} of ${p.total||0} tasks delivered</div>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  // Team feed
+  renderTeamFeed();
+}
+
+function renderTeamFeed() {
+  const feedEl = document.getElementById('team-feed');
+  if (!feedEl) return;
+  loadCheckins();
+
+  const cw     = CURRENT_CW;
+  const myProj = CURRENT_USER?.projects || ALL_PROJECTS;
+
+  // Filter check-ins: same project team, current CW, not self (unless admin)
+  const feed = CHECKINS.filter(c => {
+    if (c.cw !== cw) return false;
+    if (isAdmin() || isManager()) return true;
+    const projId = c.project?.split('–')[0]?.trim().replace(' ','') || '';
+    return myProj.some(p => c.project?.startsWith(p));
+  });
+
+  if (feed.length === 0) {
+    feedEl.innerHTML = `<div class="feed-empty">No team check-ins yet for CW ${cw}.<br>Be the first to submit!</div>`;
+    return;
+  }
+
+  feedEl.innerHTML = feed.map(c => {
+    const color = STAFF_COLORS[c.name] || '#6b7280';
+    return `
+      <div class="checkin-item" style="background:#fff;border-radius:10px;border:1px solid var(--gray-200);margin-bottom:8px;">
+        <div class="ci-avatar" style="background:${color}">${c.name[0]}</div>
+        <div style="flex:1">
+          <div class="ci-name">${c.name} <span style="font-weight:400;color:var(--gray-400);font-size:11px;">${c.project}</span></div>
+          <div class="ci-meta">${c.done} tasks done · CW ${c.cw}</div>
+          ${c.notes    ? `<div class="ci-note">"${c.notes}"</div>` : ''}
+          ${c.blockers ? `<div class="ci-blocker">⚠ ${c.blockers}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  ROLE MANAGEMENT PANEL
+// ═══════════════════════════════════════════════════
+const STAFF_NAMES    = ['Alex','Daniel','Grace','John','Maria','Sarah'];
+const FEATURE_LABELS = {
+  digest:     'Manager Digest',
+  export:     'Export / Print',
+  staff_perf: 'Staff Performance Tab',
+  all_projects: 'All Projects View',
+};
+const PROJECT_LABELS = { P1:'P1 Education', P2:'P2 Wash', P3:'P3 Disaster', P4:'P4 Development', P5:'P5 Sustainability' };
+
+function renderRoleManagement() {
+  const grid = document.getElementById('rm-cards');
+  if (!grid) return;
+
+  grid.innerHTML = STAFF_NAMES.map(name => {
+    const cfg    = ROLE_CONFIG[name] || { role:'staff', projects:[], features:[] };
+    const color  = STAFF_COLORS[name] || '#6b7280';
+
+    const projectToggles = ALL_PROJECTS.map(pid => {
+      const on = cfg.projects?.includes(pid);
+      return `<span class="rm-toggle ${on?'on':''}" onclick="toggleProject('${name}','${pid}',this)">${PROJECT_LABELS[pid]}</span>`;
+    }).join('');
+
+    const featureToggles = ALL_FEATURES.map(f => {
+      const on = cfg.features?.includes(f) || cfg.role === 'manager' || cfg.role === 'admin';
+      return `<span class="rm-toggle ${on?'on':''}" onclick="toggleFeature('${name}','${f}',this)">${FEATURE_LABELS[f]}</span>`;
+    }).join('');
+
+    return `
+      <div class="rm-card" id="rm-card-${name}">
+        <div class="rm-card-header">
+          <div class="rm-avatar" style="background:${color}">${name[0]}</div>
+          <div>
+            <div class="rm-name">${name}</div>
+            <span class="role-badge ${cfg.role==='admin'?'role-admin':cfg.role==='manager'?'role-manager':'role-staff'}" id="rm-badge-${name}">
+              ${cfg.role}
+            </span>
+          </div>
+        </div>
+        <div class="rm-field">
+          <div class="rm-label">Access Tier</div>
+          <select class="rm-select" id="rm-role-${name}" onchange="onRoleChange('${name}',this)">
+            <option value="staff"   ${cfg.role==='staff'   ?'selected':''}>Staff</option>
+            <option value="manager" ${cfg.role==='manager' ?'selected':''}>Manager</option>
+            <option value="admin"   ${cfg.role==='admin'   ?'selected':''}>Admin</option>
+          </select>
+        </div>
+        <div class="rm-field">
+          <div class="rm-label">Assigned Projects</div>
+          <div class="rm-toggle-row" id="rm-proj-${name}">${projectToggles}</div>
+        </div>
+        <div class="rm-field" id="rm-feat-section-${name}">
+          <div class="rm-label">Extra Feature Access</div>
+          <div class="rm-toggle-row" id="rm-feat-${name}">${featureToggles}</div>
+        </div>
+        <div class="rm-saved-msg" id="rm-saved-${name}">✓ Saved</div>
+      </div>`;
+  }).join('');
+
+  updateConfigJSON();
+}
+
+function onRoleChange(name, selectEl) {
+  const role   = selectEl.value;
+  const badge  = document.getElementById(`rm-badge-${name}`);
+  const featSec = document.getElementById(`rm-feat-section-${name}`);
+  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', projects:[], features:[] };
+  ROLE_CONFIG[name].role = role;
+
+  // Update badge
+  if (badge) {
+    badge.textContent = role;
+    badge.className = `role-badge ${role==='admin'?'role-admin':role==='manager'?'role-manager':'role-staff'}`;
+  }
+  // Admin/manager get all features automatically
+  if (role === 'admin' || role === 'manager') {
+    ROLE_CONFIG[name].features = [...ALL_FEATURES];
+    ROLE_CONFIG[name].projects = [...ALL_PROJECTS];
+    document.querySelectorAll(`#rm-proj-${name} .rm-toggle`).forEach(t => t.classList.add('on'));
+    document.querySelectorAll(`#rm-feat-${name} .rm-toggle`).forEach(t => t.classList.add('on'));
+  }
+  updateConfigJSON();
+}
+
+function toggleProject(name, pid, el) {
+  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', projects:[], features:[] };
+  const arr = ROLE_CONFIG[name].projects || [];
+  const idx = arr.indexOf(pid);
+  if (idx === -1) { arr.push(pid); el.classList.add('on'); }
+  else            { arr.splice(idx,1); el.classList.remove('on'); }
+  ROLE_CONFIG[name].projects = arr;
+  updateConfigJSON();
+}
+
+function toggleFeature(name, feat, el) {
+  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', projects:[], features:[] };
+  const arr = ROLE_CONFIG[name].features || [];
+  const idx = arr.indexOf(feat);
+  if (idx === -1) { arr.push(feat); el.classList.add('on'); }
+  else            { arr.splice(idx,1); el.classList.remove('on'); }
+  ROLE_CONFIG[name].features = arr;
+  updateConfigJSON();
+}
+
+function updateConfigJSON() {
+  const el = document.getElementById('rm-config-json');
+  if (el) el.textContent = JSON.stringify(ROLE_CONFIG, null, 2);
+}
+
+async function saveRoleConfig() {
+  const msgEl = document.getElementById('rm-global-msg');
+  // Save to sessionStorage for immediate effect
+  sessionStorage.setItem('pdp_role_config', JSON.stringify(ROLE_CONFIG));
+
+  // Try to push to Worker
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save_roles', password: SESSION_PASSWORD, config: ROLE_CONFIG })
+    });
+    if (res.ok) {
+      if (msgEl) { msgEl.style.display='block'; msgEl.style.color='var(--green)'; msgEl.textContent='✓ Role config saved to Worker successfully!'; }
+    } else {
+      throw new Error('Worker returned ' + res.status);
+    }
+  } catch(e) {
+    // Fallback: show JSON to paste manually
+    if (msgEl) {
+      msgEl.style.display='block'; msgEl.style.color='var(--amber)';
+      msgEl.innerHTML = '⚠ Could not auto-save to Worker. Copy the JSON below and paste it as <code>STAFF_ROLES</code> secret in Cloudflare manually.';
+    }
+  }
+  updateConfigJSON();
+}
+
+// ═══════════════════════════════════════════════════
 //  BOOT
 // ═══════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
@@ -1803,6 +2367,9 @@ window.addEventListener('DOMContentLoaded', () => {
   if (sessionStorage.getItem(SESSION_KEY) === '1') {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('dashboard').classList.add('visible');
+    // Restore RBAC from session
+    CURRENT_USER = JSON.parse(sessionStorage.getItem(SESSION_USER_KEY) || 'null');
+    if (CURRENT_USER) applyRBAC();
     initDashboard();
   }
 });
