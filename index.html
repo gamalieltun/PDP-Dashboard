@@ -625,6 +625,26 @@
   }
   .admin-section-sub { font-size:13px; color:var(--gray-400); margin-bottom:16px; }
 
+  /* ── PROJECT MANAGEMENT ── */
+  .pm-proj-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid var(--gray-100);
+    gap:12px; flex-wrap:wrap;
+  }
+  .pm-proj-row:last-child { border-bottom:none; }
+  .pm-proj-name { font-size:13px; font-weight:700; color:var(--gray-900); }
+  .pm-proj-meta { font-size:11px; color:var(--gray-400); margin-top:2px; }
+  .pm-task-count {
+    font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px;
+    background:var(--blue-lt); color:var(--blue); white-space:nowrap;
+  }
+  .pm-add-task-btn {
+    font-size:11px; font-weight:700; padding:5px 12px; border-radius:7px;
+    background:var(--gray-900); color:#fff; border:none; cursor:pointer;
+    font-family:var(--font); transition:background 0.13s;
+  }
+  .pm-add-task-btn:hover { background:var(--gray-700); }
+
   /* tab visibility control */
   .tab-hidden { display:none !important; }
 
@@ -729,6 +749,7 @@
     <button class="tab" id="tab-btn-staff" onclick="switchTab('staff',this)">Staff Performance</button>
     <button class="tab" id="tab-btn-checkin" onclick="switchTab('checkin',this)">📝 Weekly Check-in</button>
     <button class="tab" id="tab-btn-digest" onclick="switchTab('digest',this)">📋 Manager Digest</button>
+    <button class="tab" id="tab-btn-projmgmt" onclick="switchTab('projmgmt',this)">📁 Project Management</button>
     <button class="tab" id="tab-btn-roles" onclick="switchTab('roles',this)">🔐 Role Management</button>
     <button class="tab" id="tab-btn-setup" onclick="switchTab('setup',this)">⚙ Setup</button>
   </div>
@@ -889,6 +910,111 @@
       <div class="panel">
         <div class="panel-title">🔴 Overdue Tasks <span id="digest-overdue-count" class="alert-badge"></span></div>
         <div id="digest-overdue-table" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <!-- TAB: PROJECT MANAGEMENT -->
+    <div class="tab-pane" id="tab-projmgmt">
+      <div class="admin-section-title">📁 Project Management</div>
+      <div class="admin-section-sub">Add new projects and tasks directly to Google Sheets. Changes reflect immediately in the dashboard.</div>
+
+      <div class="grid-2 mb16">
+
+        <!-- ADD NEW PROJECT -->
+        <div class="panel">
+          <div class="panel-title" style="margin-bottom:16px;">➕ Add New Project</div>
+
+          <div class="rm-field">
+            <div class="rm-label">Project ID <span style="color:var(--gray-400);font-weight:400;text-transform:none">(auto: P6, P7…)</span></div>
+            <input class="form-input" id="np-id" placeholder="e.g. P6" style="font-family:var(--font);">
+          </div>
+          <div class="rm-field">
+            <div class="rm-label">Project Name</div>
+            <input class="form-input" id="np-name" placeholder="e.g. Health & Wellness Program" style="font-family:var(--font);">
+          </div>
+          <div class="form-row" style="gap:10px;">
+            <div class="rm-field" style="flex:1">
+              <div class="rm-label">Start CW</div>
+              <input class="form-input" id="np-start" type="number" min="1" max="52" placeholder="e.g. 15" style="font-family:var(--font);">
+            </div>
+            <div class="rm-field" style="flex:1">
+              <div class="rm-label">End CW</div>
+              <input class="form-input" id="np-end" type="number" min="1" max="52" placeholder="e.g. 40" style="font-family:var(--font);">
+            </div>
+          </div>
+          <div class="form-row" style="gap:10px;">
+            <div class="rm-field" style="flex:1">
+              <div class="rm-label">Start Quarter</div>
+              <select class="rm-select" id="np-sq">
+                <option>26Q1</option><option>26Q2</option><option>26Q3</option><option>26Q4</option>
+              </select>
+            </div>
+            <div class="rm-field" style="flex:1">
+              <div class="rm-label">End Quarter</div>
+              <select class="rm-select" id="np-eq">
+                <option>26Q2</option><option>26Q3</option><option>26Q4</option><option>26Q1</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="rm-save-btn" onclick="addNewProject()" id="np-btn">Create Project + Sheet →</button>
+          <div id="np-msg" style="font-size:12px;margin-top:8px;text-align:center;display:none;"></div>
+        </div>
+
+        <!-- ADD TASK TO PROJECT -->
+        <div class="panel">
+          <div class="panel-title" style="margin-bottom:16px;">📌 Add Task to Project</div>
+
+          <div class="rm-field">
+            <div class="rm-label">Project</div>
+            <select class="rm-select" id="nt-project" onchange="onTaskProjectChange(this.value)">
+              <option value="">— Select project —</option>
+            </select>
+          </div>
+          <div class="rm-field">
+            <div class="rm-label">Task Name</div>
+            <input class="form-input" id="nt-name" placeholder="e.g. Community needs assessment" style="font-family:var(--font);">
+          </div>
+          <div class="form-row" style="gap:10px;">
+            <div class="rm-field" style="flex:1">
+              <div class="rm-label">Assign To</div>
+              <select class="rm-select" id="nt-owner">
+                <option value="">— Select staff —</option>
+                <option>Alex</option><option>Daniel</option><option>Grace</option>
+                <option>John</option><option>Maria</option><option>Sarah</option>
+              </select>
+            </div>
+            <div class="rm-field" style="flex:1">
+              <div class="rm-label">Due CW</div>
+              <input class="form-input" id="nt-cw" type="number" min="1" max="52" placeholder="e.g. 14" style="font-family:var(--font);">
+            </div>
+          </div>
+          <div class="form-row" style="gap:10px;">
+            <div class="rm-field" style="flex:1">
+              <div class="rm-label">Quarter</div>
+              <select class="rm-select" id="nt-quarter">
+                <option>26Q1</option><option>26Q2</option><option>26Q3</option><option>26Q4</option>
+              </select>
+            </div>
+            <div class="rm-field" style="flex:1">
+              <div class="rm-label">Status</div>
+              <select class="rm-select" id="nt-status">
+                <option>Planned</option><option>Delivered</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="rm-save-btn" onclick="addNewTask()" id="nt-btn" style="background:var(--blue);">Add Task to Sheet →</button>
+          <div id="nt-msg" style="font-size:12px;margin-top:8px;text-align:center;display:none;"></div>
+        </div>
+
+      </div>
+
+      <!-- PROJECT TASK OVERVIEW -->
+      <div class="panel">
+        <div class="panel-title" style="margin-bottom:4px;">📋 Current Projects & Task Counts</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-bottom:14px;">Live from Google Sheets — reflects all projects including newly added ones.</div>
+        <div id="pm-project-list"></div>
       </div>
     </div>
 
@@ -1372,6 +1498,7 @@ function applyRBAC() {
   setTabVisible('progress', isAdmin() || isManager() || userCan('all_projects'));
   setTabVisible('staff',    isAdmin() || isManager() || userCan('staff_perf'));
   setTabVisible('digest',   isAdmin() || isManager() || userCan('digest'));
+  setTabVisible('projmgmt', isAdmin());
   setTabVisible('roles',    isAdmin());
   setTabVisible('kpi',      true);
   setTabVisible('checkin',  true);
@@ -1897,7 +2024,7 @@ function renderAll() {
   renderCheckinTab();
   renderDigest();
   renderMyTasks();
-  if (isAdmin()) renderRoleManagement();
+  if (isAdmin()) { renderRoleManagement(); renderProjectManagement(); }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2508,6 +2635,160 @@ function renderTeamFeed() {
         </div>
       </div>`;
   }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  PROJECT MANAGEMENT
+// ═══════════════════════════════════════════════════
+
+function renderProjectManagement() {
+  // Populate project dropdown for task add
+  const sel = document.getElementById('nt-project');
+  if (sel) {
+    sel.innerHTML = '<option value="">— Select project —</option>' +
+      DATA.projects.map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
+  }
+
+  // Auto-suggest next project ID
+  const npId = document.getElementById('np-id');
+  if (npId && !npId.value) {
+    const ids = DATA.projects.map(p => parseInt(p.id.replace(/\D/g,'')));
+    const next = Math.max(...ids, 5) + 1;
+    npId.value = `P${next}`;
+  }
+
+  // Project overview list
+  const listEl = document.getElementById('pm-project-list');
+  if (!listEl) return;
+  if (!DATA.projects.length) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray-400);font-size:13px;">No projects loaded.</div>';
+    return;
+  }
+  listEl.innerHTML = DATA.projects.map(p => {
+    const pct = p.total > 0 ? Math.round((p.delivered/p.total)*100) : 0;
+    return `
+      <div class="pm-proj-row">
+        <div style="flex:1">
+          <div class="pm-proj-name">${p.id} — ${p.name}</div>
+          <div class="pm-proj-meta">CW ${p.start}–${p.end} · ${p.total} tasks · ${p.delivered} delivered · ${pct}% complete</div>
+        </div>
+        <span class="pm-task-count">${p.total} tasks</span>
+        <button class="pm-add-task-btn" onclick="quickAddTask('${p.id}')">+ Add Task</button>
+      </div>`;
+  }).join('');
+}
+
+function quickAddTask(projectId) {
+  // Switch to task form and pre-select project
+  const sel = document.getElementById('nt-project');
+  if (sel) sel.value = projectId;
+  document.getElementById('nt-name')?.focus();
+  // Scroll to add task panel
+  document.getElementById('nt-name')?.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+function onTaskProjectChange(projectId) {
+  // Could pre-fill quarter based on project dates in future
+}
+
+async function addNewProject() {
+  const id    = document.getElementById('np-id').value.trim().toUpperCase();
+  const name  = document.getElementById('np-name').value.trim();
+  const start = parseInt(document.getElementById('np-start').value) || 0;
+  const end   = parseInt(document.getElementById('np-end').value) || 0;
+  const sq    = document.getElementById('np-sq').value;
+  const eq    = document.getElementById('np-eq').value;
+  const btn   = document.getElementById('np-btn');
+  const msg   = document.getElementById('np-msg');
+
+  if (!id || !name || !start || !end) {
+    showPMMsg('np-msg', '⚠ Please fill in all fields.', 'error'); return;
+  }
+  if (DATA.projects.find(p => p.id === id)) {
+    showPMMsg('np-msg', `⚠ Project ${id} already exists.`, 'error'); return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Creating…';
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'add_project', password: SESSION_PASSWORD,
+        project: { id, name, start, end, startQuarter: sq, endQuarter: eq,
+          duration: end - start + 1 }
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    showPMMsg('np-msg', `✓ Project ${id} created with sheet "${id} Task_List"!`, 'success');
+    // Clear form
+    ['np-name','np-start','np-end'].forEach(i => document.getElementById(i).value = '');
+    // Reload data
+    setTimeout(() => { loadFromWorker().then(() => { renderAll(); renderProjectManagement(); }); }, 1500);
+  } catch(e) {
+    showPMMsg('np-msg', `⚠ Error: ${e.message}`, 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Create Project + Sheet →';
+}
+
+async function addNewTask() {
+  const projectId = document.getElementById('nt-project').value;
+  const name      = document.getElementById('nt-name').value.trim();
+  const owner     = document.getElementById('nt-owner').value;
+  const cw        = parseInt(document.getElementById('nt-cw').value) || 0;
+  const quarter   = document.getElementById('nt-quarter').value;
+  const status    = document.getElementById('nt-status').value;
+  const btn       = document.getElementById('nt-btn');
+
+  if (!projectId || !name || !owner || !cw) {
+    showPMMsg('nt-msg', '⚠ Please fill in all fields.', 'error'); return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Adding…';
+
+  // Find project for name
+  const proj = DATA.projects.find(p => p.id === projectId);
+  const projName = proj?.name || projectId;
+
+  // Auto-generate task ID
+  const existingTasks = proj?.taskList || [];
+  const taskNum = existingTasks.length + 1;
+  const taskId  = `T${taskNum}`;
+
+  const task = { taskId, projectId, projectName: projName, name, quarter, cw, status, owner };
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add_task', password: SESSION_PASSWORD, task })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    showPMMsg('nt-msg', `✓ Task "${name}" added to ${projectId} and assigned to ${owner}!`, 'success');
+    // Clear task form
+    ['nt-name','nt-cw'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('nt-owner').value = '';
+    document.getElementById('nt-status').value = 'Planned';
+    // Reload
+    setTimeout(() => { loadFromWorker().then(() => { renderAll(); renderProjectManagement(); }); }, 1500);
+  } catch(e) {
+    showPMMsg('nt-msg', `⚠ Error: ${e.message}`, 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Add Task to Sheet →';
+}
+
+function showPMMsg(elId, text, type) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.color   = type === 'success' ? 'var(--green)' : 'var(--red)';
+  el.textContent   = text;
+  if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 4000);
 }
 
 // ═══════════════════════════════════════════════════
