@@ -2180,7 +2180,11 @@ async function submitCheckin() {
       body: JSON.stringify({ action: 'checkin', password: SESSION_PASSWORD, entry })
     });
     workerOk = res.ok || res.status === 501;
-    if (!res.ok && res.status !== 501) throw new Error(`Server error ${res.status}`);
+    if (!res.ok && res.status !== 501) {
+      const errBody = await res.json().catch(() => ({}));
+      console.error('Worker error response:', JSON.stringify(errBody));
+      throw new Error(`Server error ${res.status}: ${errBody.error || 'unknown'}`);
+    }
   } catch(e) {
     console.warn('Worker write failed, updating locally:', e.message);
   }
