@@ -1931,13 +1931,18 @@ function renderCheckinTab() {
   const alreadySubmitted = CURRENT_USER?.name ? hasSubmittedThisWeek(CURRENT_USER.name) : false;
   const btnLabel = alreadySubmitted ? 'Update My Check-in →' : 'Submit My Check-in →';
 
+  // Staff see their own status only, not how many others submitted
+  const bannerSub = isAdmin() || isManager()
+    ? `${submitted} of ${totalStaff} staff have submitted · ${totalStaff - submitted} remaining`
+    : alreadySubmitted ? '✓ You have submitted for this week' : 'You have not submitted yet this week';
+
   if (submitted >= totalStaff) {
     bannerArea.innerHTML = `
       <div class="checkin-submitted">
         <div class="ci-icon">✅</div>
         <div style="flex:1">
-          <h4>All ${totalStaff} staff have submitted for CW ${cw}!</h4>
-          <p>View the Manager Digest for a full summary.</p>
+          <h4>${isAdmin() || isManager() ? `All ${totalStaff} staff have submitted for CW ${cw}!` : `Your check-in for CW ${cw} is complete!`}</h4>
+          <p>${isAdmin() || isManager() ? 'View the Manager Digest for a full summary.' : 'You can update your submission anytime this week.'}</p>
         </div>
         <button class="checkin-open-btn" onclick="openCheckinModal()" style="margin-left:16px;flex-shrink:0;">${btnLabel}</button>
       </div>`;
@@ -1946,30 +1951,43 @@ function renderCheckinTab() {
       <div class="checkin-banner">
         <div class="checkin-banner-text">
           <h3>📝 Weekly Check-in — CW ${cw}</h3>
-          <p>${submitted} of ${totalStaff} staff have submitted · ${totalStaff - submitted} remaining</p>
+          <p>${bannerSub}</p>
         </div>
         <button class="checkin-open-btn" onclick="openCheckinModal()">${btnLabel}</button>
       </div>`;
   }
 
-  // Submissions list
+  // Submissions list — staff see only their own, admin/manager see all
   const badge = document.getElementById('ci-count-badge');
-  if (badge) badge.textContent = `${submitted} submitted`;
 
   const list = document.getElementById('ci-submissions-list');
   if (!list) return;
 
-  if (thisCWCheckins.length === 0) {
-    list.innerHTML = `<div style="text-align:center;padding:32px;color:var(--gray-400);font-size:13px;">No check-ins submitted yet for CW ${cw}.</div>`;
+  // Filter based on role
+  const visibleCheckins = isAdmin() || isManager()
+    ? thisCWCheckins
+    : thisCWCheckins.filter(c => c.name === CURRENT_USER?.name);
+
+  // Badge shows own submission status for staff, full count for admin/manager
+  if (badge) {
+    badge.textContent = isAdmin() || isManager()
+      ? `${submitted} submitted`
+      : visibleCheckins.length > 0 ? 'My submission' : 'Not submitted yet';
+  }
+
+  if (visibleCheckins.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:32px;color:var(--gray-400);font-size:13px;">
+      ${isStaff() ? "You haven't submitted your check-in yet this week." : `No check-ins submitted yet for CW ${cw}.`}
+    </div>`;
     return;
   }
 
   const colors = { Alex:'#2563eb', Daniel:'#16a34a', Grace:'#d97706', John:'#9333ea', Maria:'#0891b2', Sarah:'#dc2626' };
-  list.innerHTML = thisCWCheckins.map(c => `
+  list.innerHTML = visibleCheckins.map(c => `
     <div class="checkin-item">
       <div class="ci-avatar" style="background:${colors[c.name]||'#6b7280'}">${c.name[0]}</div>
       <div style="flex:1">
-        <div class="ci-name">${c.name}</div>
+        <div class="ci-name">${c.name} ${isStaff() ? '<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Submitted</span>' : ''}</div>
         <div class="ci-meta">${c.project} · CW ${c.cw} · ${c.done} tasks completed${c.missed>0?' · '+c.missed+' missed':''}</div>
         ${c.notes    ? `<div class="ci-note">"${c.notes}"</div>` : ''}
         ${c.blockers ? `<div class="ci-blocker">⚠ Blocker: ${c.blockers}</div>` : ''}
