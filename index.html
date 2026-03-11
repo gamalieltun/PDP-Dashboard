@@ -1281,20 +1281,12 @@
         <div class="form-label">Your Name</div>
         <select class="form-select" id="ci-name">
           <option value="">— Select —</option>
-          <option>Alex</option><option>Daniel</option><option>Grace</option>
-          <option>John</option><option>Maria</option><option>Sarah</option>
         </select>
       </div>
       <div class="form-field" style="margin-bottom:0">
         <div class="form-label">Primary Project This Week</div>
         <select class="form-select" id="ci-project">
           <option value="">— Select —</option>
-          <option>P1 – Education Development</option>
-          <option>P2 – Wash Program</option>
-          <option>P3 – Disaster Management</option>
-          <option>P4 – Development</option>
-          <option>P5 – Sustainability</option>
-          <option>Multiple projects</option>
         </select>
       </div>
     </div>
@@ -2353,15 +2345,35 @@ function openCheckinModal() {
   const submitBtn = document.getElementById('ci-submit-btn');
   if (submitBtn) submitBtn.textContent = alreadySubmitted ? 'Update Check-in →' : 'Submit Check-in →';
 
-  // Pre-fill name if logged in as staff
+  // Populate name dropdown dynamically from users list
   const nameEl = document.getElementById('ci-name');
-  if (CURRENT_USER?.name && CURRENT_USER.name !== 'Admin') {
+  if (nameEl) {
+    const staffNames = getStaffNames();
+    nameEl.innerHTML = '<option value="">— Select —</option>' +
+      staffNames.map(n => `<option value="${n}">${n}</option>`).join('');
+  }
+
+  // Populate project dropdown dynamically from loaded projects
+  const projEl = document.getElementById('ci-project');
+  if (projEl) {
+    projEl.innerHTML = '<option value="">— Select —</option>' +
+      DATA.projects.map(p => `<option value="${p.id} – ${p.name}">${p.id} – ${p.name}</option>`).join('') +
+      '<option value="Multiple projects">Multiple projects</option>';
+  }
+
+  // Pre-fill name if logged in — lock field for staff so they can't impersonate others
+  if (nameEl && CURRENT_USER?.name) {
     nameEl.value = CURRENT_USER.name;
+    if (isStaff()) {
+      nameEl.disabled = true;  // staff locked to own name
+    } else {
+      nameEl.disabled = false; // admin/manager can select any name
+    }
     loadTasksForName(CURRENT_USER.name);
   }
 
-  // Re-load tasks when name changes
-  nameEl.onchange = () => loadTasksForName(nameEl.value);
+  // Re-load tasks when name changes (admin/manager only)
+  if (nameEl) nameEl.onchange = () => loadTasksForName(nameEl.value);
 }
 
 function loadTasksForName(name) {
