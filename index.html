@@ -1594,6 +1594,31 @@ function parseSheetData(sheets) {
       };
     });
   }
+
+  // Weekly Reports — merge Sheets data into CHECKINS for admin/manager view
+  const wrRows = toObjects(sheets['Weekly Reports'] || []);
+  if (wrRows.length > 0 && (isAdmin() || isManager())) {
+    loadCheckins();
+    wrRows.forEach(r => {
+      const entry = {
+        date:     r['Date'] || '',
+        cw:       parseInt(r['CW']) || CURRENT_CW,
+        name:     r['Name'] || '',
+        project:  r['Project'] || '',
+        done:     parseInt(r['Done']) || 0,
+        missed:   parseInt(r['Missed']) || 0,
+        blockers: r['Blockers'] || '',
+        notes:    r['Notes'] || '',
+        time:     r['Time'] || '',
+        fromSheets: true,
+      };
+      if (!entry.name) return;
+      // Avoid duplicates — only add if this CW+name combo not already present from Sheets
+      const exists = CHECKINS.some(c => c.name === entry.name && c.cw === entry.cw && c.fromSheets);
+      if (!exists) CHECKINS.push(entry);
+    });
+    saveCheckins();
+  }
 }
 
 // ─── Auto-refresh every minute ─────────────────
