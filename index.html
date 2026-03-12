@@ -1126,7 +1126,7 @@
         <div style="font-size:13px;color:var(--gray-600);margin-bottom:12px;">
           After adjusting roles below, save the configuration. Staff will see their updated access on next login.
         </div>
-        <button class="digest-print-btn" onclick="saveRoleConfig()" style="background:var(--blue);">Save All Role Assignments →</button>
+        <button id="rm-save-btn" class="digest-print-btn" onclick="saveRoleConfig()" style="background:var(--blue);">Save All Role Assignments →</button>
         <div id="rm-global-msg" style="font-size:13px;margin-top:10px;display:none;"></div>
         <div style="margin-top:16px;background:var(--gray-50);border-radius:8px;padding:14px;">
           <div style="font-size:12px;font-weight:700;color:var(--gray-700);margin-bottom:6px;">Current config JSON (copy to STAFF_ROLES secret in Cloudflare):</div>
@@ -1285,7 +1285,10 @@
     <!-- Name row — pre-filled if logged in -->
     <div class="form-row" style="margin-bottom:16px;">
       <div class="form-field" style="margin-bottom:0">
-        <div class="form-label">Your Name</div>
+        <div class="form-label" style="display:flex;align-items:center;gap:8px;">
+          Your Name
+          <span id="ci-name-lock-note" style="display:none;font-size:11px;font-weight:500;color:var(--gray-400);">🔒 locked to your account</span>
+        </div>
         <select class="form-select" id="ci-name">
           <option value="">— Select —</option>
         </select>
@@ -2581,13 +2584,19 @@ function openCheckinModal() {
       '<option value="Multiple projects">Multiple projects</option>';
   }
 
-  // Pre-fill name if logged in — lock field for staff so they can't impersonate others
+  // Pre-fill name — staff locked to own name, admin/manager can select any
   if (nameEl && CURRENT_USER?.name) {
     nameEl.value = CURRENT_USER.name;
     if (isStaff()) {
-      nameEl.disabled = true;  // staff locked to own name
+      nameEl.disabled = true;
+      nameEl.title = 'You can only submit your own check-in';
+      const lockNote = document.getElementById('ci-name-lock-note');
+      if (lockNote) lockNote.style.display = 'inline';
     } else {
-      nameEl.disabled = false; // admin/manager can select any name
+      nameEl.disabled = false;
+      nameEl.title = '';
+      const lockNote = document.getElementById('ci-name-lock-note');
+      if (lockNote) lockNote.style.display = 'none';
     }
     loadTasksForName(CURRENT_USER.name);
   }
@@ -3632,23 +3641,37 @@ async function saveRoleConfig() {
   sessionStorage.setItem('pdp_role_config', JSON.stringify(ROLE_CONFIG));
 
   // Try to push to Worker
+  const btn = document.getElementById('rm-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
   try {
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'save_roles', username: SESSION_USERNAME, password: SESSION_PASSWORD, config: ROLE_CONFIG })
     });
-    if (res.ok) {
-      if (msgEl) { msgEl.style.display='block'; msgEl.style.color='var(--green)'; msgEl.textContent='✓ Role config saved to Worker successfully!'; }
+    const data = await res.json();
+    if (data.ok) {
+      if (msgEl) {
+        msgEl.style.display='block'; msgEl.style.color='var(--green)';
+        msgEl.textContent = `✓ Saved — ${data.saved} user${data.saved !== 1 ? 's' : ''} updated. Changes take effect on their next login.`;
+      }
+    } else if (data.manualPaste) {
+      // CF API token not configured — fall back to manual paste
+      if (msgEl) {
+        msgEl.style.display='block'; msgEl.style.color='var(--amber)';
+        msgEl.innerHTML = `⚠ Auto-save failed: ${data.error}. Copy the JSON below and paste it as <code>STAFF_ROLES</code> in Cloudflare → Worker → Variables & Secrets.`;
+      }
     } else {
-      throw new Error('Worker returned ' + res.status);
+      throw new Error(data.error || 'Worker returned error');
     }
   } catch(e) {
-    // Fallback: show JSON to paste manually
     if (msgEl) {
-      msgEl.style.display='block'; msgEl.style.color='var(--amber)';
-      msgEl.innerHTML = '⚠ Could not auto-save to Worker. Copy the JSON below and paste it as <code>STAFF_ROLES</code> secret in Cloudflare manually.';
+      msgEl.style.display='block'; msgEl.style.color='var(--red)';
+      msgEl.textContent = '✗ Save failed: ' + e.message;
     }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save All Role Assignments →'; }
   }
   updateConfigJSON();
 }
