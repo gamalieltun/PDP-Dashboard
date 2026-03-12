@@ -2310,7 +2310,7 @@ async function quickUpdateTask(taskName, projectId, newStatus, btn) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'update_task',
-        username: CURRENT_USER.username,
+        username: SESSION_USERNAME || CURRENT_USER?.username,
         password: SESSION_PASSWORD,
         taskName, projectId, newStatus,
       })
