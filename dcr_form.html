@@ -192,7 +192,7 @@
     flex-shrink: 0;
   }
   .section-title { font-weight: 600; font-size: 14px; }
-  .section-body { padding: 20px; }
+  .section-body { padding: 20px; overflow-x: auto; }
 
   /* ── Writing tip ── */
   .tip {
@@ -461,27 +461,135 @@
     .layout { display: block; }
   }
 
-  /* ── Toast ── */
-  .toast {
-    position: fixed; bottom: 80px; right: 24px;
-    background: var(--navy); color: #fff;
-    padding: 10px 16px; border-radius: 8px;
-    font-size: 13px; font-weight: 500;
-    box-shadow: var(--shadow-md);
-    opacity: 0; transform: translateY(8px);
-    transition: all .25s; pointer-events: none;
-    z-index: 200;
-  }
-  .toast.show { opacity: 1; transform: translateY(0); }
-  .toast.green { background: var(--green); }
-  .toast.red   { background: var(--red); }
-
-  /* ── Responsive ── */
+  /* ── Responsive utilities ── */
+  .hide-mobile { display: inline; }
+  .show-mobile { display: none; }
   @media (max-width: 768px) {
-    .sidebar { display: none; }
+
+    /* ── Utilities ── */
+    .hide-mobile { display: none !important; }
+    .show-mobile { display: inline !important; }
+
+    /* ── Topbar ── */
+    .topbar {
+      padding: 0 10px;
+      gap: 6px;
+      height: 48px;
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+    .topbar-sub  { display: none; }
+    .topbar-logo { width: 26px; height: 26px; font-size: 10px; flex-shrink: 0; }
+    .topbar-title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
+    .topbar-btn  { padding: 4px 8px; font-size: 11px; flex-shrink: 0; }
+
+    /* ── Layout: no sidebar, full width ── */
+    .layout      { flex-direction: column; }
+    .sidebar     { display: none !important; }
+    .main        { width: 100%; max-width: 100%; padding: 12px 10px 90px; }
+    #admin-panel { padding: 0 10px 90px; }
+
+    /* ── Type selector ── */
+    .type-selector { flex-direction: column; gap: 8px; }
+    .type-card {
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      padding: 12px 14px;
+    }
+    .type-card-icon { font-size: 22px; margin-bottom: 0; flex-shrink: 0; }
+
+    /* ── Welcome banner ── */
+    .welcome-header { padding: 18px 14px; border-radius: 8px 8px 0 0; }
+    .welcome-header h1 { font-size: 16px; }
+    .welcome-header p  { font-size: 12px; }
+
+    /* ── Section cards ── */
+    .section-card  { margin-bottom: 14px; }
+    .section-header{ padding: 10px 12px; }
+    .section-title { font-size: 13px; }
+    .section-body  { padding: 12px 10px; }
+
+    /* ── Forms — prevent iOS auto-zoom (needs font-size >= 16px on inputs) ── */
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+    label { font-size: 11px; }
     .form-grid { grid-template-columns: 1fr; }
     .form-group.span2 { grid-column: span 1; }
-    .main { padding: 16px; }
+
+    /* ── Basic info table: stack label above value ── */
+    .info-table, .info-table tbody, .info-table tr { display: block; width: 100%; }
+    .info-table tr { border-bottom: 1px solid var(--gray2); }
+    .info-table td {
+      display: block;
+      width: 100% !important;
+      border: none;
+      padding: 5px 10px;
+    }
+    .info-table td:first-child {
+      padding-top: 8px;
+      padding-bottom: 2px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gray5);
+      background: var(--gray1);
+    }
+    .info-table td:last-child { padding-bottom: 8px; }
+    .info-table input, .info-table select { width: 100%; }
+
+    /* ── Data tables: horizontal scroll ── */
+    .section-body  { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .subsection-body { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 10px; }
+    .data-table    { min-width: 500px; }
+
+    /* ── Progress bar ── */
+    .progress-wrap { margin-bottom: 12px; }
+    .progress-label { font-size: 11px; }
+
+    /* ── Tips ── */
+    .tip { font-size: 11px; padding: 7px 10px; }
+
+    /* ── Subsection ── */
+    .subsection-header { font-size: 11px; padding: 7px 10px; }
+
+    /* ── Report rows (admin & drafts) ── */
+    .report-row        { flex-wrap: wrap; padding: 10px 12px; gap: 8px; }
+    .report-row-icon   { width: 30px; height: 30px; font-size: 14px; }
+    .report-row-title  { font-size: 12px; }
+    .report-row-meta   { font-size: 10px; line-height: 1.6; }
+    .report-row-actions{ width: 100%; justify-content: flex-end; margin-top: 2px; }
+
+    /* ── Admin header ── */
+    .admin-header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
+    .admin-filters { flex-wrap: wrap; gap: 8px; width: 100%; }
+    .admin-filters select { flex: 1; min-width: 130px; }
+
+    /* ── Save bar ── */
+    .save-bar { padding: 8px 10px; gap: 6px; }
+    .save-bar-status { font-size: 11px; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .save-bar .btn { padding: 8px 12px; font-size: 12px; flex-shrink: 0; }
+
+    /* ── Checklist ── */
+    .check-item  { padding: 8px 10px; }
+    .check-label { font-size: 12px; }
+    .check-guide { font-size: 10px; }
+
+    /* ── Buttons ── */
+    .btn { font-size: 12px; padding: 7px 12px; }
+  }
+
+  /* ── Extra small (iPhone SE 375px) ── */
+  @media (max-width: 390px) {
+    .topbar-title { max-width: 80px; }
+    .topbar-btn   { font-size: 10px; padding: 4px 6px; }
+    .save-bar .btn{ font-size: 11px; padding: 7px 10px; }
+    .section-title{ font-size: 12px; }
   }
 
   /* ── Admin reports panel ── */
@@ -521,23 +629,37 @@
 
 <!-- ── Top bar ─────────────────────────────────────────────────────────── -->
 <div class="topbar">
-  <button class="topbar-btn" onclick="window.close()" title="Return to PDP Dashboard" style="display:flex;align-items:center;gap:6px;margin-right:4px;">
-    ← Dashboard
+  <!-- Back button -->
+  <button class="topbar-btn" onclick="window.close()" title="Return to PDP Dashboard" style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+    ← <span class="hide-mobile">Dashboard</span>
   </button>
-  <div style="width:1px;height:24px;background:rgba(255,255,255,.15);margin-right:12px;"></div>
-  <div class="topbar-logo">PDP</div>
-  <div>
-    <div class="topbar-title">Diocesan Consolidated Report</div>
-    <div class="topbar-sub">DCR Reporting System</div>
+
+  <!-- Logo + title -->
+  <div class="topbar-logo" style="flex-shrink:0;">PDP</div>
+  <div style="min-width:0;overflow:hidden;">
+    <div class="topbar-title">DCR</div>
+    <div class="topbar-sub">Diocesan Consolidated Report</div>
   </div>
+
   <div class="topbar-gap"></div>
 
-  <!-- Mode switch (simulates role) -->
-  <span style="font-size:11px;color:rgba(255,255,255,.5);margin-right:4px;">View as:</span>
-  <button class="topbar-btn" id="btn-mode-staff" onclick="setMode('staff')" style="margin-right:2px;">Staff</button>
-  <button class="topbar-btn primary" id="btn-mode-admin" onclick="setMode('admin')">Admin / Manager</button>
-  <div style="width:1px;height:24px;background:rgba(255,255,255,.15);margin:0 8px;"></div>
-  <button class="topbar-btn" id="btn-new-report" onclick="showNewReport()" style="display:none;">+ New Report</button>
+  <!-- Role switcher: only shown to admin/manager -->
+  <div id="role-switcher" style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+    <button class="topbar-btn" id="btn-mode-staff" onclick="setMode('staff')">
+      👤 <span class="hide-mobile">Staff View</span>
+    </button>
+    <button class="topbar-btn primary" id="btn-mode-admin" onclick="setMode('admin')">
+      🔑 <span class="hide-mobile">Admin View</span>
+    </button>
+  </div>
+  <!-- Staff: just show name badge -->
+  <div id="user-badge" style="display:none;align-items:center;gap:6px;flex-shrink:0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:5px;padding:4px 10px;">
+    <span style="font-size:12px;" id="topbar-user-name"></span>
+    <span style="font-size:10px;color:rgba(255,255,255,.5);" id="topbar-user-role"></span>
+  </div>
+  <button class="topbar-btn" id="btn-new-report" onclick="showNewReport()" style="display:none;flex-shrink:0;">
+    + <span class="hide-mobile">New Report</span>
+  </button>
 </div>
 
 <!-- ── Layout ──────────────────────────────────────────────────────────── -->
@@ -987,8 +1109,14 @@
 // ══════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════
-let MODE         = 'staff';   // 'staff' | 'admin'
-let REPORT_TYPE  = null;      // 'monthly' | 'biannual' | 'annual'
+
+// Read logged-in user from PDP dashboard sessionStorage
+const PDP_USER = JSON.parse(sessionStorage.getItem('pdp_user') || 'null');
+const PDP_ROLE = PDP_USER?.role || 'staff';   // 'admin' | 'manager' | 'staff'
+const PDP_NAME = PDP_USER?.name || '';
+
+let MODE         = (PDP_ROLE === 'admin' || PDP_ROLE === 'manager') ? 'admin' : 'staff';
+let REPORT_TYPE  = null;
 let CURRENT_SCREEN = 'select';
 let REPORT_ID    = null;
 let objectiveCount = 1;
@@ -1073,6 +1201,8 @@ const CHECKLIST_ITEMS = [
 //  MODE
 // ══════════════════════════════════════════════════════
 function setMode(m) {
+  // Staff can only ever be in staff mode — enforce role restriction
+  if (PDP_ROLE === 'staff' && m === 'admin') m = 'staff';
   MODE = m;
   document.getElementById('btn-mode-staff').className = m === 'staff' ? 'topbar-btn primary' : 'topbar-btn';
   document.getElementById('btn-mode-admin').className = m === 'admin' ? 'topbar-btn primary' : 'topbar-btn';
@@ -1157,6 +1287,14 @@ function startReport(type) {
   buildChecklist(cfg);
   document.getElementById('finance-tip').textContent = cfg.financeTip;
 
+  // Auto-fill Focal Person from logged-in user
+  if (PDP_NAME) {
+    setTimeout(() => {
+      const fp = document.getElementById('bi-focalPerson');
+      if (fp && !fp.value) fp.value = PDP_NAME;
+    }, 50);
+  }
+
   buildSidebarSections();
   showScreen('form');
   updateProgress(1);
@@ -1168,7 +1306,12 @@ function buildBasicInfoTable(cfg) {
   const tbody = document.getElementById('basic-info-table');
   tbody.innerHTML = cfg.basicFields.map(f => {
     let input = '';
-    if (f.type === 'select') {
+    // Focal Person: read-only for staff (pre-filled from login)
+    const isLockedFocalPerson = f.key === 'focalPerson' && PDP_ROLE === 'staff' && PDP_NAME;
+    if (isLockedFocalPerson) {
+      input = `<input type="text" id="bi-${f.key}" value="${PDP_NAME}" readonly style="color:var(--gray7);font-weight:500;background:var(--lgreen);">
+               <span style="font-size:10px;color:var(--green);margin-left:2px;">🔒 locked to your account</span>`;
+    } else if (f.type === 'select') {
       input = `<select id="bi-${f.key}">${f.options.map(o => `<option>${o}</option>`).join('')}</select>`;
     } else if (f.readonly) {
       input = `<input type="text" id="bi-${f.key}" value="${f.value}" readonly style="color:var(--gray5)">`;
@@ -1364,7 +1507,8 @@ function collectFormData() {
   // Store status, title
   data.diocese     = data.basicInfo.diocese    || '';
   data.period      = data.basicInfo.month || data.basicInfo.halfYear || data.basicInfo.year || '';
-  data.submittedBy = data.basicInfo.focalPerson || '';
+  data.submittedBy = data.basicInfo.focalPerson || PDP_NAME || '';
+  data.pdpUsername = PDP_USER?.username || '';
 
   return data;
 }
@@ -1379,7 +1523,15 @@ function saveDraft() {
 
 function renderDrafts() {
   const list  = document.getElementById('drafts-list');
-  const keys  = Object.keys(localStorage).filter(k => k.startsWith('dcr_'));
+  // Staff see only their own reports; admin/manager see all
+  const keys  = Object.keys(localStorage).filter(k => {
+    if (!k.startsWith('dcr_')) return false;
+    if (PDP_ROLE !== 'staff') return true;
+    try {
+      const d = JSON.parse(localStorage.getItem(k));
+      return !PDP_NAME || !d.submittedBy || d.submittedBy === PDP_NAME;
+    } catch { return true; }
+  });
   if (keys.length === 0) {
     list.innerHTML = `<div style="color:var(--gray5);font-size:13px;padding:12px 0;">No saved drafts yet.</div>`;
     return;
@@ -1452,7 +1604,14 @@ function submitReport() {
 //  ADMIN VIEW
 // ══════════════════════════════════════════════════════
 function renderAdminList() {
-  const keys = Object.keys(localStorage).filter(k => k.startsWith('dcr_'));
+  const keys = Object.keys(localStorage).filter(k => {
+    if (!k.startsWith('dcr_')) return false;
+    if (PDP_ROLE !== 'staff') return true;
+    try {
+      const d = JSON.parse(localStorage.getItem(k));
+      return !PDP_NAME || !d.submittedBy || d.submittedBy === PDP_NAME;
+    } catch { return true; }
+  });
   const filterType   = document.getElementById('filter-type')?.value;
   const filterStatus = document.getElementById('filter-status')?.value;
 
@@ -1481,7 +1640,7 @@ function renderAdminList() {
     <div class="report-row">
       <div class="report-row-icon ${d.type}">${typeMap[d.type] || '📄'}</div>
       <div class="report-row-info">
-        <div class="report-row-title">${typeLabel[d.type] || d.type} Report — ${d.diocese || 'Untitled Diocese'}</div>
+        <div class="report-row-title">${typeLabel[d.type] || d.type} Report — ${d.diocese || 'Untitled Diocese'} ${d.submittedBy ? '<span style="font-size:11px;font-weight:400;color:var(--gray5);">by ' + d.submittedBy + '</span>' : ''}</div>
         <div class="report-row-meta">
           ${d.submittedBy ? '<span style="font-weight:600;color:var(--gray9);">👤 ' + d.submittedBy + '</span> · ' : ''}
           ${d.period || '—'} · 
@@ -1560,8 +1719,43 @@ function toast(msg, type = '') {
 // ══════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  ROLE RESTRICTIONS
+// ══════════════════════════════════════════════════════
+function applyRoleRestrictions() {
+  const roleSwitcher = document.getElementById('role-switcher');
+  const userBadge    = document.getElementById('user-badge');
+  const nameEl       = document.getElementById('topbar-user-name');
+  const roleEl       = document.getElementById('topbar-user-role');
+  const roleLabels   = { admin: 'Admin', manager: 'Manager', staff: 'Staff' };
+
+  if (PDP_ROLE === 'staff') {
+    // Staff: hide role switcher, show name badge, lock to staff mode
+    if (roleSwitcher) roleSwitcher.style.display = 'none';
+    if (userBadge)    userBadge.style.display    = 'flex';
+    if (nameEl)       nameEl.textContent = PDP_NAME || 'Staff';
+    if (roleEl)       roleEl.textContent = 'Staff';
+    MODE = 'staff';
+  } else {
+    // Admin / Manager: show role switcher, hide name badge
+    if (roleSwitcher) roleSwitcher.style.display = 'flex';
+    if (userBadge)    userBadge.style.display    = 'none';
+    if (nameEl)       nameEl.textContent = PDP_NAME;
+    if (roleEl)       roleEl.textContent = roleLabels[PDP_ROLE] || PDP_ROLE;
+    MODE = 'admin'; // default to admin view for admin/manager
+  }
+
+  // If no PDP session at all — show a warning but allow read-only demo
+  if (!PDP_USER) {
+    console.warn('DCR: No PDP session found. Running in demo mode.');
+    if (roleSwitcher) roleSwitcher.style.display = 'flex';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  setMode('staff');
+  // Apply role from PDP dashboard session
+  applyRoleRestrictions();
+  setMode(MODE);
   showScreen('select');
 
   // Show all section cards when scrolled into view (make them all visible once form is started)
