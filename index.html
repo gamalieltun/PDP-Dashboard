@@ -1164,12 +1164,12 @@
       <!-- Initialize Sheets -->
       <div class="setup-card">
         <div class="setup-title">🗄️ Initialize Google Sheets</div>
-        <div class="setup-desc">Creates the required sheets with correct headers in your Google Spreadsheet. Safe to run on an existing sheet — skips sheets that already exist.</div>
+        <div class="setup-desc">Creates required sheets with correct headers, and migrates any existing task sheets from the old column format (J–Q) to the correct format (A–H). Safe to run multiple times.</div>
         <p style="font-size:13px;color:var(--gray-600);margin-bottom:16px;">
           Required sheets: <code>Main Projects</code>, <code>Weekly Reports</code>, <code>Login Audit</code><br>
           Project task sheets (<code>P1 Task_List</code>, etc.) are created automatically when you add a project.
         </p>
-        <button class="btn-primary" onclick="setupSheets()" id="setup-sheets-btn">Initialize Sheets →</button>
+        <button class="btn-primary" onclick="setupSheets()" id="setup-sheets-btn">Initialize &amp; Fix Sheets →</button>
         <div id="setup-sheets-msg" style="margin-top:12px;font-size:13px;display:none;padding:10px 14px;border-radius:8px;"></div>
       </div>
 
@@ -1836,12 +1836,21 @@ function parseSheetData(sheets) {
     const headerIdx = rawRows.findIndex(row =>
       row && row.some(cell => String(cell).trim() === 'Task Name' || String(cell).trim() === 'Task ID')
     );
-    const rows = toObjects(headerIdx >= 0 ? rawRows.slice(headerIdx) : rawRows);
+    const slicedRows = headerIdx >= 0 ? rawRows.slice(headerIdx) : rawRows;
+    let rows = toObjects(slicedRows);
+    // Check if all parsed rows are empty (old offset structure where data is in cols J-Q)
+    const hasData = rows.some(r => r['Task Name'] && String(r['Task Name']).trim());
+    if (!hasData && slicedRows.length > 1) {
+      // Offset structure: data is in columns J-Q (indices 9-16), re-map manually
+      const TASK_COLS = ['Task ID','Project ID','Project Name','Task Name','Quarter','CW','Status','Owner'];
+      rows = slicedRows.slice(1)
+        .filter(r => r[9] !== undefined && r[9] !== null && r[9] !== '')
+        .map(r => Object.fromEntries(TASK_COLS.map((k,i) => [k, r[9+i] ?? ''])));
+    }
     // Filter valid rows — must have Task Name and Project ID, no formula errors
     return rows.filter(r => {
       const name = String(r['Task Name'] || '').trim();
       const pid  = String(r['Project ID'] || '').trim();
-      // Skip blank rows, formula errors, and header rows
       return name && pid && !name.startsWith('#') && !name.startsWith('=') && pid.startsWith('P');
     });
   });
@@ -3668,9 +3677,10 @@ async function setupSheets() {
       msg.style.display = 'block';
       msg.style.background = '#f0fdf4'; msg.style.color = 'var(--green)';
       msg.style.borderRadius = '8px'; msg.style.padding = '10px 14px';
-      const ct = data.created?.length ? `Created: ${data.created.join(', ')}. ` : '';
-      const sk = data.skipped?.length ? `Already existed: ${data.skipped.join(', ')}.` : 'All sheets already exist.';
-      msg.textContent = '✓ ' + ct + sk;
+      const ct = data.created?.length  ? `Created: ${data.created.join(', ')}. ` : '';
+      const sk = data.skipped?.length   ? `Already existed: ${data.skipped.join(', ')}. ` : '';
+      const mg = data.migrated?.length  ? `Migrated task data: ${data.migrated.join(', ')}.` : '';
+      msg.textContent = '✓ ' + (ct || sk ? ct + sk : 'Base sheets ready. ') + (mg || 'No migration needed.');
     }
   } catch(e) {
     if (msg) {
