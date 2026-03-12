@@ -521,6 +521,10 @@
 
 <!-- ── Top bar ─────────────────────────────────────────────────────────── -->
 <div class="topbar">
+  <button class="topbar-btn" onclick="window.close()" title="Return to PDP Dashboard" style="display:flex;align-items:center;gap:6px;margin-right:4px;">
+    ← Dashboard
+  </button>
+  <div style="width:1px;height:24px;background:rgba(255,255,255,.15);margin-right:12px;"></div>
   <div class="topbar-logo">PDP</div>
   <div>
     <div class="topbar-title">Diocesan Consolidated Report</div>
@@ -1358,8 +1362,9 @@ function collectFormData() {
   };
 
   // Store status, title
-  data.diocese  = data.basicInfo.diocese || '';
-  data.period   = data.basicInfo.month || data.basicInfo.halfYear || data.basicInfo.year || '';
+  data.diocese     = data.basicInfo.diocese    || '';
+  data.period      = data.basicInfo.month || data.basicInfo.halfYear || data.basicInfo.year || '';
+  data.submittedBy = data.basicInfo.focalPerson || '';
 
   return data;
 }
@@ -1390,7 +1395,7 @@ function renderDrafts() {
         <div class="report-row-icon ${d.type}">${typeMap[d.type] || '📄'}</div>
         <div class="report-row-info">
           <div class="report-row-title">${TYPE_CONFIG[d.type]?.label || d.type} — ${d.diocese || 'Untitled'}</div>
-          <div class="report-row-meta">${d.period || '—'} · Saved ${new Date(d.savedAt).toLocaleDateString()}</div>
+          <div class="report-row-meta">${d.period || '—'} · ${d.submittedBy ? '<b>' + d.submittedBy + '</b> · ' : ''}Saved ${new Date(d.savedAt).toLocaleDateString()}</div>
         </div>
         ${statusPill}
         <div class="report-row-actions">
@@ -1477,7 +1482,13 @@ function renderAdminList() {
       <div class="report-row-icon ${d.type}">${typeMap[d.type] || '📄'}</div>
       <div class="report-row-info">
         <div class="report-row-title">${typeLabel[d.type] || d.type} Report — ${d.diocese || 'Untitled Diocese'}</div>
-        <div class="report-row-meta">${d.period || '—'} · ${d.status === 'submitted' ? '✅ Submitted' : '⏳ Draft'} · ${new Date(d.savedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})}</div>
+        <div class="report-row-meta">
+          ${d.submittedBy ? '<span style="font-weight:600;color:var(--gray9);">👤 ' + d.submittedBy + '</span> · ' : ''}
+          ${d.period || '—'} · 
+          ${d.status === 'submitted' ? '✅ Submitted' : '⏳ Draft'} · 
+          ${new Date(d.savedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})}
+          ${d.submittedAt ? ' · <span style="color:var(--green);">Submitted ' + new Date(d.submittedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}) + '</span>' : ''}
+        </div>
       </div>
       <div class="report-row-actions">
         <span class="pill ${d.status === 'submitted' ? 'pill-saved' : 'pill-draft'}">${d.status === 'submitted' ? 'Submitted' : 'Draft'}</span>
@@ -1509,7 +1520,9 @@ function exportPDF() {
   document.getElementById('report-print-header').style.display = 'block';
   const cfg = TYPE_CONFIG[REPORT_TYPE];
   document.getElementById('print-title').textContent   = cfg?.fullLabel || 'DIOCESAN CONSOLIDATED REPORT';
-  document.getElementById('print-subtitle').textContent = `${cfg?.label || ''} · Generated ${new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'})}`;
+  const submittedByName = document.getElementById('bi-focalPerson')?.value || '';
+  const byStr = submittedByName ? ` · ${submittedByName}` : '';
+  document.getElementById('print-subtitle').textContent = `${cfg?.label || ''}${byStr} · Generated ${new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'})}`;
 
   // Show all sections for printing
   document.querySelectorAll('.section-card').forEach(el => el.style.display = 'block');
