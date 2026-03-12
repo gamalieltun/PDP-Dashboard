@@ -1917,7 +1917,12 @@ function parseSheetData(sheets) {
 
   // Weekly Reports → DATA.checkins (direct, no sessionStorage merge)
   // Used for check-in history display only — NOT for KPI (KPI comes from task data above)
-  DATA.checkins = toObjects(sheets['Weekly Reports'] || [])
+  // Find the real header row in Weekly Reports (skip any instruction note row at top)
+  const rawWR = sheets['Weekly Reports'] || [];
+  const wrHeaderIdx = rawWR.findIndex(row => row && row.some(c => String(c).trim() === 'Name'));
+  const wrRows = wrHeaderIdx >= 0 ? rawWR.slice(wrHeaderIdx) : rawWR;
+
+  DATA.checkins = toObjects(wrRows)
     .filter(r => r['Name'])
     .map(r => ({
       date:     r['Date'] || '',
