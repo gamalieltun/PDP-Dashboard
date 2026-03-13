@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DCR— Diocesan Consolidated Report</title>
+<title>DCR v3.1.0 — Diocesan Consolidated Report</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
@@ -1569,20 +1569,22 @@ async function renderDrafts() {
     list.innerHTML = reports
       .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))
       .map(d => {
-        const statusPill = d.status === 'submitted'
+        const isSubmitted = d.status === 'submitted';
+        const statusPill = isSubmitted
           ? '<span class="pill pill-saved">Submitted</span>'
           : '<span class="pill pill-draft">Draft</span>';
         const canDelete = PDP_ROLE === 'admin';
+        const btnLabel = isSubmitted ? '✏ Edit & Resubmit' : '✏ Continue';
         return `
           <div class="report-row">
             <div class="report-row-icon ${d.type}">${typeMap[d.type] || '📄'}</div>
             <div class="report-row-info">
               <div class="report-row-title">${TYPE_CONFIG[d.type]?.label || d.type} — ${d.diocese || 'Untitled'}</div>
-              <div class="report-row-meta">${d.period || '—'} · ${d.submittedBy ? '<b>' + d.submittedBy + '</b> · ' : ''}Saved ${new Date(d.savedAt).toLocaleDateString()}</div>
+              <div class="report-row-meta">${d.period || '—'} · ${d.submittedBy ? '<b>' + d.submittedBy + '</b> · ' : ''}Saved ${new Date(d.savedAt).toLocaleDateString()}${isSubmitted ? ' · <span style="color:var(--green);">✅ Submitted</span>' : ''}</div>
             </div>
             ${statusPill}
             <div class="report-row-actions">
-              <button class="btn btn-secondary" onclick='loadDriveReport(${JSON.stringify(d)})' style="font-size:11px;padding:5px 10px;">Continue</button>
+              <button class="btn btn-secondary" onclick='loadDriveReport(${JSON.stringify(d)})' style="font-size:11px;padding:5px 10px;">${btnLabel}</button>
               ${canDelete ? `<button class="btn" onclick="deleteDriveReport('${d._fileId}')" style="font-size:11px;padding:5px 10px;color:var(--red);">Delete</button>` : ''}
             </div>
           </div>`;
@@ -1611,13 +1613,17 @@ function loadDriveReport(data) {
       if (el && data.exec[k]) el.value = data.exec[k];
     });
   }
-  // Mark submitted if already submitted
+  // For submitted reports — show resubmit option (staff can always edit and resubmit)
   if (data.status === 'submitted') {
     setTimeout(() => {
       const submitSection = document.getElementById('submit-section');
       if (submitSection) submitSection.innerHTML =
-        `<div style="color:var(--green);font-weight:600;font-size:13px;">✅ Report already submitted — ${new Date(data.submittedAt || data.savedAt).toLocaleString()}</div>
-         <div style="font-size:12px;color:var(--gray5);margin-top:4px;">Download PDF using the button above.</div>`;
+        `<div style="color:var(--green);font-weight:600;font-size:13px;margin-bottom:8px;">✅ Previously submitted — ${new Date(data.submittedAt || data.savedAt).toLocaleString()}</div>
+         <div style="font-size:12px;color:var(--gray7);margin-bottom:10px;">You can edit this report and resubmit. Your admin will see the updated version.</div>
+         <div style="display:flex;gap:10px;flex-wrap:wrap;">
+           <button class="btn btn-success" onclick="submitReport()">↩ Resubmit Report →</button>
+           <button class="btn btn-secondary" onclick="saveDraft()">💾 Save as Draft</button>
+         </div>`;
     }, 100);
   }
   toast('Report loaded', 'green');
