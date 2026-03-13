@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DCR — Diocesan Consolidated Report</title>
+<title>DCR v3.1.0 — Diocesan Consolidated Report</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
@@ -638,7 +638,7 @@
   <div class="topbar-logo" style="flex-shrink:0;">PDP</div>
   <div style="min-width:0;overflow:hidden;">
     <div class="topbar-title">DCR</div>
-    <div class="topbar-sub">Diocesan Consolidated Report</div>
+    <div class="topbar-sub">Diocesan Consolidated Report · v3.1.0</div>
   </div>
 
   <div class="topbar-gap"></div>
@@ -1110,6 +1110,21 @@
 //  STATE
 // ══════════════════════════════════════════════════════
 
+// ── Worker URL — set this to your Cloudflare Worker URL ──────────────────
+const WORKER_URL = 'https://YOUR-WORKER.YOUR-SUBDOMAIN.workers.dev';
+
+// ── Worker call helper ────────────────────────────────────────────────────
+async function workerCall(action, extra = {}) {
+  const username = PDP_USER?.username || '';
+  const password = sessionStorage.getItem('pdp_pw') || '';
+  const res = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, username, password, ...extra }),
+  });
+  return res.json();
+}
+
 // Read logged-in user from PDP dashboard sessionStorage
 const PDP_USER = JSON.parse(sessionStorage.getItem('pdp_user') || 'null');
 const PDP_ROLE = PDP_USER?.role || 'staff';   // 'admin' | 'manager' | 'staff'
@@ -1513,53 +1528,71 @@ function collectFormData() {
   return data;
 }
 
-function saveDraft() {
+async function saveDraft() {
   const data = collectFormData();
-  const key  = `dcr_draft_${data.id}`;
-  localStorage.setItem(key, JSON.stringify(data));
-  document.getElementById('save-status').textContent = `Saved at ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
-  toast('Draft saved ✓', 'green');
-}
-
-function renderDrafts() {
-  const list  = document.getElementById('drafts-list');
-  // Staff see only their own reports; admin/manager see all
-  const keys  = Object.keys(localStorage).filter(k => {
-    if (!k.startsWith('dcr_')) return false;
-    if (PDP_ROLE !== 'staff') return true;
-    try {
-      const d = JSON.parse(localStorage.getItem(k));
-      return !PDP_NAME || !d.submittedBy || d.submittedBy === PDP_NAME;
-    } catch { return true; }
-  });
-  if (keys.length === 0) {
-    list.innerHTML = `<div style="color:var(--gray5);font-size:13px;padding:12px 0;">No saved drafts yet.</div>`;
-    return;
+  const btn  = document.querySelector('.save-bar .btn-secondary');
+  if (btn) { btn.disabled = true; btn.textContent = '💾 Saving…'; }
+  document.getElementById('save-status').textContent = 'Saving…';
+  try {
+    const res = await workerCall('save_dcr', { report: data, submit: false });
+    if (res.ok) {
+      REPORT_ID = data.id; // keep same ID for updates
+      document.getElementById('save-status').textContent = `Saved at ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+      toast('Draft saved ✓', 'green');
+    } else {
+      toast('Save failed: ' + (res.error || 'Unknown error'), 'red');
+      document.getElementById('save-status').textContent = 'Save failed';
+    }
+  } catch (e) {
+    toast('Network error — check connection', 'red');
+    document.getElementById('save-status').textContent = 'Save failed';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Save Draft'; }
   }
-  list.innerHTML = keys.map(k => {
-    const d = JSON.parse(localStorage.getItem(k));
-    const typeMap = { monthly: '📅', biannual: '📊', annual: '📋' };
-    const statusPill = d.status === 'submitted'
-      ? '<span class="pill pill-saved">Submitted</span>'
-      : '<span class="pill pill-draft">Draft</span>';
-    return `
-      <div class="report-row">
-        <div class="report-row-icon ${d.type}">${typeMap[d.type] || '📄'}</div>
-        <div class="report-row-info">
-          <div class="report-row-title">${TYPE_CONFIG[d.type]?.label || d.type} — ${d.diocese || 'Untitled'}</div>
-          <div class="report-row-meta">${d.period || '—'} · ${d.submittedBy ? '<b>' + d.submittedBy + '</b> · ' : ''}Saved ${new Date(d.savedAt).toLocaleDateString()}</div>
-        </div>
-        ${statusPill}
-        <div class="report-row-actions">
-          <button class="btn btn-secondary" onclick="loadDraft('${k}')" style="font-size:11px;padding:5px 10px;">Continue</button>
-          <button class="btn" onclick="deleteDraft('${k}')" style="font-size:11px;padding:5px 10px;color:var(--red);">Delete</button>
-        </div>
-      </div>`;
-  }).join('');
 }
 
-function loadDraft(key) {
-  const data = JSON.parse(localStorage.getItem(key));
+async function renderDrafts() {
+  const list = document.getElementById('drafts-list');
+  list.innerHTML = '<div style="color:var(--gray5);font-size:13px;padding:12px 0;">Loading reports…</div>';
+  try {
+    const res = await workerCall('get_dcr');
+    if (!res.ok) {
+      list.innerHTML = `<div style="color:var(--red);font-size:13px;padding:12px 0;">Failed to load reports: ${res.error || 'Unknown error'}</div>`;
+      return;
+    }
+    const reports = res.reports || [];
+    if (reports.length === 0) {
+      list.innerHTML = '<div style="color:var(--gray5);font-size:13px;padding:12px 0;">No saved reports yet.</div>';
+      return;
+    }
+    const typeMap = { monthly: '📅', biannual: '📊', annual: '📋' };
+    list.innerHTML = reports
+      .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))
+      .map(d => {
+        const statusPill = d.status === 'submitted'
+          ? '<span class="pill pill-saved">Submitted</span>'
+          : '<span class="pill pill-draft">Draft</span>';
+        const canDelete = PDP_ROLE === 'admin';
+        return `
+          <div class="report-row">
+            <div class="report-row-icon ${d.type}">${typeMap[d.type] || '📄'}</div>
+            <div class="report-row-info">
+              <div class="report-row-title">${TYPE_CONFIG[d.type]?.label || d.type} — ${d.diocese || 'Untitled'}</div>
+              <div class="report-row-meta">${d.period || '—'} · ${d.submittedBy ? '<b>' + d.submittedBy + '</b> · ' : ''}Saved ${new Date(d.savedAt).toLocaleDateString()}</div>
+            </div>
+            ${statusPill}
+            <div class="report-row-actions">
+              <button class="btn btn-secondary" onclick='loadDriveReport(${JSON.stringify(d)})' style="font-size:11px;padding:5px 10px;">Continue</button>
+              ${canDelete ? `<button class="btn" onclick="deleteDriveReport('${d._fileId}')" style="font-size:11px;padding:5px 10px;color:var(--red);">Delete</button>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+  } catch (e) {
+    list.innerHTML = `<div style="color:var(--red);font-size:13px;padding:12px 0;">Network error loading reports.</div>`;
+  }
+}
+
+function loadDriveReport(data) {
   if (!data) return;
   startReport(data.type);
   REPORT_ID = data.id;
@@ -1578,102 +1611,124 @@ function loadDraft(key) {
       if (el && data.exec[k]) el.value = data.exec[k];
     });
   }
-  toast('Draft loaded', 'green');
+  // Mark submitted if already submitted
+  if (data.status === 'submitted') {
+    setTimeout(() => {
+      const submitSection = document.getElementById('submit-section');
+      if (submitSection) submitSection.innerHTML =
+        `<div style="color:var(--green);font-weight:600;font-size:13px;">✅ Report already submitted — ${new Date(data.submittedAt || data.savedAt).toLocaleString()}</div>
+         <div style="font-size:12px;color:var(--gray5);margin-top:4px;">Download PDF using the button above.</div>`;
+    }, 100);
+  }
+  toast('Report loaded', 'green');
+  showScreen('form');
 }
 
-function deleteDraft(key) {
-  if (!confirm('Delete this draft?')) return;
-  localStorage.removeItem(key);
-  renderDrafts();
-  toast('Draft deleted');
+async function deleteDriveReport(fileId) {
+  if (!fileId) return;
+  if (!confirm('Delete this report? It will be moved to Drive trash.')) return;
+  try {
+    const res = await workerCall('delete_dcr', { fileId });
+    if (res.ok) {
+      toast('Report deleted', 'green');
+      renderDrafts();
+    } else {
+      toast('Delete failed: ' + (res.error || 'Unknown'), 'red');
+    }
+  } catch (e) {
+    toast('Network error', 'red');
+  }
 }
 
-function submitReport() {
+async function submitReport() {
   const data = collectFormData();
-  data.status = 'submitted';
-  data.submittedAt = new Date().toISOString();
-  localStorage.setItem(`dcr_draft_${data.id}`, JSON.stringify(data));
-  document.getElementById('submit-section').innerHTML =
-    `<div style="color:var(--green);font-weight:600;font-size:13px;">✅ Report submitted — ${new Date().toLocaleString()}</div>
-     <div style="font-size:12px;color:var(--gray5);margin-top:4px;">Your admin/manager can now download this report as PDF.</div>`;
-  document.getElementById('save-status').textContent = 'Submitted ✓';
-  toast('Report submitted ✓', 'green');
+  const btn = document.querySelector('#submit-section .btn-success');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  try {
+    const res = await workerCall('save_dcr', { report: data, submit: true });
+    if (res.ok) {
+      document.getElementById('submit-section').innerHTML =
+        `<div style="color:var(--green);font-weight:600;font-size:13px;">✅ Report submitted — ${new Date().toLocaleString()}</div>
+         <div style="font-size:12px;color:var(--gray5);margin-top:4px;">Your admin/manager can now download this report as PDF.</div>`;
+      document.getElementById('save-status').textContent = 'Submitted ✓';
+      toast('Report submitted ✓', 'green');
+    } else {
+      toast('Submit failed: ' + (res.error || 'Unknown'), 'red');
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit Report →'; }
+    }
+  } catch (e) {
+    toast('Network error — report not submitted', 'red');
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit Report →'; }
+  }
 }
 
 // ══════════════════════════════════════════════════════
 //  ADMIN VIEW
 // ══════════════════════════════════════════════════════
-function renderAdminList() {
-  const keys = Object.keys(localStorage).filter(k => {
-    if (!k.startsWith('dcr_')) return false;
-    if (PDP_ROLE !== 'staff') return true;
-    try {
-      const d = JSON.parse(localStorage.getItem(k));
-      return !PDP_NAME || !d.submittedBy || d.submittedBy === PDP_NAME;
-    } catch { return true; }
-  });
-  const filterType   = document.getElementById('filter-type')?.value;
-  const filterStatus = document.getElementById('filter-status')?.value;
-
-  const reports = keys
-    .map(k => ({ key: k, ...JSON.parse(localStorage.getItem(k)) }))
-    .filter(d => (!filterType   || d.type   === filterType))
-    .filter(d => (!filterStatus || d.status === filterStatus))
-    .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
-
+async function renderAdminList() {
   const list = document.getElementById('admin-reports-list');
+  list.innerHTML = '<div style="padding:20px;color:var(--gray5);font-size:13px;">Loading reports…</div>';
 
-  if (reports.length === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">📭</div>
-        <h3>No reports found</h3>
-        <p>Staff reports will appear here once submitted.</p>
-      </div>`;
-    return;
-  }
+  try {
+    const res = await workerCall('get_dcr');
+    if (!res.ok) {
+      list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Failed to load</h3><p>${res.error || 'Unknown error'}</p></div>`;
+      return;
+    }
 
-  const typeMap  = { monthly: '📅', biannual: '📊', annual: '📋' };
-  const typeLabel = { monthly: 'Monthly', biannual: 'Bi-Annual', annual: 'Annual' };
+    const filterType   = document.getElementById('filter-type')?.value;
+    const filterStatus = document.getElementById('filter-status')?.value;
 
-  list.innerHTML = `<div class="reports-list">` + reports.map(d => `
-    <div class="report-row">
-      <div class="report-row-icon ${d.type}">${typeMap[d.type] || '📄'}</div>
-      <div class="report-row-info">
-        <div class="report-row-title">${typeLabel[d.type] || d.type} Report — ${d.diocese || 'Untitled Diocese'} ${d.submittedBy ? '<span style="font-size:11px;font-weight:400;color:var(--gray5);">by ' + d.submittedBy + '</span>' : ''}</div>
-        <div class="report-row-meta">
-          ${d.submittedBy ? '<span style="font-weight:600;color:var(--gray9);">👤 ' + d.submittedBy + '</span> · ' : ''}
-          ${d.period || '—'} · 
-          ${d.status === 'submitted' ? '✅ Submitted' : '⏳ Draft'} · 
-          ${new Date(d.savedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})}
-          ${d.submittedAt ? ' · <span style="color:var(--green);">Submitted ' + new Date(d.submittedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}) + '</span>' : ''}
+    const reports = (res.reports || [])
+      .filter(d => !filterType   || d.type   === filterType)
+      .filter(d => !filterStatus || d.status === filterStatus)
+      .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+
+    if (reports.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">📭</div>
+          <h3>No reports found</h3>
+          <p>Staff reports will appear here once submitted.</p>
+        </div>`;
+      return;
+    }
+
+    const typeMap   = { monthly: '📅', biannual: '📊', annual: '📋' };
+    const typeLabel = { monthly: 'Monthly', biannual: 'Bi-Annual', annual: 'Annual' };
+    const isAdmin   = PDP_ROLE === 'admin';
+
+    list.innerHTML = '<div class="reports-list">' + reports.map(d => `
+      <div class="report-row">
+        <div class="report-row-icon ${d.type}">${typeMap[d.type] || '📄'}</div>
+        <div class="report-row-info">
+          <div class="report-row-title">${typeLabel[d.type] || d.type} Report — ${d.diocese || 'Untitled Diocese'} ${d.submittedBy ? '<span style="font-size:11px;font-weight:400;color:var(--gray5);">by ' + d.submittedBy + '</span>' : ''}</div>
+          <div class="report-row-meta">
+            ${d.submittedBy ? '<span style="font-weight:600;color:var(--gray9);">👤 ' + d.submittedBy + '</span> · ' : ''}
+            ${d.period || '—'} ·
+            ${d.status === 'submitted' ? '✅ Submitted' : '⏳ Draft'} ·
+            ${new Date(d.savedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})}
+            ${d.submittedAt ? ' · <span style="color:var(--green);">Submitted ' + new Date(d.submittedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}) + '</span>' : ''}
+          </div>
         </div>
-      </div>
-      <div class="report-row-actions">
-        <span class="pill ${d.status === 'submitted' ? 'pill-saved' : 'pill-draft'}">${d.status === 'submitted' ? 'Submitted' : 'Draft'}</span>
-        <button class="btn btn-secondary" onclick="previewReport('${d.key}')" style="font-size:11px;padding:5px 10px;">👁 Preview</button>
-        <button class="btn btn-primary" onclick="downloadReportPDF('${d.key}')" style="font-size:11px;padding:5px 10px;">⬇ PDF</button>
-      </div>
-    </div>`).join('') + `</div>`;
+        <div class="report-row-actions">
+          <span class="pill ${d.status === 'submitted' ? 'pill-saved' : 'pill-draft'}">${d.status === 'submitted' ? 'Submitted' : 'Draft'}</span>
+          <button class="btn btn-secondary" onclick='loadDriveReport(${JSON.stringify(d)})' style="font-size:11px;padding:5px 10px;">👁 Preview</button>
+          <button class="btn btn-primary" onclick='downloadDriveReportPDF(${JSON.stringify(d)})' style="font-size:11px;padding:5px 10px;">⬇ PDF</button>
+          ${isAdmin ? `<button class="btn" onclick="deleteDriveReport('${d._fileId}')" style="font-size:11px;padding:5px 10px;color:var(--red);">🗑</button>` : ''}
+        </div>
+      </div>`).join('') + '</div>';
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Network error</h3><p>Could not connect to Worker.</p></div>`;
+  }
 }
 
-function previewReport(key) {
-  const d = JSON.parse(localStorage.getItem(key));
-  loadDraft(key);
-  setMode('staff');
-}
-
-function downloadReportPDF(key) {
-  const d = JSON.parse(localStorage.getItem(key));
-  // Load into form first, then print
-  loadDraft(key);
+function downloadDriveReportPDF(data) {
+  loadDriveReport(data);
   setMode('staff');
   setTimeout(() => exportPDF(), 600);
 }
 
-// ══════════════════════════════════════════════════════
-//  PDF EXPORT
-// ══════════════════════════════════════════════════════
 function exportPDF() {
   // Show print header, show all sections, then print
   document.getElementById('report-print-header').style.display = 'block';
@@ -1757,6 +1812,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applyRoleRestrictions();
   setMode(MODE);
   showScreen('select');
+  renderDrafts(); // load reports from Drive on page open
 
   // Show all section cards when scrolled into view (make them all visible once form is started)
   // Intersection observer to activate nav items
