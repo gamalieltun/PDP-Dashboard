@@ -1594,38 +1594,55 @@ async function renderDrafts() {
   }
 }
 
+// Track submitted state of currently loaded report
+let LOADED_REPORT_SUBMITTED = false;
+let LOADED_REPORT_SUBMITTED_AT = null;
+
+function applySubmitSection() {
+  if (!LOADED_REPORT_SUBMITTED) return;
+  const submitSection = document.getElementById('submit-section');
+  if (!submitSection) return;
+  submitSection.style.background = 'var(--lblue)';
+  submitSection.style.borderColor = '#bfdbfe';
+  submitSection.innerHTML =
+    '<div style="color:var(--blue);font-weight:600;font-size:13px;margin-bottom:8px;">✅ Previously submitted — ' + new Date(LOADED_REPORT_SUBMITTED_AT).toLocaleString() + '</div>' +
+    '<div style="font-size:12px;color:var(--gray7);margin-bottom:10px;">You can edit this report and resubmit. Your admin will see the updated version.</div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+    '<button class="btn btn-success" onclick="submitReport()">↩ Resubmit Report →</button>' +
+    '<button class="btn btn-secondary" onclick="saveDraft()">💾 Save as Draft</button>' +
+    '</div>';
+}
+
 function loadDriveReport(data) {
   if (!data) return;
+
+  // Track submitted state BEFORE startReport resets anything
+  LOADED_REPORT_SUBMITTED = data.status === 'submitted';
+  LOADED_REPORT_SUBMITTED_AT = data.submittedAt || data.savedAt;
+
   startReport(data.type);
   REPORT_ID = data.id;
 
   // Restore basic info
   if (data.basicInfo) {
     Object.entries(data.basicInfo).forEach(([k, v]) => {
-      const el = document.getElementById(`bi-${k}`);
+      const el = document.getElementById('bi-' + k);
       if (el) el.value = v;
     });
   }
   // Restore exec summary
   if (data.exec) {
     ['scope','beneficiaries','achievement','challenge'].forEach(k => {
-      const el = document.getElementById(`exec-${k}`);
+      const el = document.getElementById('exec-' + k);
       if (el && data.exec[k]) el.value = data.exec[k];
     });
   }
-  // For submitted reports — show resubmit option (staff can always edit and resubmit)
-  if (data.status === 'submitted') {
-    setTimeout(() => {
-      const submitSection = document.getElementById('submit-section');
-      if (submitSection) submitSection.innerHTML =
-        `<div style="color:var(--green);font-weight:600;font-size:13px;margin-bottom:8px;">✅ Previously submitted — ${new Date(data.submittedAt || data.savedAt).toLocaleString()}</div>
-         <div style="font-size:12px;color:var(--gray7);margin-bottom:10px;">You can edit this report and resubmit. Your admin will see the updated version.</div>
-         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-           <button class="btn btn-success" onclick="submitReport()">↩ Resubmit Report →</button>
-           <button class="btn btn-secondary" onclick="saveDraft()">💾 Save as Draft</button>
-         </div>`;
-    }, 100);
+
+  // Apply resubmit UI — 300ms to let DOM fully settle after startReport
+  if (LOADED_REPORT_SUBMITTED) {
+    setTimeout(applySubmitSection, 300);
   }
+
   toast('Report loaded', 'green');
   showScreen('form');
 }
@@ -1723,6 +1740,7 @@ async function submitReport() {
     const htmlContent = buildReportHTML(data);
     const res = await workerCall('save_dcr', { report: data, submit: true, htmlContent });
     if (res.ok) {
+      LOADED_REPORT_SUBMITTED = false; // clear resubmit state after successful submit
       const gdocNote = res.gdocId ? ' A Google Doc copy has been saved to Drive.' : '';
       document.getElementById('submit-section').innerHTML =
         `<div style="color:var(--green);font-weight:600;font-size:13px;">✅ Report submitted — ${new Date().toLocaleString()}</div>
@@ -1915,6 +1933,10 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('click', () => {
   if (CURRENT_SCREEN === 'form') {
     document.querySelectorAll('.section-card').forEach(el => el.style.display = 'block');
+    // Re-apply resubmit UI if a submitted report is loaded
+    if (LOADED_REPORT_SUBMITTED) {
+      setTimeout(applySubmitSection, 50);
+    }
   }
 });
 </script>
