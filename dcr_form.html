@@ -1646,16 +1646,87 @@ async function deleteDriveReport(fileId) {
   }
 }
 
+// Build a clean HTML snapshot of the current report for Google Drive
+function buildReportHTML(data) {
+  const typeLabel = { monthly: 'Monthly', biannual: 'Biannual', annual: 'Annual' }[data.type] || data.type;
+  const bi = data.basicInfo || {};
+  const ex = data.exec || {};
+
+  // Build sections HTML
+  const sectionRows = (data.sections || []).map(s => {
+    const rows = (s.activities || []).map(a =>
+      `<tr>
+        <td style="padding:6px 8px;border:1px solid #ccc;">${a.activity || ''}</td>
+        <td style="padding:6px 8px;border:1px solid #ccc;text-align:center;">${a.target || ''}</td>
+        <td style="padding:6px 8px;border:1px solid #ccc;text-align:center;">${a.achieved || ''}</td>
+        <td style="padding:6px 8px;border:1px solid #ccc;">${a.remarks || ''}</td>
+      </tr>`
+    ).join('');
+    return `
+      <h3 style="color:#2c5282;margin:18px 0 6px;">${s.sectionTitle || s.id || ''}</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:#ebf4ff;">
+          <th style="padding:6px 8px;border:1px solid #ccc;text-align:left;">Activity</th>
+          <th style="padding:6px 8px;border:1px solid #ccc;width:80px;">Target</th>
+          <th style="padding:6px 8px;border:1px solid #ccc;width:80px;">Achieved</th>
+          <th style="padding:6px 8px;border:1px solid #ccc;">Remarks</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 14px; color: #1a1a1a; max-width: 900px; margin: 0 auto; padding: 24px; }
+  h1 { color: #1a365d; border-bottom: 2px solid #2c5282; padding-bottom: 8px; }
+  h2 { color: #2c5282; margin-top: 24px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
+  th, td { padding: 7px 10px; border: 1px solid #ccc; }
+  th { background: #ebf4ff; text-align: left; }
+  .meta { color: #555; font-size: 12px; margin-bottom: 20px; }
+  .field-label { font-weight: bold; width: 180px; }
+</style>
+</head>
+<body>
+  <h1>PDP Digital Development — ${typeLabel} DCR</h1>
+  <div class="meta">Submitted by <b>${data.submittedBy || bi.focalPerson || '—'}</b> · ${data.submittedAt ? new Date(data.submittedAt).toLocaleString() : ''}</div>
+
+  <h2>Basic Information</h2>
+  <table>
+    <tr><td class="field-label">Diocese / Province</td><td>${bi.diocese || '—'}</td></tr>
+    <tr><td class="field-label">Focal Person</td><td>${bi.focalPerson || '—'}</td></tr>
+    <tr><td class="field-label">Period</td><td>${data.period || bi.period || '—'}</td></tr>
+    <tr><td class="field-label">Report Type</td><td>${typeLabel}</td></tr>
+  </table>
+
+  <h2>Executive Summary</h2>
+  <table>
+    <tr><td class="field-label">Scope</td><td>${ex.scope || '—'}</td></tr>
+    <tr><td class="field-label">Beneficiaries</td><td>${ex.beneficiaries || '—'}</td></tr>
+    <tr><td class="field-label">Key Achievement</td><td>${ex.achievement || '—'}</td></tr>
+    <tr><td class="field-label">Key Challenge</td><td>${ex.challenge || '—'}</td></tr>
+  </table>
+
+  <h2>Programme Activities</h2>
+  ${sectionRows || '<p>No activities recorded.</p>'}
+</body>
+</html>`;
+}
+
 async function submitReport() {
   const data = collectFormData();
   const btn = document.querySelector('#submit-section .btn-success');
   if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
   try {
-    const res = await workerCall('save_dcr', { report: data, submit: true });
+    const htmlContent = buildReportHTML(data);
+    const res = await workerCall('save_dcr', { report: data, submit: true, htmlContent });
     if (res.ok) {
+      const gdocNote = res.gdocId ? ' A Google Doc copy has been saved to Drive.' : '';
       document.getElementById('submit-section').innerHTML =
         `<div style="color:var(--green);font-weight:600;font-size:13px;">✅ Report submitted — ${new Date().toLocaleString()}</div>
-         <div style="font-size:12px;color:var(--gray5);margin-top:4px;">Your admin/manager can now download this report as PDF.</div>`;
+         <div style="font-size:12px;color:var(--gray5);margin-top:4px;">Your admin/manager can now view this report in Google Drive.${gdocNote}</div>`;
       document.getElementById('save-status').textContent = 'Submitted ✓';
       toast('Report submitted ✓', 'green');
     } else {
