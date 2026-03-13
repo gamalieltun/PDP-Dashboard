@@ -1736,11 +1736,11 @@ async function submitReport() {
   const data = collectFormData();
   const btn = document.querySelector('#submit-section .btn-success');
   if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  LOADED_REPORT_SUBMITTED = false; // pause resubmit re-apply while submitting
   try {
     const htmlContent = buildReportHTML(data);
     const res = await workerCall('save_dcr', { report: data, submit: true, htmlContent });
     if (res.ok) {
-      LOADED_REPORT_SUBMITTED = false; // clear resubmit state after successful submit
       const gdocNote = res.gdocId ? ' A Google Doc copy has been saved to Drive.' : '';
       document.getElementById('submit-section').innerHTML =
         `<div style="color:var(--green);font-weight:600;font-size:13px;">✅ Report submitted — ${new Date().toLocaleString()}</div>
@@ -1749,11 +1749,13 @@ async function submitReport() {
       toast('Report submitted ✓', 'green');
     } else {
       toast('Submit failed: ' + (res.error || 'Unknown'), 'red');
-      if (btn) { btn.disabled = false; btn.textContent = 'Submit Report →'; }
+      LOADED_REPORT_SUBMITTED = true; // restore resubmit UI on failure
+      setTimeout(applySubmitSection, 50);
     }
   } catch (e) {
     toast('Network error — report not submitted', 'red');
-    if (btn) { btn.disabled = false; btn.textContent = 'Submit Report →'; }
+    LOADED_REPORT_SUBMITTED = true; // restore resubmit UI on failure
+    setTimeout(applySubmitSection, 50);
   }
 }
 
