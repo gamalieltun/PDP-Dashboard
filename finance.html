@@ -616,7 +616,7 @@ async function workerCall(action, extra = {}) {
 // ════════════════════════════════════════════════════════════
 //  DATA
 // ════════════════════════════════════════════════════════════
-let FIN = { budget: [], transactions: [], queue: [] };
+let FIN = { budget: [], transactions: [], queue: [], projects: [] };
 let PENDING_REJECT_TX = null;
 let PENDING_BUDGET_ID = null;
 
@@ -636,6 +636,7 @@ async function loadAll() {
     FIN.budget       = res.budget       || [];
     FIN.transactions = res.transactions || [];
     FIN.queue        = res.queue        || [];
+    FIN.projects     = res.projects     || [];
 
     updateStats();
     renderBudget();
@@ -731,29 +732,32 @@ function renderBudget() {
 //  TRANSACTIONS
 // ════════════════════════════════════════════════════════════
 function populateFilters() {
-  const projects   = [...new Set(FIN.transactions.map(t => t.Project).filter(Boolean))];
   const categories = [...new Set(FIN.transactions.map(t => t.Category).filter(Boolean))];
 
   const pSel = document.getElementById('filter-project');
   const cSel = document.getElementById('filter-category');
   const pExp = document.getElementById('exp-project');
 
-  // Keep first option, rebuild rest
   pSel.innerHTML = '<option value="">All Projects</option>';
   cSel.innerHTML = '<option value="">All Categories</option>';
   pExp.innerHTML = '<option value="">Select project…</option>';
 
-  projects.forEach(p => {
-    pSel.add(new Option(p, p));
-    pExp.add(new Option(p, p));
-  });
-
-  // Also add from budget if no transactions yet
-  if (!projects.length) {
-    FIN.budget.forEach(b => {
-      if (b.Project) pExp.add(new Option(b.Project, b.Project));
-    });
+  // Priority: synced projects from Main Projects sheet > budget > transactions
+  let projectList = [];
+  if (FIN.projects.length) {
+    projectList = FIN.projects.map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }));
+  } else if (FIN.budget.length) {
+    const fromBudget = [...new Set(FIN.budget.map(b => b.Project).filter(Boolean))];
+    projectList = fromBudget.map(p => ({ value: p, label: p }));
+  } else {
+    const fromTx = [...new Set(FIN.transactions.map(t => t.Project).filter(Boolean))];
+    projectList = fromTx.map(p => ({ value: p, label: p }));
   }
+
+  projectList.forEach(p => {
+    pSel.add(new Option(p.label, p.value));
+    pExp.add(new Option(p.label, p.value));
+  });
 
   categories.forEach(c => cSel.add(new Option(c, c)));
 }
