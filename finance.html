@@ -278,7 +278,7 @@
   .pill-approved { background: var(--green-lt); color: var(--green); border: 1px solid #bbf7d0; }
   .pill-rejected { background: var(--red-lt);   color: var(--red);   border: 1px solid #fecaca; }
 
-  /* ── Project summary cards ── */
+  /* ── Program summary cards ── */
   .proj-summary-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-bottom:16px; }
   .proj-summary-card { background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius); padding:12px 14px; }
   .proj-summary-name { font-size:12px; font-weight:700; color:var(--gray-600); text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
@@ -368,7 +368,7 @@
     color: var(--blue);
   }
 
-  /* ── Project summary cards ── */
+  /* ── Program summary cards ── */
   .proj-summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:20px; }
   .proj-summary-card { background:#fff; border:1px solid var(--gray-200); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); }
   .proj-summary-name { font-size:13px; font-weight:600; color:var(--gray-800); margin-bottom:2px; }
@@ -475,12 +475,12 @@
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
         <div>
           <div style="font-size:15px;font-weight:600;color:var(--gray-800);">Budget Overview</div>
-          <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">Allocated vs spent by project, program and category</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">Allocated vs spent by program, project and category</div>
         </div>
         <button class="btn btn-secondary" onclick="loadAll()">↻ Refresh</button>
       </div>
-      <!-- Per-project summary cards -->
-      <div class="section-heading">By Project</div>
+      <!-- Per-program summary cards -->
+      <div class="section-heading">By Program</div>
       <div class="proj-summary-grid" id="proj-summary-cards"></div>
       <!-- Full budget lines table -->
       <div class="section-heading" style="margin-top:8px;">Budget Lines</div>
@@ -494,8 +494,8 @@
       <div class="section-heading">Expense Transactions</div>
       <div class="toolbar">
         <div class="toolbar-left">
-          <select id="filter-project" onchange="renderTransactions()" style="width:160px;">
-            <option value="">All Projects</option>
+          <select id="filter-program" onchange="renderTransactions()" style="width:160px;">
+            <option value="">All Programs</option>
           </select>
           <select id="filter-category" onchange="renderTransactions()" style="width:140px;">
             <option value="">All Categories</option>
@@ -537,8 +537,8 @@
         <div class="card-header">Add Budget Line</div>
         <div style="padding:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;" id="add-budget-grid">
           <div>
-            <label>Project</label>
-            <select id="nb-project" onchange="loadBudgetPrograms()"></select>
+            <label>Program</label>
+            <select id="nb-program" onchange="loadBudgetProjects()"></select>
           </div>
           <div>
             <label>Category</label>
@@ -552,9 +552,9 @@
             </select>
           </div>
           <div>
-            <label>Program <span style="font-weight:400;font-size:11px;color:var(--gray-400)">(optional)</span></label>
-            <select id="nb-program-id">
-              <option value="">— Entire project —</option>
+            <label>Project <span style="font-weight:400;font-size:11px;color:var(--gray-400)">(optional)</span></label>
+            <select id="nb-project-id">
+              <option value="">— Entire program —</option>
             </select>
           </div>
           <div>
@@ -632,13 +632,13 @@
       <button class="modal-close" onclick="closeExpenseModal()">×</button>
     </div>
     <div class="form-group">
-      <label>Project</label>
-      <select id="exp-project" onchange="loadExpensePrograms()"></select>
+      <label>Program</label>
+      <select id="exp-program" onchange="loadExpenseProjects()"></select>
     </div>
     <div class="form-group">
-      <label>Program <span style="font-weight:400;font-size:11px;color:var(--gray-400)">(optional)</span></label>
-      <select id="exp-program">
-        <option value="">— Select project first —</option>
+      <label>Project <span style="font-weight:400;font-size:11px;color:var(--gray-400)">(optional)</span></label>
+      <select id="exp-project">
+        <option value="">— Select program first —</option>
       </select>
     </div>
     <div class="form-group">
@@ -775,7 +775,7 @@ async function workerCall(action, extra = {}) {
 // ════════════════════════════════════════════════════════════
 //  DATA
 // ════════════════════════════════════════════════════════════
-let FIN = { budget: [], transactions: [], queue: [], projects: [], proposals: [] };
+let FIN = { budget: [], transactions: [], queue: [], programs: [], proposals: [] };
 let PENDING_REJECT_TX = null;
 let PENDING_BUDGET_ID = null;
 
@@ -795,7 +795,7 @@ async function loadAll() {
     FIN.budget       = res.budget       || [];
     FIN.transactions = res.transactions || [];
     FIN.queue        = res.queue        || [];
-    FIN.projects     = res.projects     || [];
+    FIN.programs     = res.programs     || [];
     FIN.proposals    = res.proposals    || [];
 
     updateStats();
@@ -861,17 +861,17 @@ function renderBudget() {
     return;
   }
 
-  // ── Project summary cards ──
-  const byProject = {};
+  // ── Program summary cards ──
+  const byProgram = {};
   FIN.budget.forEach(r => {
-    const pid = r.Project || 'Unknown';
-    if (!byProject[pid]) byProject[pid] = { alloc: 0, spent: 0 };
-    byProject[pid].alloc += parseFloat(r.Allocated || 0);
-    byProject[pid].spent += parseFloat(r.Spent     || 0);
+    const pid = r.Program || 'Unknown';
+    if (!byProgram[pid]) byProgram[pid] = { alloc: 0, spent: 0 };
+    byProgram[pid].alloc += parseFloat(r.Allocated || 0);
+    byProgram[pid].spent += parseFloat(r.Spent     || 0);
   });
 
   let summaryHtml = '';
-  Object.entries(byProject).forEach(([pid, s]) => {
+  Object.entries(byProgram).forEach(([pid, s]) => {
     const pct = s.alloc > 0 ? Math.min(100, Math.round(s.spent / s.alloc * 100)) : 0;
     const statusColor = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--green)';
     summaryHtml += `<div class="proj-summary-card">
@@ -890,7 +890,7 @@ function renderBudget() {
 
   // ── Budget lines table ──
   let html = `<table class="fin-table"><thead><tr>
-    <th>Project</th><th>Program</th><th>Category</th><th>Allocated</th><th>Spent</th>
+    <th>Program</th><th>Project</th><th>Category</th><th>Allocated</th><th>Spent</th>
     <th>Remaining</th><th style="min-width:110px">Usage</th>
     ${PDP_ROLE === 'admin' ? '<th></th>' : ''}
   </tr></thead><tbody>`;
@@ -902,10 +902,10 @@ function renderBudget() {
     const pct    = alloc > 0 ? Math.min(100, Math.round(spent / alloc * 100)) : 0;
     const cls    = pct > 90 ? 'over' : pct > 70 ? 'warn' : '';
     const remColor = rem < 0 ? 'var(--red)' : rem === 0 ? 'var(--amber)' : 'inherit';
-    const prog   = r['Program ID'] || '—';
+    const prog   = r['Project ID'] || '—';
 
     html += `<tr>
-      <td style="font-weight:500">${r.Project || '—'}</td>
+      <td style="font-weight:500">${r.Program || '—'}</td>
       <td class="hide-mobile" style="font-size:12px;color:var(--gray-500);font-family:monospace">${prog}</td>
       <td><span class="cat-pill">${r.Category || '—'}</span></td>
       <td>${fmtMMK(alloc)}</td>
@@ -921,7 +921,7 @@ function renderBudget() {
         data-id="${(r['Budget ID']||'').replace(/"/g,'&quot;')}"
         data-alloc="${alloc}"
         data-notes="${(r.Notes||'').replace(/"/g,'&quot;')}"
-        data-label="${(r.Project||'').replace(/"/g,'&quot;')} — ${(r.Category||'').replace(/"/g,'&quot;')}">Edit</button></td>` : ''}
+        data-label="${(r.Program||'').replace(/"/g,'&quot;')} — ${(r.Category||'').replace(/"/g,'&quot;')}">Edit</button></td>` : ''}
     </tr>`;
   });
 
@@ -938,47 +938,47 @@ function renderBudget() {
 function populateFilters() {
   const categories = [...new Set(FIN.transactions.map(t => t.Category).filter(Boolean))];
 
-  const pSel = document.getElementById('filter-project');
+  const pSel = document.getElementById('filter-program');
   const cSel = document.getElementById('filter-category');
-  const pExp = document.getElementById('exp-project');
+  const pExp = document.getElementById('exp-program');
 
-  pSel.innerHTML = '<option value="">All Projects</option>';
+  pSel.innerHTML = '<option value="">All Programs</option>';
   cSel.innerHTML = '<option value="">All Categories</option>';
-  pExp.innerHTML = '<option value="">Select project…</option>';
+  pExp.innerHTML = '<option value="">Select program…</option>';
 
   // Show manage tab for admin/manager
   const manageTab = document.getElementById('st-manage');
   if (manageTab) manageTab.style.display = (PDP_ROLE === 'admin') ? '' : 'none';
 
-  // Populate nb-project (add budget form)
-  const nbProj = document.getElementById('nb-project');
+  // Populate nb-program (add budget form)
+  const nbProj = document.getElementById('nb-program');
   if (nbProj) {
-    nbProj.innerHTML = '<option value="">Select project…</option>';
-    if (FIN.projects.length) {
-      FIN.projects.forEach(p => nbProj.add(new Option(`${p.id} — ${p.name}`, p.id)));
+    nbProj.innerHTML = '<option value="">Select program…</option>';
+    if (FIN.programs.length) {
+      FIN.programs.forEach(p => nbProj.add(new Option(`${p.id} — ${p.name}`, p.id)));
     }
   }
 
-  // Populate nb-program-id with a note it's optional
-  const nbProg = document.getElementById('nb-program-id');
+  // Populate nb-project-id with a note it's optional
+  const nbProg = document.getElementById('nb-project-id');
   if (nbProg) {
-    nbProg.innerHTML = '<option value="">— Entire project —</option>';
-    // Programs will be loaded when user selects project
+    nbProg.innerHTML = '<option value="">— Entire program —</option>';
+    // Projects will be loaded when user selects program
   }
 
-  // Priority: synced projects from Main Projects sheet > budget > transactions
-  let projectList = [];
-  if (FIN.projects.length) {
-    projectList = FIN.projects.map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }));
+  // Priority: synced programs from Main Programs sheet > budget > transactions
+  let programList = [];
+  if (FIN.programs.length) {
+    programList = FIN.programs.map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }));
   } else if (FIN.budget.length) {
-    const fromBudget = [...new Set(FIN.budget.map(b => b.Project).filter(Boolean))];
-    projectList = fromBudget.map(p => ({ value: p, label: p }));
+    const fromBudget = [...new Set(FIN.budget.map(b => b.Program).filter(Boolean))];
+    programList = fromBudget.map(p => ({ value: p, label: p }));
   } else {
-    const fromTx = [...new Set(FIN.transactions.map(t => t.Project).filter(Boolean))];
-    projectList = fromTx.map(p => ({ value: p, label: p }));
+    const fromTx = [...new Set(FIN.transactions.map(t => t.Program).filter(Boolean))];
+    programList = fromTx.map(p => ({ value: p, label: p }));
   }
 
-  projectList.forEach(p => {
+  programList.forEach(p => {
     pSel.add(new Option(p.label, p.value));
     pExp.add(new Option(p.label, p.value));
   });
@@ -988,12 +988,12 @@ function populateFilters() {
 
 function renderTransactions() {
   const el          = document.getElementById('tx-body');
-  const filterProj  = document.getElementById('filter-project')?.value  || '';
+  const filterProj  = document.getElementById('filter-program')?.value  || '';
   const filterCat   = document.getElementById('filter-category')?.value || '';
   const filterSt    = document.getElementById('filter-status')?.value   || '';
 
   let txs = [...FIN.transactions];
-  if (filterProj) txs = txs.filter(t => t.Project  === filterProj);
+  if (filterProj) txs = txs.filter(t => t.Program  === filterProj);
   if (filterCat)  txs = txs.filter(t => t.Category === filterCat);
   if (filterSt)   txs = txs.filter(t => t.Status   === filterSt);
   txs.sort((a, b) => (b.Date || '').localeCompare(a.Date || ''));
@@ -1004,7 +1004,7 @@ function renderTransactions() {
   }
 
   let html = `<table class="fin-table"><thead><tr>
-    <th>Date</th><th>Project</th><th>Program</th><th>Category</th>
+    <th>Date</th><th>Program</th><th>Project</th><th>Category</th>
     <th>Amount</th><th>Description</th><th>By</th><th>Status</th>
     ${CAN_APPROVE ? '<th></th>' : ''}
   </tr></thead><tbody>`;
@@ -1013,8 +1013,8 @@ function renderTransactions() {
     const st = t.Status || 'pending';
     html += `<tr>
       <td class="hide-mobile" style="white-space:nowrap;color:var(--gray-500)">${t.Date || '—'}</td>
-      <td style="font-weight:500">${t.Project || '—'}</td>
-      <td class="hide-mobile" style="font-size:12px;color:var(--gray-500)">${t['Program ID'] || '—'}</td>
+      <td style="font-weight:500">${t.Program || '—'}</td>
+      <td class="hide-mobile" style="font-size:12px;color:var(--gray-500)">${t['Project ID'] || '—'}</td>
       <td><span class="cat-pill">${t.Category || '—'}</span></td>
       <td style="font-weight:600">${parseFloat(t.Amount || 0).toLocaleString()}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.Description || ''}">${t.Description || '—'}</td>
@@ -1089,7 +1089,7 @@ function switchTab(name) {
 function openExpenseModal() {
   document.getElementById('exp-amount').value = '';
   document.getElementById('exp-desc').value   = '';
-  document.getElementById('exp-program').innerHTML = '<option value="">— Select project first —</option>';
+  document.getElementById('exp-project').innerHTML = '<option value="">— Select program first —</option>';
   document.getElementById('exp-submit-btn').disabled = false;
   document.getElementById('exp-submit-btn').textContent = 'Submit for Approval';
   document.getElementById('expense-modal').classList.add('open');
@@ -1098,27 +1098,27 @@ function closeExpenseModal() {
   document.getElementById('expense-modal').classList.remove('open');
 }
 
-async function loadExpensePrograms() {
-  const projId  = document.getElementById('exp-project').value;
-  const progSel = document.getElementById('exp-program');
-  progSel.innerHTML = '<option value="">— No program —</option>';
+async function loadExpenseProjects() {
+  const projId  = document.getElementById('exp-program').value;
+  const progSel = document.getElementById('exp-project');
+  progSel.innerHTML = '<option value="">— No project —</option>';
   if (!projId) return;
   try {
-    const res = await workerCall('get_programs', { projectId: projId });
-    (res.programs || []).forEach(p => {
-      progSel.add(new Option(`${p['Program Name']} (${p['Program ID']})`, p['Program ID']));
+    const res = await workerCall('get_projects', { programId: projId });
+    (res.projects || []).forEach(p => {
+      progSel.add(new Option(`${p['Project Name']} (${p['Project ID']})`, p['Project ID']));
     });
   } catch(_) {}
 }
 
 async function submitExpense() {
-  const project     = document.getElementById('exp-project').value;
-  const programId   = document.getElementById('exp-program').value;
+  const program     = document.getElementById('exp-program').value;
+  const projectId   = document.getElementById('exp-project').value;
   const category    = document.getElementById('exp-category').value;
   const amount      = document.getElementById('exp-amount').value;
   const description = document.getElementById('exp-desc').value.trim();
 
-  if (!project || !amount || !description) {
+  if (!program || !amount || !description) {
     toast('Please fill in all required fields', 'red'); return;
   }
 
@@ -1126,7 +1126,7 @@ async function submitExpense() {
   btn.disabled = true; btn.textContent = 'Submitting…';
 
   try {
-    const res = await workerCall('log_expense', { project, programId, category, amount, description });
+    const res = await workerCall('log_expense', { program, projectId, category, amount, description });
     if (res.ok) {
       toast('Expense logged — pending approval', 'green');
       closeExpenseModal();
@@ -1226,7 +1226,7 @@ function renderManageBudget() {
   }
 
   let html = `<table class="fin-table"><thead><tr>
-    <th>Budget ID</th><th>Project</th><th>Program</th><th>Category</th>
+    <th>Budget ID</th><th>Program</th><th>Project</th><th>Category</th>
     <th>Allocated</th><th>Spent</th><th>Remaining</th><th>Period</th><th>Notes</th><th></th>
   </tr></thead><tbody>`;
 
@@ -1236,8 +1236,8 @@ function renderManageBudget() {
     const rem   = alloc - spent;
     html += `<tr>
       <td style="font-family:monospace;font-size:11px;color:var(--gray-400)">${r['Budget ID'] || '—'}</td>
-      <td style="font-weight:500">${r.Project || '—'}</td>
-      <td style="font-size:12px;color:var(--gray-500)">${r['Program ID'] || '<span style="color:var(--gray-300)">All</span>'}</td>
+      <td style="font-weight:500">${r.Program || '—'}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${r['Project ID'] || '<span style="color:var(--gray-300)">All</span>'}</td>
       <td><span class="cat-pill">${r.Category || '—'}</span></td>
       <td>${fmtMMK(alloc)}</td>
       <td>${fmtMMK(spent)}</td>
@@ -1248,7 +1248,7 @@ function renderManageBudget() {
         data-id="${(r['Budget ID']||'').replace(/"/g,'&quot;')}"
         data-alloc="${r.Allocated||0}"
         data-notes="${(r.Notes||'').replace(/"/g,'&quot;')}"
-        data-label="${(r.Project||'').replace(/"/g,'&quot;')} — ${(r.Category||'').replace(/"/g,'&quot;')}">Edit</button></td>
+        data-label="${(r.Program||'').replace(/"/g,'&quot;')} — ${(r.Category||'').replace(/"/g,'&quot;')}">Edit</button></td>
     </tr>`;
   });
 
@@ -1256,22 +1256,22 @@ function renderManageBudget() {
   el.innerHTML = html;
 }
 
-async function loadBudgetPrograms() {
-  const projId = document.getElementById('nb-project').value;
-  const progSel = document.getElementById('nb-program-id');
+async function loadBudgetProjects() {
+  const projId = document.getElementById('nb-program').value;
+  const progSel = document.getElementById('nb-project-id');
   if (!progSel) return;
-  progSel.innerHTML = '<option value="">— Entire project —</option>';
+  progSel.innerHTML = '<option value="">— Entire program —</option>';
   if (!projId) return;
   try {
-    const res = await workerCall('get_programs', { projectId: projId });
-    (res.programs || []).forEach(p => {
-      progSel.add(new Option(`${p['Program Name']} (${p['Program ID']})`, p['Program ID']));
+    const res = await workerCall('get_projects', { programId: projId });
+    (res.projects || []).forEach(p => {
+      progSel.add(new Option(`${p['Project Name']} (${p['Project ID']})`, p['Project ID']));
     });
   } catch(_) {}
 }
 
 async function submitAddBudget() {
-  const project   = document.getElementById('nb-project').value;
+  const program   = document.getElementById('nb-program').value;
   const category  = document.getElementById('nb-category').value;
   const allocated = document.getElementById('nb-allocated').value;
   const period    = document.getElementById('nb-period').value;
@@ -1279,10 +1279,10 @@ async function submitAddBudget() {
   const msgEl     = document.getElementById('nb-msg');
   const btn       = document.getElementById('nb-submit-btn');
 
-  if (!project || !allocated) {
+  if (!program || !allocated) {
     msgEl.style.display = 'block';
     msgEl.style.color   = 'var(--red)';
-    msgEl.textContent   = 'Project and allocated amount are required.';
+    msgEl.textContent   = 'Program and allocated amount are required.';
     return;
   }
 
@@ -1290,14 +1290,14 @@ async function submitAddBudget() {
   msgEl.style.display = 'none';
 
   try {
-    const programId = document.getElementById('nb-program-id')?.value || '';
-    const res = await workerCall('add_budget', { project, programId, category, allocated, period, notes });
+    const projectId = document.getElementById('nb-project-id')?.value || '';
+    const res = await workerCall('add_budget', { program, projectId, category, allocated, period, notes });
     if (res.ok) {
       msgEl.style.display = 'block';
       msgEl.style.color   = 'var(--green)';
       msgEl.textContent   = `✓ Budget line added (${res.budgetId})`;
       // Clear form
-      document.getElementById('nb-project').value   = '';
+      document.getElementById('nb-program').value   = '';
       document.getElementById('nb-allocated').value = '';
       document.getElementById('nb-notes').value     = '';
       await loadAll();
@@ -1337,13 +1337,13 @@ function renderProposals() {
   const statusColor = { draft:'var(--gray-400)', submitted:'var(--amber)', approved:'var(--green)', rejected:'var(--red)' };
 
   let html = `<table class="fin-table"><thead><tr>
-    <th>ID</th><th>Project</th><th>Program</th><th>Category</th>
+    <th>ID</th><th>Program</th><th>Project</th><th>Category</th>
     <th>Amount</th><th>Period</th><th>By</th><th>Status</th><th></th>
   </tr></thead><tbody>`;
 
   props.forEach(p => {
     const st = p['Status'] || 'draft';
-    const projName = FIN.projects.find(pr => pr.id === p['Project ID'])?.name || p['Project ID'] || '—';
+    const projName = FIN.programs.find(pr => pr.id === p['Program ID'])?.name || p['Program ID'] || '—';
     const canEdit = (st === 'draft') && (IS_ADMIN || p['Proposed By'] === PDP_NAME);
     const canSubmit = (st === 'draft') && (IS_ADMIN || p['Proposed By'] === PDP_NAME);
     const canReview = IS_ADMIN && st === 'submitted';
@@ -1351,7 +1351,7 @@ function renderProposals() {
     html += `<tr>
       <td style="font-family:monospace;font-size:11px;color:var(--gray-400)">${p['Proposal ID']||'—'}</td>
       <td style="font-weight:500">${projName}</td>
-      <td>${p['Program ID']||'—'}</td>
+      <td>${p['Project ID']||'—'}</td>
       <td><span class="cat-pill">${p['Category']||'—'}</span></td>
       <td style="font-weight:600">${parseFloat(p['Requested Amount']||0).toLocaleString()}</td>
       <td style="color:var(--gray-500)">${p['Period']||'—'}</td>
@@ -1377,25 +1377,25 @@ function openProposalModal(proposalId, readOnly = false) {
   const titleEl = document.getElementById('proposal-modal-title');
   titleEl.textContent = proposalId ? (readOnly ? 'View Proposal' : 'Edit Proposal') : 'New Budget Proposal';
 
-  // Populate project dropdown
-  const projSel = document.getElementById('prop-project');
-  projSel.innerHTML = '<option value="">Select project…</option>';
-  FIN.projects.forEach(p => projSel.add(new Option(`${p.id} — ${p.name}`, p.id)));
+  // Populate program dropdown
+  const projSel = document.getElementById('prop-program');
+  projSel.innerHTML = '<option value="">Select program…</option>';
+  FIN.programs.forEach(p => projSel.add(new Option(`${p.id} — ${p.name}`, p.id)));
 
   // Populate with existing data if editing
   if (proposalId) {
     const prop = FIN.proposals.find(p => p['Proposal ID'] === proposalId);
     if (prop) {
-      projSel.value = prop['Project ID'] || '';
-      const isEntire = prop['Program ID'] === 'ALL_PROGRAMS';
-      document.getElementById('prop-entire-project').checked = isEntire;
+      projSel.value = prop['Program ID'] || '';
+      const isEntire = prop['Project ID'] === 'ALL_PROJECTS';
+      document.getElementById('prop-entire-program').checked = isEntire;
       if (isEntire) {
-        const progSel = document.getElementById('prop-program');
+        const progSel = document.getElementById('prop-project');
         progSel.disabled = true;
-        progSel.innerHTML = '<option value="ALL_PROGRAMS">— Entire project —</option>';
-        progSel.value = 'ALL_PROGRAMS';
+        progSel.innerHTML = '<option value="ALL_PROJECTS">— Entire program —</option>';
+        progSel.value = 'ALL_PROJECTS';
       } else {
-        loadProposalPrograms(prop['Program ID']);
+        loadProposalProjects(prop['Project ID']);
       }
       document.getElementById('prop-category').value = prop['Category'] || 'Travel';
       document.getElementById('prop-period').value   = prop['Period'] || 'Q1 2026';
@@ -1406,16 +1406,16 @@ function openProposalModal(proposalId, readOnly = false) {
   } else {
     // Reset
     projSel.value = '';
-    document.getElementById('prop-program').innerHTML = '<option value="">— Select project first —</option>';
-    document.getElementById('prop-program').disabled = false;
-    document.getElementById('prop-entire-project').checked = false;
+    document.getElementById('prop-project').innerHTML = '<option value="">— Select program first —</option>';
+    document.getElementById('prop-project').disabled = false;
+    document.getElementById('prop-entire-program').checked = false;
     document.getElementById('prop-amount').value   = '';
     document.getElementById('prop-justification').value = '';
     document.getElementById('prop-notes').value = '';
   }
 
   // Read-only state
-  ['prop-project','prop-program','prop-category','prop-period','prop-amount','prop-justification','prop-notes','prop-entire-project'].forEach(id => {
+  ['prop-program','prop-project','prop-category','prop-period','prop-amount','prop-justification','prop-notes','prop-entire-program'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = readOnly;
   });
@@ -1431,40 +1431,40 @@ function closeProposalModal() {
   CURRENT_PROPOSAL_ID = null;
 }
 
-async function toggleEntireProject(checked) {
-  const progSel = document.getElementById('prop-program');
+async function toggleEntireProgram(checked) {
+  const progSel = document.getElementById('prop-project');
   if (checked) {
     progSel.disabled = true;
-    progSel.innerHTML = '<option value="ALL_PROGRAMS">— Entire project —</option>';
-    progSel.value = 'ALL_PROGRAMS';
+    progSel.innerHTML = '<option value="ALL_PROJECTS">— Entire program —</option>';
+    progSel.value = 'ALL_PROJECTS';
   } else {
     progSel.disabled = false;
-    loadProposalPrograms();
+    loadProposalProjects();
   }
 }
 
-async function loadProposalPrograms(selectProgramId) {
-  const projId  = document.getElementById('prop-project').value;
-  const progSel = document.getElementById('prop-program');
+async function loadProposalProjects(selectprojectId) {
+  const projId  = document.getElementById('prop-program').value;
+  const progSel = document.getElementById('prop-project');
   progSel.innerHTML = '<option value="">Loading…</option>';
   progSel.disabled = true;
   try {
-    const res = await workerCall('get_programs', { projectId: projId });
-    const programs = (res.programs || []).filter(p => !projId || p['Project ID'] === projId);
-    progSel.innerHTML = '<option value="">— Select program —</option>';
-    programs.forEach(p => {
-      progSel.add(new Option(`${p['Program Name']} (${p['Program ID']})`, p['Program ID']));
+    const res = await workerCall('get_projects', { programId: projId });
+    const projects = (res.projects || []).filter(p => !projId || p['Program ID'] === projId);
+    progSel.innerHTML = '<option value="">— Select project —</option>';
+    projects.forEach(p => {
+      progSel.add(new Option(`${p['Project Name']} (${p['Project ID']})`, p['Project ID']));
     });
-    if (selectProgramId) progSel.value = selectProgramId;
+    if (selectprojectId) progSel.value = selectprojectId;
   } catch(e) {
-    progSel.innerHTML = '<option value="">Error loading programs</option>';
+    progSel.innerHTML = '<option value="">Error loading projects</option>';
   }
   progSel.disabled = false;
 }
 
 async function saveProposal(submitAfter) {
-  const projectId = document.getElementById('prop-project').value;
   const programId = document.getElementById('prop-program').value;
+  const projectId = document.getElementById('prop-project').value;
   const category  = document.getElementById('prop-category').value;
   const period    = document.getElementById('prop-period').value;
   const requestedAmount = document.getElementById('prop-amount').value;
@@ -1472,9 +1472,9 @@ async function saveProposal(submitAfter) {
   const notes     = document.getElementById('prop-notes').value.trim();
   const msgEl     = document.getElementById('prop-modal-msg');
 
-  if (!projectId || !programId || !requestedAmount || !justification) {
+  if (!programId || !projectId || !requestedAmount || !justification) {
     msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
-    msgEl.textContent = 'Project, Program, Amount and Justification are required.'; return;
+    msgEl.textContent = 'Program, Project, Amount and Justification are required.'; return;
   }
 
   const saveBtn   = document.getElementById('prop-save-btn');
@@ -1484,7 +1484,7 @@ async function saveProposal(submitAfter) {
 
   try {
     const saveRes = await workerCall('save_proposal', {
-      proposalId: CURRENT_PROPOSAL_ID, projectId, programId, category,
+      proposalId: CURRENT_PROPOSAL_ID, programId, projectId, category,
       requestedAmount, justification, period, notes
     });
 
@@ -1531,12 +1531,12 @@ function openReviewModal(proposalId) {
   PENDING_REVIEW_PROPOSAL_ID = proposalId;
   const prop = FIN.proposals.find(p => p['Proposal ID'] === proposalId);
   if (!prop) return;
-  const projName = FIN.projects.find(pr => pr.id === prop['Project ID'])?.name || prop['Project ID'];
+  const projName = FIN.programs.find(pr => pr.id === prop['Program ID'])?.name || prop['Program ID'];
   document.getElementById('review-modal-title').textContent = `Review: ${prop['Proposal ID']}`;
   document.getElementById('review-proposal-summary').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-      <div><b>Project:</b> ${projName}</div>
-      <div><b>Program:</b> ${prop['Program ID']}</div>
+      <div><b>Program:</b> ${projName}</div>
+      <div><b>Project:</b> ${prop['Project ID']}</div>
       <div><b>Category:</b> ${prop['Category']}</div>
       <div><b>Period:</b> ${prop['Period']}</div>
       <div style="grid-column:1/-1"><b>Amount:</b> <span style="font-size:16px;font-weight:700;color:var(--amber)">${parseFloat(prop['Requested Amount']||0).toLocaleString()} MMK</span></div>
@@ -1604,19 +1604,19 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="form-group" style="grid-column:1/-1;">
-        <label>Project</label>
-        <select id="prop-project" onchange="loadProposalPrograms()"></select>
+        <label>Program</label>
+        <select id="prop-program" onchange="loadProposalProjects()"></select>
       </div>
       <div class="form-group" style="grid-column:1/-1;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <label style="margin-bottom:0;">Program</label>
+          <label style="margin-bottom:0;">Project</label>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:400;color:var(--gray-500);cursor:pointer;">
-            <input type="checkbox" id="prop-entire-project" onchange="toggleEntireProject(this.checked)" style="width:auto;margin:0;">
-            Apply to entire project
+            <input type="checkbox" id="prop-entire-program" onchange="toggleEntireProgram(this.checked)" style="width:auto;margin:0;">
+            Apply to entire program
           </label>
         </div>
-        <select id="prop-program">
-          <option value="">— Select project first —</option>
+        <select id="prop-project">
+          <option value="">— Select program first —</option>
         </select>
       </div>
       <div class="form-group">

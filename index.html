@@ -768,7 +768,7 @@
     </div>
 
     <div class="login-footer">
-      Project Delivery Platform · Church Development Department<br>
+      Program Delivery Platform · Church Development Department<br>
       Contact your admin if you need access.
     </div>
   </div>
@@ -784,7 +784,7 @@
     <div class="header-left">
       <div class="logo">PDP</div>
       <div>
-        <div class="header-title">Project Delivery Dashboard</div>
+        <div class="header-title">Program Delivery Dashboard</div>
         <div class="header-sub" id="hdr-status">Loading data…</div>
       </div>
     </div>
@@ -832,12 +832,12 @@
   <!-- TABS -->
   <div class="tabs">
     <button class="tab" id="tab-btn-mytasks" onclick="switchTab('mytasks',this)">🏠 My Tasks</button>
-    <button class="tab active" id="tab-btn-progress" onclick="switchTab('progress',this)">Project Progress</button>
+    <button class="tab active" id="tab-btn-progress" onclick="switchTab('progress',this)">Program Progress</button>
     <button class="tab" id="tab-btn-kpi" onclick="switchTab('kpi',this)">Weekly KPI</button>
     <button class="tab" id="tab-btn-staff" onclick="switchTab('staff',this)">Staff Performance</button>
     <button class="tab" id="tab-btn-checkin" onclick="switchTab('checkin',this)">📝 Weekly Check-in</button>
     <button class="tab" id="tab-btn-digest" onclick="switchTab('digest',this)">📋 Manager Digest</button>
-    <button class="tab" id="tab-btn-projmgmt" onclick="switchTab('projmgmt',this)">📁 Project Management</button>
+    <button class="tab" id="tab-btn-projmgmt" onclick="switchTab('projmgmt',this)">📁 Program Management</button>
     <button class="tab" id="tab-btn-roles" onclick="switchTab('roles',this)">🔐 Role Management</button>
     <button class="tab" id="tab-btn-setup" onclick="switchTab('setup',this)">⚙ Setup</button>
     <button class="tab" id="tab-btn-dcr" onclick="openDCR()" title="Diocesan Consolidated Report">📄 DCR Reports</button>
@@ -860,13 +860,13 @@
           <div id="mytasks-list"></div>
         </div>
         <div>
-          <div class="panel-title" style="margin-bottom:12px;">👥 Project Team Feed</div>
+          <div class="panel-title" style="margin-bottom:12px;">👥 Program Team Feed</div>
           <div id="team-feed"></div>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-title">📊 My Project Progress</div>
-        <div id="my-project-progress" style="margin-top:12px;"></div>
+        <div class="panel-title">📊 My Program Progress</div>
+        <div id="my-program-progress" style="margin-top:12px;"></div>
       </div>
     </div>
 
@@ -879,12 +879,12 @@
 
         <!-- View toggle -->
         <div class="prog-view-toggle">
-          <button class="prog-view-btn active" id="view-btn-projects" onclick="setProgressView('projects')">Projects</button>
-          <button class="prog-view-btn" id="view-btn-programs" onclick="setProgressView('programs')">Programs Gantt</button>
+          <button class="prog-view-btn active" id="view-btn-programs" onclick="setProgressView('programs')">Programs</button>
+          <button class="prog-view-btn" id="view-btn-projects" onclick="setProgressView('projects')">Projects Gantt</button>
         </div>
 
-        <!-- Projects view (original) -->
-        <div id="progress-view-projects">
+        <!-- Programs view (original) -->
+        <div id="progress-view-programs">
         <div class="grid-2 mb16">
           <div class="panel">
             <div class="panel-title">Timeline <span class="panel-tag">CW 1–52</span></div>
@@ -892,7 +892,7 @@
             <div id="gantt-rows"></div>
           </div>
           <div class="panel">
-            <div class="panel-title">Delivery by Project</div>
+            <div class="panel-title">Delivery by Program</div>
             <div id="proj-list"></div>
           </div>
         </div>
@@ -902,21 +902,21 @@
             <div class="chart-h200"><canvas id="statusChart"></canvas></div>
           </div>
           <div class="panel">
-            <div class="panel-title">Tasks by Project</div>
+            <div class="panel-title">Tasks by Program</div>
             <div class="chart-h200"><canvas id="projChart"></canvas></div>
           </div>
         </div>
-        </div><!-- /progress-view-projects -->
+        </div><!-- /progress-view-programs -->
 
-        <!-- Programs Gantt view -->
-        <div id="progress-view-programs" style="display:none;">
+        <!-- Projects Gantt view -->
+        <div id="progress-view-projects" style="display:none;">
           <div class="panel">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
               <div>
-                <div class="panel-title" style="margin-bottom:4px;">Programs Timeline <span class="panel-tag">CW 1–52</span></div>
+                <div class="panel-title" style="margin-bottom:4px;">Projects Timeline <span class="panel-tag">CW 1–52</span></div>
               </div>
-              <select id="prog-gantt-filter" onchange="renderProgramsGantt()" style="font-size:12px;padding:5px 10px;border:1px solid var(--gray-200);border-radius:6px;background:#fff;">
-                <option value="">All Projects</option>
+              <select id="prog-gantt-filter" onchange="renderProjectsGantt()" style="font-size:12px;padding:5px 10px;border:1px solid var(--gray-200);border-radius:6px;background:#fff;">
+                <option value="">All Programs</option>
               </select>
             </div>
             <div class="prog-legend">
@@ -927,10 +927,10 @@
             </div>
             <div id="prog-gantt-q" class="gantt-q-row"></div>
             <div id="prog-gantt-rows">
-              <div style="text-align:center;color:var(--gray-400);font-size:13px;padding:32px 0;">No programs added yet. Go to Finance → Programs to add programs.</div>
+              <div style="text-align:center;color:var(--gray-400);font-size:13px;padding:32px 0;">No projects added yet. Go to Finance → Projects to add projects.</div>
             </div>
           </div>
-        </div><!-- /progress-view-programs -->
+        </div><!-- /progress-view-projects -->
 
       </div>
     </div>
@@ -1014,10 +1014,10 @@
       <!-- KPI stat cards -->
       <div class="digest-grid" id="digest-stats"></div>
 
-      <!-- Projects behind -->
+      <!-- Programs behind -->
       <div class="grid-2 mb16">
         <div>
-          <div class="panel-title" style="margin-bottom:10px;">⚠️ Projects Behind Schedule</div>
+          <div class="panel-title" style="margin-bottom:10px;">⚠️ Programs Behind Schedule</div>
           <div class="behind-list" id="digest-behind"></div>
         </div>
         <div>
@@ -1040,22 +1040,22 @@
 
     <!-- TAB: PROJECT MANAGEMENT -->
     <div class="tab-pane" id="tab-projmgmt">
-      <div class="admin-section-title">📁 Project Management</div>
-      <div class="admin-section-sub">Add new projects and tasks directly to Google Sheets. Changes reflect immediately in the dashboard.</div>
+      <div class="admin-section-title">📁 Program Management</div>
+      <div class="admin-section-sub">Add new programs and tasks directly to Google Sheets. Changes reflect immediately in the dashboard.</div>
 
       <div class="grid-2 mb16">
 
         <!-- ADD NEW PROJECT -->
         <div class="panel">
-          <div class="panel-title" style="margin-bottom:16px;">➕ Add New Project</div>
+          <div class="panel-title" style="margin-bottom:16px;">➕ Add New Program</div>
 
           <div class="rm-field">
-            <div class="rm-label">Project ID <span style="color:var(--gray-400);font-weight:400;text-transform:none">(auto: P6, P7…)</span></div>
+            <div class="rm-label">Program ID <span style="color:var(--gray-400);font-weight:400;text-transform:none">(auto: P6, P7…)</span></div>
             <input class="form-input" id="np-id" placeholder="e.g. P6" style="font-family:var(--font);">
           </div>
           <div class="rm-field">
-            <div class="rm-label">Project Name</div>
-            <input class="form-input" id="np-name" placeholder="e.g. Health & Wellness Program" style="font-family:var(--font);">
+            <div class="rm-label">Program Name</div>
+            <input class="form-input" id="np-name" placeholder="e.g. Health & Wellness Project" style="font-family:var(--font);">
           </div>
           <div class="form-row" style="gap:10px;">
             <div class="rm-field" style="flex:1">
@@ -1078,18 +1078,18 @@
             </div>
           </div>
 
-          <button class="rm-save-btn" onclick="addNewProject()" id="np-btn">Create Project + Sheet →</button>
+          <button class="rm-save-btn" onclick="addNewProgram()" id="np-btn">Create Program + Sheet →</button>
           <div id="np-msg" style="font-size:12px;margin-top:8px;text-align:center;display:none;"></div>
         </div>
 
         <!-- ADD TASK TO PROJECT -->
         <div class="panel">
-          <div class="panel-title" style="margin-bottom:16px;">📌 Add Task to Project</div>
+          <div class="panel-title" style="margin-bottom:16px;">📌 Add Task to Program</div>
 
           <div class="rm-field">
-            <div class="rm-label">Project</div>
-            <select class="rm-select" id="nt-project" onchange="onTaskProjectChange(this.value)">
-              <option value="">— Select project —</option>
+            <div class="rm-label">Program</div>
+            <select class="rm-select" id="nt-program" onchange="onTaskProgramChange(this.value)">
+              <option value="">— Select program —</option>
             </select>
           </div>
           <div class="rm-field">
@@ -1128,17 +1128,17 @@
       </div>
 
       <!-- ADD PROGRAM TO PROJECT -->
-      <div class="panel" id="pm-add-program-panel">
-        <div class="panel-title" style="margin-bottom:16px;">📂 Add Program to Project</div>
+      <div class="panel" id="pm-add-project-panel">
+        <div class="panel-title" style="margin-bottom:16px;">📂 Add Project to Program</div>
 
         <div class="rm-field">
-          <div class="rm-label">Project</div>
-          <select class="rm-select" id="pm-prog-project">
-            <option value="">— Select project —</option>
+          <div class="rm-label">Program</div>
+          <select class="rm-select" id="pm-prog-program">
+            <option value="">— Select program —</option>
           </select>
         </div>
         <div class="rm-field">
-          <div class="rm-label">Program Name</div>
+          <div class="rm-label">Project Name</div>
           <input class="form-input" id="pm-prog-name" placeholder="e.g. Youth Leadership Camp" style="font-family:var(--font);">
         </div>
         <div class="rm-field">
@@ -1185,15 +1185,15 @@
           <input class="form-input" id="pm-prog-responsible" placeholder="e.g. John" style="font-family:var(--font);">
         </div>
 
-        <button class="rm-save-btn" onclick="addProgramFromDashboard()" id="pm-prog-btn" style="background:var(--blue);">Add Program →</button>
+        <button class="rm-save-btn" onclick="addProjectFromDashboard()" id="pm-prog-btn" style="background:var(--blue);">Add Project →</button>
         <div id="pm-prog-msg" style="font-size:12px;margin-top:8px;text-align:center;display:none;"></div>
       </div>
 
       <!-- PROJECT TASK OVERVIEW -->
       <div class="panel">
-        <div class="panel-title" style="margin-bottom:4px;">📋 Current Projects & Programs</div>
-        <div style="font-size:12px;color:var(--gray-400);margin-bottom:14px;">Live from Google Sheets — reflects all projects including newly added ones.</div>
-        <div id="pm-project-list"></div>
+        <div class="panel-title" style="margin-bottom:4px;">📋 Current Programs & Projects</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-bottom:14px;">Live from Google Sheets — reflects all programs including newly added ones.</div>
+        <div id="pm-program-list"></div>
       </div>
     </div>
 
@@ -1245,23 +1245,23 @@
       </div>
 
       <div style="height:1px;background:var(--gray-100);margin-bottom:16px;"></div>
-      <div style="font-size:14px;font-weight:700;color:var(--gray-700);margin-bottom:14px;">🎭 Role & Project Assignment</div>
-      <div class="admin-section-sub" style="margin-bottom:14px;">Assign projects and feature access for each staff member. Changes take effect on their next login.</div>
+      <div style="font-size:14px;font-weight:700;color:var(--gray-700);margin-bottom:14px;">🎭 Role & Program Assignment</div>
+      <div class="admin-section-sub" style="margin-bottom:14px;">Assign programs and feature access for each staff member. Changes take effect on their next login.</div>
 
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-title" style="margin-bottom:4px;">Access Tiers</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;">
           <div style="background:var(--gray-50);border-radius:8px;padding:14px;border-left:4px solid #1e3a5f;">
             <div style="font-size:13px;font-weight:700;color:#1e3a5f;">Admin</div>
-            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Full access · Role management · All projects · Export · Digest</div>
+            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Full access · Role management · All programs · Export · Digest</div>
           </div>
           <div style="background:var(--gray-50);border-radius:8px;padding:14px;border-left:4px solid var(--green);">
             <div style="font-size:13px;font-weight:700;color:var(--green);">Manager</div>
-            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Read-only full view · All projects · Digest · No role management</div>
+            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Read-only full view · All programs · Digest · No role management</div>
           </div>
           <div style="background:var(--gray-50);border-radius:8px;padding:14px;border-left:4px solid var(--blue);">
             <div style="font-size:13px;font-weight:700;color:var(--blue);">Staff</div>
-            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Own tasks · Assigned projects · Check-in · Team feed only</div>
+            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Own tasks · Assigned programs · Check-in · Team feed only</div>
           </div>
         </div>
       </div>
@@ -1313,8 +1313,8 @@
         <div class="setup-title">🗄️ Initialize Google Sheets</div>
         <div class="setup-desc">Creates required sheets with correct headers, and migrates any existing task sheets from the old column format (J–Q) to the correct format (A–H). Safe to run multiple times.</div>
         <p style="font-size:13px;color:var(--gray-600);margin-bottom:16px;">
-          Required sheets: <code>Main Projects</code>, <code>Weekly Reports</code>, <code>Login Audit</code><br>
-          Project task sheets (<code>P1 Task_List</code>, etc.) are created automatically when you add a project.
+          Required sheets: <code>Main Programs</code>, <code>Weekly Reports</code>, <code>Login Audit</code><br>
+          Program task sheets (<code>P1 Task_List</code>, etc.) are created automatically when you add a program.
         </p>
         <button class="btn-primary" onclick="setupSheets()" id="setup-sheets-btn">Initialize &amp; Fix Sheets →</button>
         <div id="setup-sheets-msg" style="margin-top:12px;font-size:13px;display:none;padding:10px 14px;border-radius:8px;"></div>
@@ -1441,8 +1441,8 @@
         </select>
       </div>
       <div class="form-field" style="margin-bottom:0">
-        <div class="form-label">Primary Project This Week</div>
-        <select class="form-select" id="ci-project">
+        <div class="form-label">Primary Program This Week</div>
+        <select class="form-select" id="ci-program">
           <option value="">— Select —</option>
         </select>
       </div>
@@ -1642,7 +1642,7 @@ function updateHeaderDate() {
 
 // DATA starts empty — populated from Google Sheets on login
 // All KPI computed from task data. checkins = Weekly Reports rows for history display.
-let DATA = { projects: [], weekly: [], staff: {}, checkins: [] };
+let DATA = { programs: [], weekly: [], staff: {}, checkins: [] };
 
 // ═══════════════════════════════════════════════════
 //  AUTH — password checked by Worker, never in HTML
@@ -1650,7 +1650,7 @@ let DATA = { projects: [], weekly: [], staff: {}, checkins: [] };
 const SESSION_KEY    = 'pdp_auth';
 const SESSION_PW_KEY = 'pdp_pw';
 const SESSION_UN_KEY = 'pdp_un';
-const SESSION_USER_KEY = 'pdp_user';  // { name, role, projects, features, username }
+const SESSION_USER_KEY = 'pdp_user';  // { name, role, programs, features, username }
 let SESSION_PASSWORD = sessionStorage.getItem(SESSION_PW_KEY) || null;
 let SESSION_USERNAME = sessionStorage.getItem(SESSION_UN_KEY) || null;
 let CURRENT_USER     = JSON.parse(sessionStorage.getItem(SESSION_USER_KEY) || 'null');
@@ -1666,7 +1666,7 @@ function getStaffColor(name) {
   return AUTO_COLORS[Math.abs(hash) % AUTO_COLORS.length];
 }
 let ALL_PROJECTS  = ['P1','P2','P3','P4','P5']; // updated dynamically after data loads
-const ALL_FEATURES  = ['digest','export','staff_perf','all_projects'];
+const ALL_FEATURES  = ['digest','export','staff_perf','all_programs'];
 
 // Default roles — empty, populated from USERS_CONFIG via Worker or Role Management panel
 let ROLE_CONFIG = JSON.parse(sessionStorage.getItem('pdp_role_config') || 'null') || {};
@@ -1674,7 +1674,7 @@ let ROLE_CONFIG = JSON.parse(sessionStorage.getItem('pdp_role_config') || 'null'
 function userCan(feature) {
   if (!CURRENT_USER) return false;
   if (CURRENT_USER.role === 'admin') return true;
-  if (CURRENT_USER.role === 'manager') return ['digest','export','staff_perf','all_projects'].includes(feature);
+  if (CURRENT_USER.role === 'manager') return ['digest','export','staff_perf','all_programs'].includes(feature);
   return (CURRENT_USER.features || []).includes(feature);
 }
 
@@ -1688,7 +1688,7 @@ function applyRBAC() {
 
   // Show My Tasks for all, hide role management for non-admin
   setTabVisible('mytasks', true);
-  setTabVisible('progress', isAdmin() || isManager() || userCan('all_projects'));
+  setTabVisible('progress', isAdmin() || isManager() || userCan('all_programs'));
   setTabVisible('staff',    isAdmin() || isManager() || userCan('staff_perf'));
   setTabVisible('digest',   isAdmin() || isManager() || userCan('digest'));
   setTabVisible('projmgmt', isAdmin());
@@ -1875,12 +1875,12 @@ function completeLogin(data, username, password) {
   sessionStorage.setItem(SESSION_UN_KEY, username);
 
   const cfg = data.role === 'admin'
-    ? { role:'admin', projects: ALL_PROJECTS, features: ALL_FEATURES }
+    ? { role:'admin', programs: ALL_PROJECTS, features: ALL_FEATURES }
     : data.role === 'manager'
-      ? { role:'manager', projects: ALL_PROJECTS, features: ALL_FEATURES }
-      : { role: data.role || 'staff', projects: data.projects || [], features: data.features || [] };
+      ? { role:'manager', programs: ALL_PROJECTS, features: ALL_FEATURES }
+      : { role: data.role || 'staff', programs: data.programs || [], features: data.features || [] };
 
-  CURRENT_USER = { name: data.name || username, role: cfg.role, projects: cfg.projects, features: cfg.features, username };
+  CURRENT_USER = { name: data.name || username, role: cfg.role, programs: cfg.programs, features: cfg.features, username };
 
   if (data.roleConfig) {
     ROLE_CONFIG = data.roleConfig;
@@ -1964,23 +1964,23 @@ function quarterOptions(selected='') {
 function parseSheetData(sheets) {
   const COLORS = ['#2563eb','#16a34a','#d97706','#9333ea','#0891b2','#0d9488','#7c3aed','#db2777','#ea580c','#65a30d'];
 
-  // Projects — fully dynamic from Main Projects sheet
+  // Programs — fully dynamic from Main Programs sheet
   // Find the real header row — skip any instruction/note rows at the top
-  const rawProjRows = sheets['Main Projects'] || [];
+  const rawProjRows = sheets['Main Programs'] || [];
   const projHeaderIdx = rawProjRows.findIndex(row =>
-    row && row.some(cell => String(cell).trim() === 'Project ID')
+    row && row.some(cell => String(cell).trim() === 'Program ID')
   );
   const projRows = projHeaderIdx >= 0 ? rawProjRows.slice(projHeaderIdx) : rawProjRows;
   const projObjs = toObjects(projRows).filter(r => {
-    const id = String(r['Project ID'] || '').trim();
+    const id = String(r['Program ID'] || '').trim();
     // Skip blank rows, formula cells, and instruction notes
     return id && !id.startsWith('=') && !id.startsWith('MAIN') && id.length < 20;
   });
 
   // Update ALL_PROJECTS dynamically
-  ALL_PROJECTS = projObjs.map(r => r['Project ID']);
+  ALL_PROJECTS = projObjs.map(r => r['Program ID']);
 
-  // Collect tasks from ALL project sheets found in the data
+  // Collect tasks from ALL program sheets found in the data
   const allTasks = ALL_PROJECTS.flatMap(pid => {
     const sheetName = `${pid} Task_List`;
     const rawRows = sheets[sheetName] || [];
@@ -1994,25 +1994,25 @@ function parseSheetData(sheets) {
     const hasData = rows.some(r => r['Task Name'] && String(r['Task Name']).trim());
     if (!hasData && slicedRows.length > 1) {
       // Offset structure: data is in columns J-Q (indices 9-16), re-map manually
-      const TASK_COLS = ['Task ID','Project ID','Project Name','Task Name','Quarter','CW','Status','Owner'];
+      const TASK_COLS = ['Task ID','Program ID','Program Name','Task Name','Quarter','CW','Status','Owner'];
       rows = slicedRows.slice(1)
         .filter(r => r[9] !== undefined && r[9] !== null && r[9] !== '')
         .map(r => Object.fromEntries(TASK_COLS.map((k,i) => [k, r[9+i] ?? ''])));
     }
-    // Filter valid rows — must have Task Name and Project ID, no formula errors
+    // Filter valid rows — must have Task Name and Program ID, no formula errors
     return rows.filter(r => {
       const name = String(r['Task Name'] || '').trim();
-      const pid  = String(r['Project ID'] || '').trim();
+      const pid  = String(r['Program ID'] || '').trim();
       return name && pid && !name.startsWith('#') && !name.startsWith('=') && !pid.startsWith('=');
     });
   });
 
-  DATA.projects = projObjs.map((r,i) => {
-    const id = (r['Project ID'] || '').trim();
-    const tasks = allTasks.filter(t => (t['Project ID'] || '').trim() === id);
+  DATA.programs = projObjs.map((r,i) => {
+    const id = (r['Program ID'] || '').trim();
+    const tasks = allTasks.filter(t => (t['Program ID'] || '').trim() === id);
     return {
       id, color: COLORS[i % COLORS.length],
-      name:      (r['Project Name '] || r['Project Name'] || id).trim(),
+      name:      (r['Program Name '] || r['Program Name'] || id).trim(),
       start:     parseFloat(r['Start CW']) || 1,
       end:       parseFloat(r['End CW'])   || 52,
       startQ:    r['Start Quarter'] || r['Start_Quarter'] || '',
@@ -2023,8 +2023,8 @@ function parseSheetData(sheets) {
     };
   });
 
-  // Weekly Performance — computed directly from all task lists (includes all projects P1-PN)
-  // This way adding new projects automatically updates the weekly chart
+  // Weekly Performance — computed directly from all task lists (includes all programs P1-PN)
+  // This way adding new programs automatically updates the weekly chart
   const weeklyMap = {}; // cw → {t, d}
   allTasks.forEach(t => {
     const cw = parseInt(t['CW']);
@@ -2064,20 +2064,20 @@ function parseSheetData(sheets) {
     };
   });
 
-  // Programs — flat list attached to each project
-  const programRows = sheets['Programs'] || [];
-  const allPrograms = (() => {
-    const hIdx = programRows.findIndex(r => r && r.some(c => String(c).trim() === 'Program ID'));
+  // Projects — flat list attached to each program
+  const projectRows = sheets['Projects'] || [];
+  const allProjects = (() => {
+    const hIdx = projectRows.findIndex(r => r && r.some(c => String(c).trim() === 'Project ID'));
     if (hIdx < 0) return [];
-    const [hdrs, ...data] = programRows.slice(hIdx);
+    const [hdrs, ...data] = projectRows.slice(hIdx);
     return data
       .map(r => Object.fromEntries(hdrs.map((h,i) => [h.trim(), r[i] || ''])))
-      .filter(r => r['Program ID']);
+      .filter(r => r['Project ID']);
   })();
-  DATA.programs = allPrograms;
-  // Attach programs to each project for easy lookup
-  DATA.projects.forEach(p => {
-    p.programs = allPrograms.filter(pg => pg['Project ID'] === p.id);
+  DATA.projects = allProjects;
+  // Attach projects to each program for easy lookup
+  DATA.programs.forEach(p => {
+    p.projects = allProjects.filter(pg => pg['Program ID'] === p.id);
   });
 
   // Weekly Reports → DATA.checkins (direct, no sessionStorage merge)
@@ -2093,7 +2093,7 @@ function parseSheetData(sheets) {
       date:     r['Date'] || '',
       cw:       parseInt(r['CW']) || 0,
       name:     r['Name'] || '',
-      project:  r['Project'] || '',
+      program:  r['Program'] || '',
       done:     parseInt(r['Done']) || 0,
       missed:   parseInt(r['Missed']) || 0,
       blockers: r['Blockers'] || '',
@@ -2176,20 +2176,20 @@ function mainBadge(pct) {
 }
 
 // ═══════════════════════════════════════════════════
-//  RENDER PROGRESS  (no filter — project data isn't weekly)
+//  RENDER PROGRESS  (no filter — program data isn't weekly)
 // ═══════════════════════════════════════════════════
 function renderProgress() {
-  const ps  = DATA.projects;
+  const ps  = DATA.programs;
 
-  // Empty state — no projects yet
+  // Empty state — no programs yet
   if (!ps.length) {
     document.getElementById('p-loading').style.display = 'flex';
     document.getElementById('p-content').style.display = 'none';
     const l = document.getElementById('p-loading');
     if (l) l.innerHTML = `<div style="text-align:center;color:var(--gray-400);font-size:13px;line-height:1.7;">
       <div style="font-size:32px;margin-bottom:12px;">📁</div>
-      <strong style="color:var(--gray-700);font-size:14px;">No projects yet</strong><br>
-      Go to <strong>Project Management</strong> → Add New Project to get started.
+      <strong style="color:var(--gray-700);font-size:14px;">No programs yet</strong><br>
+      Go to <strong>Program Management</strong> → Add New Program to get started.
     </div>`;
     return;
   }
@@ -2203,7 +2203,7 @@ function renderProgress() {
   document.getElementById('p-content').style.display = 'block';
 
   document.getElementById('p-stats').innerHTML = `
-    <div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-val">${tot}</div><span class="badge badge-blue">${ps.length} projects</span></div>
+    <div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-val">${tot}</div><span class="badge badge-blue">${ps.length} programs</span></div>
     <div class="stat-card"><div class="stat-label">Delivered</div><div class="stat-val">${del}</div>${mainBadge(pct)}</div>
     <div class="stat-card"><div class="stat-label">Remaining</div><div class="stat-val">${tot-del}</div><span class="badge badge-gray">pending</span></div>
     <div class="stat-card"><div class="stat-label">Active Now</div><div class="stat-val">${now}</div><span class="badge badge-blue">in CW ${CURRENT_CW}</span></div>`;
@@ -2323,7 +2323,7 @@ function renderKpi() {
     if (l) l.innerHTML = `<div style="text-align:center;color:var(--gray-400);font-size:13px;line-height:1.7;">
       <div style="font-size:32px;margin-bottom:12px;">📊</div>
       <strong style="color:var(--gray-700);font-size:14px;">No KPI data yet</strong><br>
-      KPI is computed from task data. Add tasks to a project to see performance here.
+      KPI is computed from task data. Add tasks to a program to see performance here.
     </div>`;
     return;
   }
@@ -2487,20 +2487,20 @@ function switchTab(name, btn) {
 
 function renderAll() {
   renderProgress();
-  if (PROGRESS_VIEW === 'programs') renderProgramsGantt();
+  if (PROGRESS_VIEW === 'projects') renderProjectsGantt();
   renderKpi();
   renderStaff();
   renderCheckinTab();
   renderDigest();
   renderMyTasks();
-  if (isAdmin()) { renderRoleManagement(); renderProjectManagement(); renderUserManagement(); }
+  if (isAdmin()) { renderRoleManagement(); renderProgramManagement(); renderUserManagement(); }
 }
 
 
 // ═══════════════════════════════════════════════════
 //  QUICK TASK STATUS UPDATE (My Tasks + Progress)
 // ═══════════════════════════════════════════════════
-async function quickUpdateTask(taskName, projectId, newStatus, btn) {
+async function quickUpdateTask(taskName, programId, newStatus, btn) {
   if (!WORKER_URL || WORKER_URL.includes('YOUR-WORKER')) {
     alert('Worker URL not configured. Please update WORKER_URL in the dashboard.'); return;
   }
@@ -2516,17 +2516,17 @@ async function quickUpdateTask(taskName, projectId, newStatus, btn) {
         action: 'update_task',
         username: SESSION_USERNAME || CURRENT_USER?.username,
         password: SESSION_PASSWORD,
-        taskName, projectId, newStatus,
+        taskName, programId, newStatus,
       })
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Update failed');
 
     // Update local DATA immediately
-    DATA.projects.forEach(p => {
+    DATA.programs.forEach(p => {
       if (!p.taskList) return;
       p.taskList.forEach(t => {
-        if (t['Task Name'] === taskName && p.id === projectId) t['Status'] = newStatus;
+        if (t['Task Name'] === taskName && p.id === programId) t['Status'] = newStatus;
       });
       p.delivered = p.taskList.filter(t => String(t['Status']).trim().startsWith('Delivered')).length;
     });
@@ -2541,7 +2541,7 @@ async function quickUpdateTask(taskName, projectId, newStatus, btn) {
 }
 
 function rebuildKpiFromTasks() {
-  const allTasks = DATA.projects.flatMap(p => p.taskList || []);
+  const allTasks = DATA.programs.flatMap(p => p.taskList || []);
   const weeklyMap = {};
   allTasks.forEach(t => {
     const cw = parseInt(t['CW']);
@@ -2596,13 +2596,13 @@ function showToast(msg, isError=false) {
 function getOverdueTasks() {
   const cw = CURRENT_CW;
   const overdue = [];
-  DATA.projects.forEach(p => {
+  DATA.programs.forEach(p => {
     if (!p.taskList) return;
     p.taskList.forEach(t => {
       const taskCW = parseFloat(t['CW']) || 0;
       const status = String(t['Status'] || '');
       if (taskCW < cw && status === 'Planned') {
-        overdue.push({ project: p.name, task: t['Task Name'], cw: taskCW, owner: t['Owner'] || '—' });
+        overdue.push({ program: p.name, task: t['Task Name'], cw: taskCW, owner: t['Owner'] || '—' });
       }
     });
   });
@@ -2712,7 +2712,7 @@ function renderCheckinTab() {
       <div class="ci-avatar" style="background:${getStaffColor(c.name)}">${c.name[0]}</div>
       <div style="flex:1">
         <div class="ci-name">${c.name} ${isStaff() ? '<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Submitted</span>' : ''}</div>
-        <div class="ci-meta">${c.project} · CW ${c.cw} · ${c.done} tasks completed${c.missed>0?' · '+c.missed+' missed':''}</div>
+        <div class="ci-meta">${c.program} · CW ${c.cw} · ${c.done} tasks completed${c.missed>0?' · '+c.missed+' missed':''}</div>
         ${c.notes    ? `<div class="ci-note">"${c.notes}"</div>` : ''}
         ${c.blockers ? `<div class="ci-blocker">⚠ Blocker: ${c.blockers}</div>` : ''}
       </div>
@@ -2747,12 +2747,12 @@ function openCheckinModal() {
       staffNames.map(n => `<option value="${n}">${n}</option>`).join('');
   }
 
-  // Populate project dropdown dynamically from loaded projects
-  const projEl = document.getElementById('ci-project');
+  // Populate program dropdown dynamically from loaded programs
+  const projEl = document.getElementById('ci-program');
   if (projEl) {
     projEl.innerHTML = '<option value="">— Select —</option>' +
-      DATA.projects.map(p => `<option value="${p.id} – ${p.name}">${p.id} – ${p.name}</option>`).join('') +
-      '<option value="Multiple projects">Multiple projects</option>';
+      DATA.programs.map(p => `<option value="${p.id} – ${p.name}">${p.id} – ${p.name}</option>`).join('') +
+      '<option value="Multiple programs">Multiple programs</option>';
   }
 
   // Pre-fill name — staff locked to own name, admin/manager can select any
@@ -2786,11 +2786,11 @@ function loadTasksForName(name) {
 
   // Gather all tasks owned by this person
   const myTasks = [];
-  DATA.projects.forEach(p => {
+  DATA.programs.forEach(p => {
     if (!p.taskList) return;
     p.taskList.forEach((t, idx) => {
       if (String(t['Owner'] || '') === name) {
-        myTasks.push({ ...t, projectName: p.name, projectId: p.id, _pIdx: DATA.projects.indexOf(p), _tIdx: idx });
+        myTasks.push({ ...t, programName: p.name, programId: p.id, _pIdx: DATA.programs.indexOf(p), _tIdx: idx });
       }
     });
   });
@@ -2829,12 +2829,12 @@ function loadTasksForName(name) {
     return `
       <div class="ci-task-item ${isDone ? 'delivered' : ''}" onclick="toggleTaskState('${key}', this)"
            data-key="${key}" data-task="${encodeURIComponent(t['Task Name']||'')}"
-           data-project="${t.projectId}" data-pidx="${t._pIdx}" data-tidx="${t._tIdx}">
+           data-program="${t.programId}" data-pidx="${t._pIdx}" data-tidx="${t._tIdx}">
         <div class="ci-checkbox">${isDone ? '✓' : ''}</div>
         <div style="flex:1">
           <div class="ci-task-name">${t['Task Name'] || 'Unnamed'}</div>
           <div class="ci-task-detail">
-            ${t.projectName} · CW ${taskCW}
+            ${t.programName} · CW ${taskCW}
             ${overdue ? '<span class="ci-task-overdue"> · ⚠ Overdue</span>' : ''}
           </div>
         </div>
@@ -2891,7 +2891,7 @@ function closeCheckinModal() {
 
 async function submitCheckin() {
   const name     = document.getElementById('ci-name').value;
-  const project  = document.getElementById('ci-project').value;
+  const program  = document.getElementById('ci-program').value;
   const blockers = document.getElementById('ci-blockers').value.trim();
   const notes    = document.getElementById('ci-notes').value.trim();
   const msg      = document.getElementById('ci-submit-msg');
@@ -2913,10 +2913,10 @@ async function submitCheckin() {
     const pIdx   = parseInt(el.dataset.pidx);
     const tIdx   = parseInt(el.dataset.tidx);
     const newSt  = CI_TASK_STATES[key] || 'Planned';
-    const origSt = DATA.projects[pIdx]?.taskList?.[tIdx]?.['Status'] || 'Planned';
+    const origSt = DATA.programs[pIdx]?.taskList?.[tIdx]?.['Status'] || 'Planned';
     if (newSt !== origSt) {
       taskUpdates.push({
-        projectId:  el.dataset.project,
+        programId:  el.dataset.program,
         taskName:   decodeURIComponent(el.dataset.task),
         oldStatus:  origSt,
         newStatus:  newSt,
@@ -2933,7 +2933,7 @@ async function submitCheckin() {
   msg.style.display = 'none';
 
   const entry = {
-    cw: CURRENT_CW, name, project, done, missed, blockers, notes,
+    cw: CURRENT_CW, name, program, done, missed, blockers, notes,
     time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }),
     date: new Date().toLocaleDateString(),
     taskUpdates,
@@ -2964,11 +2964,11 @@ async function submitCheckin() {
 
   // Update local DATA immediately so KPI recalculates without waiting
   taskUpdates.forEach(u => {
-    if (DATA.projects[u.pIdx]?.taskList?.[u.tIdx]) {
-      DATA.projects[u.pIdx].taskList[u.tIdx]['Status'] = u.newStatus;
+    if (DATA.programs[u.pIdx]?.taskList?.[u.tIdx]) {
+      DATA.programs[u.pIdx].taskList[u.tIdx]['Status'] = u.newStatus;
     }
-    // Recalculate project delivered count
-    const p = DATA.projects[u.pIdx];
+    // Recalculate program delivered count
+    const p = DATA.programs[u.pIdx];
     if (p) p.delivered = p.taskList.filter(t => String(t['Status']).startsWith('Delivered')).length;
   });
 
@@ -3035,8 +3035,8 @@ function renderDigest() {
   // Stat cards
   const statsEl = document.getElementById('digest-stats');
   if (statsEl) {
-    const totalTasks  = DATA.projects.reduce((s,p) => s + (p.total||0), 0);
-    const totalDel    = DATA.projects.reduce((s,p) => s + (p.delivered||0), 0);
+    const totalTasks  = DATA.programs.reduce((s,p) => s + (p.total||0), 0);
+    const totalDel    = DATA.programs.reduce((s,p) => s + (p.delivered||0), 0);
     const weekRate    = weekly && weekly.t > 0 ? Math.round(weekly.p * 100) : null;
     const overdue     = getOverdueTasks().length;
     const ciCount     = getAllCheckins().filter(c => c.cw === cw).length;
@@ -3054,10 +3054,10 @@ function renderDigest() {
       </div>`).join('');
   }
 
-  // Projects behind (delivery < 50% of expected by this CW)
+  // Programs behind (delivery < 50% of expected by this CW)
   const behindEl = document.getElementById('digest-behind');
   if (behindEl) {
-    const behind = DATA.projects.filter(p => {
+    const behind = DATA.programs.filter(p => {
       const elapsed = Math.max(0, cw - p.start);
       const duration = p.end - p.start || 1;
       const expectedPct = Math.min(1, elapsed / duration);
@@ -3065,7 +3065,7 @@ function renderDigest() {
       return actualPct < expectedPct * 0.5 && cw >= p.start;
     });
     behindEl.innerHTML = behind.length === 0
-      ? '<div class="behind-item"><span style="color:var(--green);font-size:13px;">✅ All projects on track</span></div>'
+      ? '<div class="behind-item"><span style="color:var(--green);font-size:13px;">✅ All programs on track</span></div>'
       : behind.map(p => `
           <div class="behind-item">
             <div>
@@ -3086,7 +3086,7 @@ function renderDigest() {
           <div class="checkin-item">
             <div class="ci-avatar" style="background:${getStaffColor(c.name)}">${c.name[0]}</div>
             <div>
-              <div class="ci-name">${c.name} <span style="font-weight:400;color:var(--gray-400)">${c.project}</span></div>
+              <div class="ci-name">${c.name} <span style="font-weight:400;color:var(--gray-400)">${c.program}</span></div>
               <div class="ci-meta">${c.done} done · ${c.missed} missed${c.blockers ? ' · ⚠ Has blockers' : ''}</div>
               ${c.notes ? `<div class="ci-note">"${c.notes}"</div>` : ''}
             </div>
@@ -3101,8 +3101,8 @@ function renderDigest() {
     if (overdueCtEl) overdueCtEl.textContent = tasks.length + ' tasks';
     overdueEl.innerHTML = tasks.length === 0
       ? '<div style="padding:16px;color:var(--green);font-size:13px;">✅ No overdue tasks.</div>'
-      : `<table class="tbl"><thead><tr><th>Project</th><th>Task</th><th>Due CW</th><th>Owner</th></tr></thead><tbody>
-          ${tasks.map(t=>`<tr class="overdue-row"><td>${t.project}</td><td>${t.task}</td><td>CW ${t.cw}</td><td>${t.owner}</td></tr>`).join('')}
+      : `<table class="tbl"><thead><tr><th>Program</th><th>Task</th><th>Due CW</th><th>Owner</th></tr></thead><tbody>
+          ${tasks.map(t=>`<tr class="overdue-row"><td>${t.program}</td><td>${t.task}</td><td>CW ${t.cw}</td><td>${t.owner}</td></tr>`).join('')}
         </tbody></table>`;
   }
 }
@@ -3125,15 +3125,15 @@ function renderMyTasks() {
   if (greetEl) greetEl.textContent = `Welcome back, ${name}! 👋`;
   if (subEl)   subEl.textContent   = `CW ${cw} · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}`;
 
-  // Gather my tasks from all projects
+  // Gather my tasks from all programs
   const myTasks = [];
-  DATA.projects.forEach(p => {
+  DATA.programs.forEach(p => {
     if (!p.taskList) return;
-    // For staff, filter to their assigned projects
-    if (isStaff() && !CURRENT_USER.projects?.includes(p.id)) return;
+    // For staff, filter to their assigned programs
+    if (isStaff() && !CURRENT_USER.programs?.includes(p.id)) return;
     p.taskList.forEach(t => {
       if (!isAdmin() && !isManager() && String(t['Owner']||'') !== name) return;
-      myTasks.push({ ...t, projectName: p.name, projectId: p.id, projectColor: p.color });
+      myTasks.push({ ...t, programName: p.name, programId: p.id, programColor: p.color });
     });
   });
 
@@ -3161,7 +3161,7 @@ function renderMyTasks() {
       const dotClass = isDel ? 'dot-delivered' : overdue ? 'dot-inprogress' : 'dot-planned';
       const cwClass  = overdue ? 'task-cw-badge task-cw-overdue' : 'task-cw-badge';
       const taskKey  = encodeURIComponent(t['Task Name']||'');
-      const projId   = encodeURIComponent(t.projectId||'');
+      const projId   = encodeURIComponent(t.programId||'');
       const newStat  = isDel ? 'Planned' : 'Delivered';
       const btnLabel = isDel ? '↩ Undo' : '✓ Mark Done';
       const btnStyle = isDel
@@ -3174,26 +3174,26 @@ function renderMyTasks() {
             <div class="task-name" style="${isDel?'text-decoration:line-through;color:var(--gray-400)':''}">
               ${t['Task Name']||'Unnamed task'}
             </div>
-            <div class="task-meta">${t.projectName} · <span id="ts-${taskKey}-${projId}">${status}</span>${overdue ? ' · ⚠ Overdue' : ''}</div>
+            <div class="task-meta">${t.programName} · <span id="ts-${taskKey}-${projId}">${status}</span>${overdue ? ' · ⚠ Overdue' : ''}</div>
           </div>
           <span class="${cwClass}" style="margin-right:8px">CW ${taskCW}</span>
-          <button style="${btnStyle}" onclick="quickUpdateTask('${t['Task Name']?.replace(/'/g,"\\'")}','${t.projectId}','${newStat}',this)">
+          <button style="${btnStyle}" onclick="quickUpdateTask('${t['Task Name']?.replace(/'/g,"\\'")}','${t.programId}','${newStat}',this)">
             ${btnLabel}
           </button>
         </div>`;
     }).join('');
   }
 
-  // My project progress bars
-  const projEl = document.getElementById('my-project-progress');
+  // My program progress bars
+  const projEl = document.getElementById('my-program-progress');
   if (projEl) {
-    const myProjects = DATA.projects.filter(p =>
-      isAdmin() || isManager() ? true : CURRENT_USER.projects?.includes(p.id)
+    const myPrograms = DATA.programs.filter(p =>
+      isAdmin() || isManager() ? true : CURRENT_USER.programs?.includes(p.id)
     );
-    if (myProjects.length === 0) {
-      projEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No projects assigned.</div>';
+    if (myPrograms.length === 0) {
+      projEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No programs assigned.</div>';
     } else {
-      projEl.innerHTML = myProjects.map(p => {
+      projEl.innerHTML = myPrograms.map(p => {
         const pct = p.total > 0 ? Math.round((p.delivered/p.total)*100) : 0;
         const color = p.color || 'var(--blue)';
         return `
@@ -3221,15 +3221,15 @@ function renderTeamFeed() {
   loadCheckins();
 
   const cw     = CURRENT_CW;
-  const myProj = CURRENT_USER?.projects || ALL_PROJECTS;
+  const myProj = CURRENT_USER?.programs || ALL_PROJECTS;
   const allCI  = getAllCheckins();
 
-  // Filter check-ins: same project team, current CW, not self (unless admin)
+  // Filter check-ins: same program team, current CW, not self (unless admin)
   const feed = allCI.filter(c => {
     if (c.cw !== cw) return false;
     if (isAdmin() || isManager()) return true;
-    const projId = c.project?.split('–')[0]?.trim().replace(' ','') || '';
-    return myProj.some(p => c.project?.startsWith(p));
+    const projId = c.program?.split('–')[0]?.trim().replace(' ','') || '';
+    return myProj.some(p => c.program?.startsWith(p));
   });
 
   if (feed.length === 0) {
@@ -3243,7 +3243,7 @@ function renderTeamFeed() {
       <div class="checkin-item" style="background:#fff;border-radius:10px;border:1px solid var(--gray-200);margin-bottom:8px;">
         <div class="ci-avatar" style="background:${color}">${c.name[0]}</div>
         <div style="flex:1">
-          <div class="ci-name">${c.name} <span style="font-weight:400;color:var(--gray-400);font-size:11px;">${c.project}</span></div>
+          <div class="ci-name">${c.name} <span style="font-weight:400;color:var(--gray-400);font-size:11px;">${c.program}</span></div>
           <div class="ci-meta">${c.done} tasks done · CW ${c.cw}</div>
           ${c.notes    ? `<div class="ci-note">"${c.notes}"</div>` : ''}
           ${c.blockers ? `<div class="ci-blocker">⚠ ${c.blockers}</div>` : ''}
@@ -3511,23 +3511,23 @@ function showModalMsg(elId, text, type) {
 //  PROJECT MANAGEMENT
 // ═══════════════════════════════════════════════════
 
-function renderProjectManagement() {
+function renderProgramManagement() {
   // Populate quarter selects dynamically
   ['np-sq','np-eq','nt-quarter'].forEach(id => {
     const el = document.getElementById(id);
     if (el && !el.options.length) el.innerHTML = quarterOptions();
   });
 
-  // Populate project dropdowns for task add + program add
-  const sel = document.getElementById('nt-project');
+  // Populate program dropdowns for task add + project add
+  const sel = document.getElementById('nt-program');
   if (sel) {
-    sel.innerHTML = '<option value="">— Select project —</option>' +
-      DATA.projects.map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
+    sel.innerHTML = '<option value="">— Select program —</option>' +
+      DATA.programs.map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
   }
-  const pmProgSel = document.getElementById('pm-prog-project');
+  const pmProgSel = document.getElementById('pm-prog-program');
   if (pmProgSel) {
-    pmProgSel.innerHTML = '<option value="">— Select project —</option>' +
-      DATA.projects.map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
+    pmProgSel.innerHTML = '<option value="">— Select program —</option>' +
+      DATA.programs.map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
   }
 
   // Populate owner dropdown dynamically from users list
@@ -3538,36 +3538,36 @@ function renderProjectManagement() {
       names.map(n => `<option value="${n}">${n}</option>`).join('');
   }
 
-  // Auto-suggest next project ID
+  // Auto-suggest next program ID
   const npId = document.getElementById('np-id');
   if (npId && !npId.value) {
-    const ids = DATA.projects.map(p => parseInt(p.id.replace(/\D/g,'')));
+    const ids = DATA.programs.map(p => parseInt(p.id.replace(/\D/g,'')));
     const next = Math.max(...ids, 5) + 1;
     npId.value = `P${next}`;
   }
 
-  // Project overview list
-  // Show/hide Add Program panel based on role
-  const addProgPanel = document.getElementById('pm-add-program-panel');
+  // Program overview list
+  // Show/hide Add Project panel based on role
+  const addProgPanel = document.getElementById('pm-add-project-panel');
   if (addProgPanel) addProgPanel.style.display = (isAdmin() || isManager()) ? '' : 'none';
 
-  const listEl = document.getElementById('pm-project-list');
+  const listEl = document.getElementById('pm-program-list');
   if (!listEl) return;
-  if (!DATA.projects.length) {
-    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray-400);font-size:13px;">No projects loaded.</div>';
+  if (!DATA.programs.length) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray-400);font-size:13px;">No programs loaded.</div>';
     return;
   }
-  listEl.innerHTML = DATA.projects.map(p => {
+  listEl.innerHTML = DATA.programs.map(p => {
     const pct = p.total > 0 ? Math.round((p.delivered/p.total)*100) : 0;
-    const programs = p.programs || [];
-    const progHtml = programs.length
+    const projects = p.projects || [];
+    const progHtml = projects.length
       ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">
-          ${programs.map(pg => `<span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:500;">
-            ${pg['Program Name']}
-            <span style="color:#93c5fd;font-size:10px;">${pg['Program ID']}</span>
+          ${projects.map(pg => `<span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:500;">
+            ${pg['Project Name']}
+            <span style="color:#93c5fd;font-size:10px;">${pg['Project ID']}</span>
           </span>`).join('')}
         </div>`
-      : `<div style="margin-top:4px;font-size:11px;color:var(--gray-400);">No programs yet</div>`;
+      : `<div style="margin-top:4px;font-size:11px;color:var(--gray-400);">No projects yet</div>`;
     return `
       <div class="pm-proj-row" style="flex-direction:column;align-items:stretch;gap:4px;">
         <div style="display:flex;align-items:center;gap:8px;">
@@ -3579,43 +3579,43 @@ function renderProjectManagement() {
           <button class="pm-add-task-btn" onclick="quickAddTask('${p.id}')">+ Add Task</button>
         </div>
         <div style="padding-left:4px;padding-bottom:4px;">
-          <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Programs (${programs.length})</div>
+          <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Projects (${projects.length})</div>
           ${progHtml}
         </div>
       </div>`;
   }).join('');
 }
 
-// ── Programs Gantt ──────────────────────────────────────────
-let PROGRESS_VIEW = 'projects';
+// ── Projects Gantt ──────────────────────────────────────────
+let PROGRESS_VIEW = 'programs';
 
 function setProgressView(view) {
   PROGRESS_VIEW = view;
-  document.getElementById('progress-view-projects').style.display = view === 'projects' ? '' : 'none';
-  document.getElementById('progress-view-programs').style.display = view === 'programs'  ? '' : 'none';
-  document.getElementById('view-btn-projects').classList.toggle('active', view === 'projects');
+  document.getElementById('progress-view-programs').style.display = view === 'programs' ? '' : 'none';
+  document.getElementById('progress-view-projects').style.display = view === 'projects'  ? '' : 'none';
   document.getElementById('view-btn-programs').classList.toggle('active', view === 'programs');
-  if (view === 'programs') renderProgramsGantt();
+  document.getElementById('view-btn-projects').classList.toggle('active', view === 'projects');
+  if (view === 'projects') renderProjectsGantt();
 }
 
-function renderProgramsGantt() {
-  const programs = DATA.programs || [];
+function renderProjectsGantt() {
+  const projects = DATA.projects || [];
   const rowsEl   = document.getElementById('prog-gantt-rows');
   const qEl      = document.getElementById('prog-gantt-q');
   const filterEl = document.getElementById('prog-gantt-filter');
 
   // Populate filter dropdown
   if (filterEl && filterEl.options.length <= 1) {
-    DATA.projects.forEach(p => {
+    DATA.programs.forEach(p => {
       filterEl.add(new Option(`${p.id} — ${p.name}`, p.id));
     });
   }
 
   const filterProj = filterEl?.value || '';
-  const filtered   = filterProj ? programs.filter(p => p['Project ID'] === filterProj) : programs;
+  const filtered   = filterProj ? projects.filter(p => p['Program ID'] === filterProj) : projects;
 
   if (!filtered.length) {
-    rowsEl.innerHTML = '<div style="text-align:center;color:var(--gray-400);font-size:13px;padding:32px 0;">No programs found. Go to Finance → Programs to add programs.</div>';
+    rowsEl.innerHTML = '<div style="text-align:center;color:var(--gray-400);font-size:13px;padding:32px 0;">No projects found. Go to Finance → Projects to add projects.</div>';
     if (qEl) qEl.innerHTML = '';
     return;
   }
@@ -3631,17 +3631,17 @@ function renderProgramsGantt() {
     'On Hold':  'prog-status-on-hold',
   };
 
-  // Group by project
-  const byProject = {};
+  // Group by program
+  const byProgram = {};
   filtered.forEach(pg => {
-    const pid = pg['Project ID'] || 'Unknown';
-    if (!byProject[pid]) byProject[pid] = [];
-    byProject[pid].push(pg);
+    const pid = pg['Program ID'] || 'Unknown';
+    if (!byProgram[pid]) byProgram[pid] = [];
+    byProgram[pid].push(pg);
   });
 
   let html = '';
-  Object.entries(byProject).forEach(([pid, progs]) => {
-    const proj = DATA.projects.find(p => p.id === pid);
+  Object.entries(byProgram).forEach(([pid, progs]) => {
+    const proj = DATA.programs.find(p => p.id === pid);
     html += `<div class="prog-group-header">${pid}${proj ? ' — ' + proj.name : ''}</div>`;
 
     progs.forEach(pg => {
@@ -3650,7 +3650,7 @@ function renderProgramsGantt() {
       const sp      = ((startCW - 1) / TOTAL_CW) * 100;
       const wp      = Math.max(1, ((endCW - startCW + 1) / TOTAL_CW) * 100);
       const sc      = statusClass[pg['Status']] || 'prog-status-planning';
-      const label   = pg['Program Name'] || '—';
+      const label   = pg['Project Name'] || '—';
       const sub     = [
         pg['Quarter'] || '',
         pg['Responsible'] ? '👤 ' + pg['Responsible'] : '',
@@ -3676,9 +3676,9 @@ function renderProgramsGantt() {
   rowsEl.innerHTML = html;
 }
 
-async function addProgramFromDashboard() {
-  const projectId    = document.getElementById('pm-prog-project').value;
-  const programName  = document.getElementById('pm-prog-name').value.trim();
+async function addProjectFromDashboard() {
+  const programId    = document.getElementById('pm-prog-program').value;
+  const projectName  = document.getElementById('pm-prog-name').value.trim();
   const description  = document.getElementById('pm-prog-desc').value.trim();
   const startCW      = document.getElementById('pm-prog-start').value;
   const endCW        = document.getElementById('pm-prog-end').value;
@@ -3688,9 +3688,9 @@ async function addProgramFromDashboard() {
   const btn          = document.getElementById('pm-prog-btn');
   const msgEl        = document.getElementById('pm-prog-msg');
 
-  if (!projectId || !programName) {
+  if (!programId || !projectName) {
     msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
-    msgEl.textContent = '⚠ Project and Program Name are required.';
+    msgEl.textContent = '⚠ Program and Project Name are required.';
     return;
   }
 
@@ -3702,49 +3702,49 @@ async function addProgramFromDashboard() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'add_program',
+        action: 'add_project',
         username: SESSION_USERNAME,
         password: SESSION_PASSWORD,
-        projectId, programName, description, startCW, endCW, quarter, status, responsible
+        programId, projectName, description, startCW, endCW, quarter, status, responsible
       })
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
     msgEl.style.display = 'block'; msgEl.style.color = 'var(--green)';
-    msgEl.textContent = `✓ Program "${programName}" added (${data.programId})`;
+    msgEl.textContent = `✓ Project "${projectName}" added (${data.projectId})`;
 
     // Clear form
     ['pm-prog-name','pm-prog-desc','pm-prog-start','pm-prog-end','pm-prog-responsible'].forEach(id => {
       const el = document.getElementById(id); if (el) el.value = '';
     });
 
-    // Reload data so programs appear immediately in the list and gantt
+    // Reload data so projects appear immediately in the list and gantt
     setTimeout(() => {
-      loadFromWorker().then(() => { renderAll(); renderProjectManagement(); });
+      loadFromWorker().then(() => { renderAll(); renderProgramManagement(); });
     }, 800);
 
   } catch(e) {
     msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
     msgEl.textContent = '⚠ Error: ' + e.message;
   }
-  btn.disabled = false; btn.textContent = 'Add Program →';
+  btn.disabled = false; btn.textContent = 'Add Project →';
 }
 
-function quickAddTask(projectId) {
-  // Switch to task form and pre-select project
-  const sel = document.getElementById('nt-project');
-  if (sel) sel.value = projectId;
+function quickAddTask(programId) {
+  // Switch to task form and pre-select program
+  const sel = document.getElementById('nt-program');
+  if (sel) sel.value = programId;
   document.getElementById('nt-name')?.focus();
   // Scroll to add task panel
   document.getElementById('nt-name')?.scrollIntoView({ behavior:'smooth', block:'center' });
 }
 
-function onTaskProjectChange(projectId) {
-  // Could pre-fill quarter based on project dates in future
+function onTaskProgramChange(programId) {
+  // Could pre-fill quarter based on program dates in future
 }
 
-async function addNewProject() {
+async function addNewProgram() {
   const id    = document.getElementById('np-id').value.trim().toUpperCase();
   const name  = document.getElementById('np-name').value.trim();
   const start = parseInt(document.getElementById('np-start').value) || 0;
@@ -3757,8 +3757,8 @@ async function addNewProject() {
   if (!id || !name || !start || !end) {
     showPMMsg('np-msg', '⚠ Please fill in all fields.', 'error'); return;
   }
-  if (DATA.projects.find(p => p.id === id)) {
-    showPMMsg('np-msg', `⚠ Project ${id} already exists.`, 'error'); return;
+  if (DATA.programs.find(p => p.id === id)) {
+    showPMMsg('np-msg', `⚠ Program ${id} already exists.`, 'error'); return;
   }
 
   btn.disabled = true; btn.textContent = 'Creating…';
@@ -3768,27 +3768,27 @@ async function addNewProject() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'add_project', username: SESSION_USERNAME, password: SESSION_PASSWORD,
-        project: { id, name, start, end, startQuarter: sq, endQuarter: eq,
+        action: 'add_program', username: SESSION_USERNAME, password: SESSION_PASSWORD,
+        program: { id, name, start, end, startQuarter: sq, endQuarter: eq,
           duration: end - start + 1 }
       })
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-    showPMMsg('np-msg', `✓ Project ${id} created with sheet "${id} Task_List"!`, 'success');
+    showPMMsg('np-msg', `✓ Program ${id} created with sheet "${id} Task_List"!`, 'success');
     // Clear form
     ['np-name','np-start','np-end'].forEach(i => document.getElementById(i).value = '');
     // Reload data
-    setTimeout(() => { loadFromWorker().then(() => { renderAll(); renderProjectManagement(); }); }, 1500);
+    setTimeout(() => { loadFromWorker().then(() => { renderAll(); renderProgramManagement(); }); }, 1500);
   } catch(e) {
     showPMMsg('np-msg', `⚠ Error: ${e.message}`, 'error');
   }
-  btn.disabled = false; btn.textContent = 'Create Project + Sheet →';
+  btn.disabled = false; btn.textContent = 'Create Program + Sheet →';
 }
 
 async function addNewTask() {
-  const projectId = document.getElementById('nt-project').value;
+  const programId = document.getElementById('nt-program').value;
   const name      = document.getElementById('nt-name').value.trim();
   const owner     = document.getElementById('nt-owner').value;
   const cw        = parseInt(document.getElementById('nt-cw').value) || 0;
@@ -3796,22 +3796,22 @@ async function addNewTask() {
   const status    = document.getElementById('nt-status').value;
   const btn       = document.getElementById('nt-btn');
 
-  if (!projectId || !name || !owner || !cw) {
+  if (!programId || !name || !owner || !cw) {
     showPMMsg('nt-msg', '⚠ Please fill in all fields.', 'error'); return;
   }
 
   btn.disabled = true; btn.textContent = 'Adding…';
 
-  // Find project for name
-  const proj = DATA.projects.find(p => p.id === projectId);
-  const projName = proj?.name || projectId;
+  // Find program for name
+  const proj = DATA.programs.find(p => p.id === programId);
+  const projName = proj?.name || programId;
 
   // Auto-generate task ID
   const existingTasks = proj?.taskList || [];
   const taskNum = existingTasks.length + 1;
   const taskId  = `T${taskNum}`;
 
-  const task = { taskId, projectId, projectName: projName, name, quarter, cw, status, owner };
+  const task = { taskId, programId, programName: projName, name, quarter, cw, status, owner };
 
   try {
     const res = await fetch(WORKER_URL, {
@@ -3822,13 +3822,13 @@ async function addNewTask() {
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-    showPMMsg('nt-msg', `✓ Task "${name}" added to ${projectId} and assigned to ${owner}!`, 'success');
+    showPMMsg('nt-msg', `✓ Task "${name}" added to ${programId} and assigned to ${owner}!`, 'success');
     // Clear task form
     ['nt-name','nt-cw'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('nt-owner').value = '';
     document.getElementById('nt-status').value = 'Planned';
     // Reload
-    setTimeout(() => { loadFromWorker().then(() => { renderAll(); renderProjectManagement(); }); }, 1500);
+    setTimeout(() => { loadFromWorker().then(() => { renderAll(); renderProgramManagement(); }); }, 1500);
   } catch(e) {
     showPMMsg('nt-msg', `⚠ Error: ${e.message}`, 'error');
   }
@@ -3856,7 +3856,7 @@ function getStaffNames() {
   if (rcKeys.length) return rcKeys;
   // Final fallback: extract unique owners from loaded task data
   const owners = new Set();
-  (DATA.projects || []).forEach(p => (p.taskList || []).forEach(t => {
+  (DATA.programs || []).forEach(p => (p.taskList || []).forEach(t => {
     const o = (t['Owner'] || '').trim();
     if (o) owners.add(o);
   }));
@@ -3866,12 +3866,12 @@ const FEATURE_LABELS = {
   digest:     'Manager Digest',
   export:     'Export / Print',
   staff_perf: 'Staff Performance Tab',
-  all_projects: 'All Projects View',
+  all_programs: 'All Programs View',
 };
 // PROJECT_LABELS — built dynamically from loaded data
-function getProjectLabels() {
+function getProgramLabels() {
   const labels = {};
-  (DATA.projects || []).forEach(p => { labels[p.id] = `${p.id} ${p.name}`; });
+  (DATA.programs || []).forEach(p => { labels[p.id] = `${p.id} ${p.name}`; });
   return labels;
 }
 
@@ -3894,13 +3894,13 @@ function renderRoleManagement() {
   if (!grid) return;
 
   grid.innerHTML = getStaffNames().map(name => {
-    const cfg    = ROLE_CONFIG[name] || { role:'staff', projects:[], features:[] };
+    const cfg    = ROLE_CONFIG[name] || { role:'staff', programs:[], features:[] };
     const color  = getStaffColor(name);
 
-    const PROJECT_LABELS = getProjectLabels();
-    const projectToggles = ALL_PROJECTS.map(pid => {
-      const on = cfg.projects?.includes(pid);
-      return `<span class="rm-toggle ${on?'on':''}" onclick="toggleProject('${name}','${pid}',this)">${PROJECT_LABELS[pid] || pid}</span>`;
+    const PROJECT_LABELS = getProgramLabels();
+    const programToggles = ALL_PROJECTS.map(pid => {
+      const on = cfg.programs?.includes(pid);
+      return `<span class="rm-toggle ${on?'on':''}" onclick="toggleProgram('${name}','${pid}',this)">${PROJECT_LABELS[pid] || pid}</span>`;
     }).join('');
 
     const featureToggles = ALL_FEATURES.map(f => {
@@ -3931,8 +3931,8 @@ function renderRoleManagement() {
           </select>
         </div>
         <div class="rm-field">
-          <div class="rm-label">Assigned Projects</div>
-          <div class="rm-toggle-row" id="rm-proj-${name}">${projectToggles}</div>
+          <div class="rm-label">Assigned Programs</div>
+          <div class="rm-toggle-row" id="rm-proj-${name}">${programToggles}</div>
         </div>
         <div class="rm-field" id="rm-feat-section-${name}">
           <div class="rm-label">Extra Feature Access</div>
@@ -3949,7 +3949,7 @@ function onRoleChange(name, selectEl) {
   const role   = selectEl.value;
   const badge  = document.getElementById(`rm-badge-${name}`);
   const featSec = document.getElementById(`rm-feat-section-${name}`);
-  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', projects:[], features:[] };
+  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', programs:[], features:[] };
   ROLE_CONFIG[name].role = role;
 
   // Update badge
@@ -3960,25 +3960,25 @@ function onRoleChange(name, selectEl) {
   // Admin/manager get all features automatically
   if (role === 'admin' || role === 'manager') {
     ROLE_CONFIG[name].features = [...ALL_FEATURES];
-    ROLE_CONFIG[name].projects = [...ALL_PROJECTS]; // dynamic
+    ROLE_CONFIG[name].programs = [...ALL_PROJECTS]; // dynamic
     document.querySelectorAll(`#rm-proj-${name} .rm-toggle`).forEach(t => t.classList.add('on'));
     document.querySelectorAll(`#rm-feat-${name} .rm-toggle`).forEach(t => t.classList.add('on'));
   }
   updateConfigJSON();
 }
 
-function toggleProject(name, pid, el) {
-  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', projects:[], features:[] };
-  const arr = ROLE_CONFIG[name].projects || [];
+function toggleProgram(name, pid, el) {
+  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', programs:[], features:[] };
+  const arr = ROLE_CONFIG[name].programs || [];
   const idx = arr.indexOf(pid);
   if (idx === -1) { arr.push(pid); el.classList.add('on'); }
   else            { arr.splice(idx,1); el.classList.remove('on'); }
-  ROLE_CONFIG[name].projects = arr;
+  ROLE_CONFIG[name].programs = arr;
   updateConfigJSON();
 }
 
 function toggleFeature(name, feat, el) {
-  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', projects:[], features:[] };
+  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', programs:[], features:[] };
   const arr = ROLE_CONFIG[name].features || [];
   const idx = arr.indexOf(feat);
   if (idx === -1) { arr.push(feat); el.classList.add('on'); }

@@ -40,9 +40,9 @@
 // ─── Sheet names ──────────────────────────────────
 // Base sheets always fetched
 const BASE_SHEETS = [
-  'Main Projects',
+  'Main Programs',
   'Weekly Reports',
-  'Programs',
+  'Projects',
   // Login Audit is write-only — not needed in data fetch
 ];
 
@@ -490,7 +490,7 @@ export default {
         Object.values(allUsers).forEach(usr => {
           roleConfig[usr.name] = {
             role:     usr.role     || 'staff',
-            projects: usr.projects || [],
+            programs: usr.programs || [],
             features: usr.features || [],
           };
         });
@@ -512,7 +512,7 @@ export default {
         ok: true,
         name: u.name,
         role: u.role,
-        projects: u.projects || null,
+        programs: u.programs || null,
         features: u.features || null,
         mustChangePassword: !!u.mustChangePassword,
         roleConfig,
@@ -539,7 +539,7 @@ export default {
 
       return new Response(JSON.stringify({
         ok: true,
-        user: { name: u.name, role: u.role, projects: u.projects || null, features: u.features || null }
+        user: { name: u.name, role: u.role, programs: u.programs || null, features: u.features || null }
       }), { status: 200, headers });
     }
 
@@ -629,13 +629,13 @@ export default {
         catch(e) { errors[sheet] = e.message; results[sheet] = []; }
       }
 
-      // Step 2: discover all project IDs from Main Projects, then fetch each task sheet
-      const mainRows = results['Main Projects'] || [];
-      const projectIds = mainRows.slice(1)
+      // Step 2: discover all program IDs from Main Programs, then fetch each task sheet
+      const mainRows = results['Main Programs'] || [];
+      const programIds = mainRows.slice(1)
         .map(r => r[0])
         .filter(id => id && String(id).trim());
 
-      for (const pid of projectIds) {
+      for (const pid of programIds) {
         const taskSheet = `${pid} Task_List`;
         try   { results[taskSheet] = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, taskSheet); }
         catch(e) { errors[taskSheet] = e.message; results[taskSheet] = []; }
@@ -647,7 +647,7 @@ export default {
         const allUsers = getUsers();
         roleConfig = {};
         Object.values(allUsers).forEach(usr => {
-          roleConfig[usr.name] = { role: usr.role || 'staff', projects: usr.projects || [], features: usr.features || [] };
+          roleConfig[usr.name] = { role: usr.role || 'staff', programs: usr.programs || [], features: usr.features || [] };
         });
         if (env.STAFF_ROLES) {
           try { const lg = JSON.parse(env.STAFF_ROLES); Object.entries(lg).forEach(([n,c]) => { if (!roleConfig[n]) roleConfig[n]=c; }); } catch(e) {}
@@ -658,15 +658,15 @@ export default {
       return new Response(JSON.stringify({ ok: true, sheets: results, errors, roleConfig, users: usersList }), { status: 200, headers });
     }
 
-    // ── Add new project ──────────────────────────
-    if (action === 'add_project') {
+    // ── Add new program ──────────────────────────
+    if (action === 'add_program') {
       const { username, password } = body;
       if (!isAdminUser(username, password))
         return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers });
 
-      const { project } = body;
-      if (!project?.id || !project?.name)
-        return new Response(JSON.stringify({ error: 'Missing project data' }), { status: 400, headers });
+      const { program } = body;
+      if (!program?.id || !program?.name)
+        return new Response(JSON.stringify({ error: 'Missing program data' }), { status: 400, headers });
 
       if (!env.GMAIL_REFRESH_TOKEN)
         return new Response(JSON.stringify({ error: 'OAuth not configured' }), { status: 501, headers });
@@ -675,7 +675,7 @@ export default {
       try { token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, env.GMAIL_REFRESH_TOKEN); }
       catch(e) { return new Response(JSON.stringify({ error: 'OAuth failed: ' + e.message }), { status: 500, headers }); }
 
-      const sheetName = `${project.id} Task_List`;
+      const sheetName = `${program.id} Task_List`;
       const spreadsheetId = env.SPREADSHEET_ID;
 
       // 1. Create new sheet tab
@@ -699,30 +699,30 @@ export default {
       }
 
       // 2. Add headers to new sheet — 8 clean data columns, no formulas
-      const sheetHeaders = ['Task ID','Project ID','Project Name','Task Name','Quarter','CW','Status','Owner'];
+      const sheetHeaders = ['Task ID','Program ID','Program Name','Task Name','Quarter','CW','Status','Owner'];
       await appendToSheet(token, spreadsheetId, sheetName, sheetHeaders);
 
-      // 3. Add project row to Main Projects sheet
+      // 3. Add program row to Main Programs sheet
       // No formulas — Target Tasks is updated by dashboard from actual task count
-      const duration = project.end - project.start + 1;
+      const duration = program.end - program.start + 1;
       const projRow = [
-        project.id, project.name, project.start, project.end,
-        project.startQuarter, project.endQuarter, duration,
+        program.id, program.name, program.start, program.end,
+        program.startQuarter, program.endQuarter, duration,
         0   // Target Tasks — starts at 0, grows as tasks are added
       ];
-      await appendToSheet(token, spreadsheetId, 'Main Projects', projRow);
+      await appendToSheet(token, spreadsheetId, 'Main Programs', projRow);
 
       return new Response(JSON.stringify({ ok: true, sheetName }), { status: 200, headers });
     }
 
-    // ── Add task to project ───────────────────────
+    // ── Add task to program ───────────────────────
     if (action === 'add_task') {
       const { username, password } = body;
       if (!isAdminUser(username, password))
         return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers });
 
       const { task } = body;
-      if (!task?.projectId || !task?.name)
+      if (!task?.programId || !task?.name)
         return new Response(JSON.stringify({ error: 'Missing task data' }), { status: 400, headers });
 
       if (!env.GMAIL_REFRESH_TOKEN)
@@ -732,7 +732,7 @@ export default {
       try { token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, env.GMAIL_REFRESH_TOKEN); }
       catch(e) { return new Response(JSON.stringify({ error: 'OAuth failed: ' + e.message }), { status: 500, headers }); }
 
-      const sheetName = `${task.projectId} Task_List`;
+      const sheetName = `${task.programId} Task_List`;
 
       // Fetch existing rows to determine next task number
       const rows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, sheetName);
@@ -745,8 +745,8 @@ export default {
       // 8 clean data columns — all KPI computed by dashboard from these
       const row = [
         taskId,               // col A — Task ID
-        task.projectId,       // col B — Project ID
-        task.projectName,     // col C — Project Name
+        task.programId,       // col B — Program ID
+        task.programName,     // col C — Program Name
         task.name,            // col D — Task Name
         task.quarter,         // col E — Quarter
         cwNum,                // col F — CW (number)
@@ -756,18 +756,18 @@ export default {
 
       await appendToSheet(token, env.SPREADSHEET_ID, sheetName, row);
 
-      // Update Target Tasks count in Main Projects sheet
+      // Update Target Tasks count in Main Programs sheet
       try {
-        const mpRows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Main Projects');
-        // Find the header row and the project row
-        const headerIdx = mpRows.findIndex(r => r && r.some(c => String(c).trim() === 'Project ID'));
+        const mpRows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Main Programs');
+        // Find the header row and the program row
+        const headerIdx = mpRows.findIndex(r => r && r.some(c => String(c).trim() === 'Program ID'));
         if (headerIdx >= 0) {
-          const projRowIdx = mpRows.findIndex((r, i) => i > headerIdx && String(r[0]||'').trim() === task.projectId);
+          const projRowIdx = mpRows.findIndex((r, i) => i > headerIdx && String(r[0]||'').trim() === task.programId);
           if (projRowIdx >= 0) {
             // Col H (index 7) = Target Tasks — count all non-empty Task ID rows in the task sheet
             const taskRows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, sheetName);
             const taskCount = taskRows.slice(1).filter(r => r[0] && String(r[0]).trim()).length;
-            const targetRange = `Main Projects!H${projRowIdx + 1}`;
+            const targetRange = `Main Programs!H${projRowIdx + 1}`;
             const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${env.SPREADSHEET_ID}/values/${encodeURIComponent(targetRange)}?valueInputOption=RAW`;
             await fetch(updateUrl, {
               method: 'PUT',
@@ -787,7 +787,7 @@ export default {
 
     // ── Update single task status ─────────────────
     if (action === 'update_task') {
-      const { username, password, taskName, projectId, newStatus } = body;
+      const { username, password, taskName, programId, newStatus } = body;
       if (!validateUser(username, password))
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
 
@@ -801,7 +801,7 @@ export default {
       try { token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, env.GMAIL_REFRESH_TOKEN); }
       catch(e) { return new Response(JSON.stringify({ error: 'OAuth failed: ' + e.message }), { status: 500, headers }); }
 
-      const sheetName = `${projectId} Task_List`;
+      const sheetName = `${programId} Task_List`;
       const rows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, sheetName);
       const header = rows[0] || [];
       const statusCol = header.findIndex(h => String(h).toLowerCase().includes('status'));
@@ -826,7 +826,7 @@ export default {
         const err = await res.json().catch(() => ({}));
         return new Response(JSON.stringify({ error: err.error?.message || res.status }), { status: 500, headers });
       }
-      return new Response(JSON.stringify({ ok: true, taskName, projectId, newStatus, row: rowIdx + 1 }), { status: 200, headers });
+      return new Response(JSON.stringify({ ok: true, taskName, programId, newStatus, row: rowIdx + 1 }), { status: 200, headers });
     }
 
     // ── Save role config (Admin only) ────────────
@@ -837,8 +837,8 @@ export default {
 
       if (!config) return new Response(JSON.stringify({ error: 'No config provided' }), { status: 400, headers });
 
-      // Merge role config (projects, features, role) into each user in USERS_CONFIG
-      // Config is keyed by display name: { "Gamaliel": { role, projects, features }, ... }
+      // Merge role config (programs, features, role) into each user in USERS_CONFIG
+      // Config is keyed by display name: { "Gamaliel": { role, programs, features }, ... }
       const users = getUsers();
 
       // Build a lookup: display name → username key
@@ -850,7 +850,7 @@ export default {
         const key = nameToKey[displayName];
         if (!key || !users[key]) continue; // unknown user — skip
         users[key].role     = cfg.role     || users[key].role;
-        users[key].projects = cfg.projects || [];
+        users[key].programs = cfg.programs || [];
         users[key].features = cfg.features || [];
         changed++;
       }
@@ -910,10 +910,10 @@ export default {
 
       // ── Update task statuses — lookup row by task name ──
       if (entry.taskUpdates?.length) {
-        // Group by project sheet
+        // Group by program sheet
         const bySheet = {};
         entry.taskUpdates.forEach(u => {
-          const sheet = `${u.projectId} Task_List`;
+          const sheet = `${u.programId} Task_List`;
           if (!bySheet[sheet]) bySheet[sheet] = [];
           bySheet[sheet].push(u);
         });
@@ -953,7 +953,7 @@ export default {
       try {
         const row = [
           entry.date || new Date().toLocaleDateString(),
-          entry.cw, entry.name, entry.project,
+          entry.cw, entry.name, entry.program,
           entry.done, entry.missed,
           entry.blockers || '', entry.notes || '',
           entry.time || '',
@@ -988,13 +988,13 @@ export default {
       // Sheets to ensure exist, with their header rows
       const sheetsToSetup = [
         {
-          name: 'Main Projects',
+          name: 'Main Programs',
           // Columns match what parseSheetData expects — no underscore, consistent naming
-          headers: ['Project ID','Project Name','Start CW','End CW','Start Quarter','End Quarter','Duration Weeks','Target Tasks'],
+          headers: ['Program ID','Program Name','Start CW','End CW','Start Quarter','End Quarter','Duration Weeks','Target Tasks'],
         },
         {
           name: 'Weekly Reports',
-          headers: ['Date','CW','Name','Project','Done','Missed','Blockers','Notes','Time'],
+          headers: ['Date','CW','Name','Program','Done','Missed','Blockers','Notes','Time'],
         },
         {
           name: 'Login Audit',
@@ -1006,7 +1006,7 @@ export default {
         // Check if sheet already has correct headers
         const existing = await fetchSheet(env.GOOGLE_API_KEY, spreadsheetId, sheet.name);
 
-        // Find the header row — look for the row that contains 'Project ID' or the first expected header
+        // Find the header row — look for the row that contains 'Program ID' or the first expected header
         const firstExpected = sheet.headers[0];
         const hasCorrectHeader = existing.some(row =>
           row.some(cell => String(cell).trim() === firstExpected)
@@ -1083,8 +1083,8 @@ export default {
           // Build clean rows: take cols 9-16 (J-Q) as the new A-H
           const cleanRows = dataRows.map(r => [
             r[9]  || '',  // Task ID
-            r[10] || '',  // Project ID
-            r[11] || '',  // Project Name
+            r[10] || '',  // Program ID
+            r[11] || '',  // Program Name
             r[12] || '',  // Task Name
             r[13] || '',  // Quarter
             r[14] || '',  // CW
@@ -1099,7 +1099,7 @@ export default {
           );
 
           // 2. Write clean header row
-          const headers = ['Task ID','Project ID','Project Name','Task Name','Quarter','CW','Status','Owner'];
+          const headers = ['Task ID','Program ID','Program Name','Task Name','Quarter','CW','Status','Owner'];
           await appendToSheet(token, spreadsheetId, tsName, headers);
 
           // 3. Write all migrated data rows
@@ -1274,21 +1274,21 @@ export default {
           ? allProposals.filter(p => p['Proposed By'] === (user.name || user._key))
           : allProposals;
 
-        // Also fetch projects from main PDP sheet so finance.html can sync
-        let projects = [];
+        // Also fetch programs from main PDP sheet so finance.html can sync
+        let programs = [];
         try {
-          const mainRows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Main Projects');
-          const hIdx = mainRows.findIndex(r => r && r.some(c => String(c).trim() === 'Project ID'));
+          const mainRows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Main Programs');
+          const hIdx = mainRows.findIndex(r => r && r.some(c => String(c).trim() === 'Program ID'));
           if (hIdx >= 0) {
             const [hdrs, ...rows] = mainRows.slice(hIdx);
-            projects = rows
+            programs = rows
               .map(r => Object.fromEntries(hdrs.map((h,i) => [h.trim(), r[i] || ''])))
-              .filter(r => r['Project ID'] && !String(r['Project ID']).startsWith('#'))
-              .map(r => ({ id: r['Project ID'].trim(), name: (r['Project Name '] || r['Project Name'] || r['Project ID']).trim() }));
+              .filter(r => r['Program ID'] && !String(r['Program ID']).startsWith('#'))
+              .map(r => ({ id: r['Program ID'].trim(), name: (r['Program Name '] || r['Program Name'] || r['Program ID']).trim() }));
           }
         } catch(_) {}
 
-        return new Response(JSON.stringify({ ok: true, budget, transactions, queue, proposals, projects }), { status: 200, headers });
+        return new Response(JSON.stringify({ ok: true, budget, transactions, queue, proposals, programs }), { status: 200, headers });
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
       }
@@ -1303,9 +1303,9 @@ export default {
       if (!allowed.includes(user.role))
         return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
 
-      const { project, programId, category, amount, description } = body;
-      if (!project || !category || !amount || !description)
-        return new Response(JSON.stringify({ error: 'Missing fields: project, category, amount, description' }), { status: 400, headers });
+      const { program, projectId, category, amount, description } = body;
+      if (!program || !category || !amount || !description)
+        return new Response(JSON.stringify({ error: 'Missing fields: program, category, amount, description' }), { status: 400, headers });
 
       const finSheetId = env.FINANCE_SPREADSHEET_ID;
       const now = new Date().toISOString();
@@ -1314,7 +1314,7 @@ export default {
       try {
         const token = await getDriveToken(env);
         // Append to Transactions sheet
-        const txRow = [txId, now.slice(0,10), project, programId || '', category, amount, description,
+        const txRow = [txId, now.slice(0,10), program, projectId || '', category, amount, description,
                        user.name || user._key, 'pending', '', ''];
         await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Transactions:append?valueInputOption=USER_ENTERED`,
@@ -1404,8 +1404,8 @@ export default {
         if (action === 'approve_expense') {
           try {
             const txRow       = txRows[txRowIdx];
-            const txProject   = txRow[2] || '';   // col C = Project
-            const txProgramId = txRow[3] || '';   // col D = Program ID
+            const txProgram   = txRow[2] || '';   // col C = Program
+            const txprojectId = txRow[3] || '';   // col D = Project ID
             const txCategory  = txRow[4] || '';   // col E = Category
             // col F = Amount (index 5)
 
@@ -1416,29 +1416,29 @@ export default {
             ).then(r => r.json());
 
             const allTxRows = allTxData.values || [];
-            // Sum approved amounts for same Project + Program + Category
+            // Sum approved amounts for same Program + Project + Category
             // Include the current txId (being approved right now) in the sum
             const totalSpent = allTxRows.slice(1)
               .filter(r =>
-                r[2] === txProject &&
-                (r[3] || '') === txProgramId &&
+                r[2] === txProgram &&
+                (r[3] || '') === txprojectId &&
                 r[4] === txCategory &&
                 (r[8] === 'approved' || r[0] === txId)
               )
               .reduce((sum, r) => sum + parseFloat(r[5] || 0), 0); // r[5] = Amount
 
-            // Find matching Budget row: Project + Program ID + Category
+            // Find matching Budget row: Program + Project ID + Category
             const bData = await fetch(
               `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget`,
               { headers: { Authorization: `Bearer ${token}` } }
             ).then(r => r.json());
 
             const bRows = bData.values || [];
-            // Budget schema: A(0)=ID B(1)=Project C(2)=ProgramID D(3)=Category E(4)=Alloc F(5)=Spent G(6)=Rem
+            // Budget schema: A(0)=ID B(1)=Program C(2)=ProjectID D(3)=Category E(4)=Alloc F(5)=Spent G(6)=Rem
             const bRowIdx = bRows.findIndex((r, i) =>
               i > 0 &&
-              r[1] === txProject &&
-              (r[2] || '') === txProgramId &&
+              r[1] === txProgram &&
+              (r[2] || '') === txprojectId &&
               r[3] === txCategory
             );
 
@@ -1518,9 +1518,9 @@ export default {
       if (user.role !== 'admin')
         return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers });
 
-      const { project, programId, category, allocated, period, notes } = body;
-      if (!project || !category || !allocated)
-        return new Response(JSON.stringify({ error: 'Missing required fields: project, category, allocated' }), { status: 400, headers });
+      const { program, projectId, category, allocated, period, notes } = body;
+      if (!program || !category || !allocated)
+        return new Response(JSON.stringify({ error: 'Missing required fields: program, category, allocated' }), { status: 400, headers });
 
       const finSheetId = env.FINANCE_SPREADSHEET_ID;
       if (!finSheetId) return new Response(JSON.stringify({ error: 'FINANCE_SPREADSHEET_ID not configured' }), { status: 500, headers });
@@ -1529,15 +1529,15 @@ export default {
         const token = await getDriveToken(env);
 
         // Generate Budget ID: BDG-<PROJECT>-<CATEGORY>-<timestamp short>
-        const safeProj = String(project).replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+        const safeProj = String(program).replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
         const safeCat  = String(category).replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4);
         const budgetId = `BDG-${safeProj}-${safeCat}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
 
         const spent     = 0;
         const remaining = parseFloat(allocated) - spent;
 
-        // Budget columns: Budget ID | Project | Program ID | Category | Allocated | Spent | Remaining | Period | Notes
-        const row = [budgetId, project, programId || '', category, parseFloat(allocated), spent, remaining, period || '', notes || ''];
+        // Budget columns: Budget ID | Program | Project ID | Category | Allocated | Spent | Remaining | Period | Notes
+        const row = [budgetId, program, projectId || '', category, parseFloat(allocated), spent, remaining, period || '', notes || ''];
 
         await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget:append?valueInputOption=USER_ENTERED`,
@@ -1555,53 +1555,53 @@ export default {
     }
 
 
-    // ─── get_programs ─────────────────────────────────────────
-    if (action === 'get_programs') {
+    // ─── get_projects ─────────────────────────────────────────
+    if (action === 'get_projects') {
       const user = validateUser(body.username, body.password);
       if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
 
       try {
-        const rows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Programs');
-        const hIdx = rows.findIndex(r => r && r.some(c => String(c).trim() === 'Program ID'));
-        if (hIdx < 0) return new Response(JSON.stringify({ ok: true, programs: [] }), { status: 200, headers });
+        const rows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Projects');
+        const hIdx = rows.findIndex(r => r && r.some(c => String(c).trim() === 'Project ID'));
+        if (hIdx < 0) return new Response(JSON.stringify({ ok: true, projects: [] }), { status: 200, headers });
         const [hdrs, ...data] = rows.slice(hIdx);
-        const programs = data
+        const projects = data
           .map(r => Object.fromEntries(hdrs.map((h,i) => [h.trim(), r[i] || ''])))
-          .filter(r => r['Program ID']);
-        const projectId = body.projectId;
-        const filtered = projectId ? programs.filter(p => p['Project ID'] === projectId) : programs;
-        return new Response(JSON.stringify({ ok: true, programs: filtered }), { status: 200, headers });
+          .filter(r => r['Project ID']);
+        const programId = body.programId;
+        const filtered = programId ? projects.filter(p => p['Program ID'] === programId) : projects;
+        return new Response(JSON.stringify({ ok: true, projects: filtered }), { status: 200, headers });
       } catch(e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
       }
     }
 
-    // ─── add_program ──────────────────────────────────────────
-    if (action === 'add_program') {
+    // ─── add_project ──────────────────────────────────────────
+    if (action === 'add_project') {
       const user = validateUser(body.username, body.password);
       if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
       if (!['admin', 'manager'].includes(user.role))
         return new Response(JSON.stringify({ error: 'Admin or Manager only' }), { status: 403, headers });
 
-      const { projectId, programName, description, startCW, endCW, quarter, status, responsible } = body;
-      if (!projectId || !programName)
-        return new Response(JSON.stringify({ error: 'Missing projectId or programName' }), { status: 400, headers });
+      const { programId, projectName, description, startCW, endCW, quarter, status, responsible } = body;
+      if (!programId || !projectName)
+        return new Response(JSON.stringify({ error: 'Missing programId or projectName' }), { status: 400, headers });
 
       try {
         const token = await getDriveToken(env);
-        // Ensure Programs sheet has headers
-        const existing = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Programs').catch(() => []);
-        if (!existing.length || !existing[0] || !existing[0].includes('Program ID')) {
-          await appendToSheet(token, env.SPREADSHEET_ID, 'Programs',
-            ['Program ID', 'Project ID', 'Program Name', 'Description', 'Start CW', 'End CW', 'Quarter', 'Status', 'Responsible', 'Created By', 'Created At']);
+        // Ensure Projects sheet has headers
+        const existing = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Projects').catch(() => []);
+        if (!existing.length || !existing[0] || !existing[0].includes('Project ID')) {
+          await appendToSheet(token, env.SPREADSHEET_ID, 'Projects',
+            ['Project ID', 'Program ID', 'Project Name', 'Description', 'Start CW', 'End CW', 'Quarter', 'Status', 'Responsible', 'Created By', 'Created At']);
         }
-        const programId = `PRG-${String(projectId).replace(/[^a-zA-Z0-9]/g,'').toUpperCase()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
+        const projectId = `PRG-${String(programId).replace(/[^a-zA-Z0-9]/g,'').toUpperCase()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
         const now = new Date().toISOString();
-        await appendToSheet(token, env.SPREADSHEET_ID, 'Programs',
-          [programId, projectId, programName, description || '',
+        await appendToSheet(token, env.SPREADSHEET_ID, 'Projects',
+          [projectId, programId, projectName, description || '',
            startCW || '', endCW || '', quarter || '', status || 'Planning', responsible || '',
            user.name || user._key, now]);
-        return new Response(JSON.stringify({ ok: true, programId }), { status: 200, headers });
+        return new Response(JSON.stringify({ ok: true, projectId }), { status: 200, headers });
       } catch(e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
       }
@@ -1651,15 +1651,15 @@ export default {
       if (!['admin', 'manager', 'finance_staff', 'finance_manager'].includes(user.role))
         return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
 
-      const { projectId, programId, category, requestedAmount, justification, period, notes, proposalId } = body;
-      if (!projectId || !programId || !requestedAmount || !justification)
+      const { programId, projectId, category, requestedAmount, justification, period, notes, proposalId } = body;
+      if (!programId || !projectId || !requestedAmount || !justification)
         return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers });
 
       const finSheetId = env.FINANCE_SPREADSHEET_ID;
       const token = await getDriveToken(env);
       const now = new Date().toISOString();
       const proposedBy = user.name || user._key;
-      const PROP_HEADERS = ['Proposal ID','Project ID','Program ID','Category','Requested Amount',
+      const PROP_HEADERS = ['Proposal ID','Program ID','Project ID','Category','Requested Amount',
                             'Justification','Period','Notes','Proposed By','Proposed At','Status',
                             'Reviewed By','Reviewed At','Review Notes'];
 
@@ -1712,7 +1712,7 @@ export default {
               method: 'PUT',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({ values: [[
-                proposalId, projectId, programId, category || '',
+                proposalId, programId, projectId, category || '',
                 requestedAmount, justification, period || '', notes || '',
                 proposedBy,
                 existingRow[9] || now,          // Proposed At — preserve original
@@ -1728,7 +1728,7 @@ export default {
           // New proposal
           const newId = `PROP-${Date.now().toString(36).toUpperCase()}`;
           await appendToSheet(token, finSheetId, 'Budget_Proposals',
-            [newId, projectId, programId, category || '', requestedAmount,
+            [newId, programId, projectId, category || '', requestedAmount,
              justification, period || '', notes || '', proposedBy, now, 'draft', '', '', '']);
           return new Response(JSON.stringify({ ok: true, proposalId: newId }), { status: 200, headers });
         }
@@ -1820,15 +1820,15 @@ export default {
 
         // On approval: auto-create Budget line
         if (decision === 'approved') {
-          const [, projectId, programId, category, requestedAmount, , period, notes] = row;
-          const safeProj = String(projectId).replace(/[^a-zA-Z0-9]/g,'').toUpperCase().slice(0,6);
+          const [, programId, projectId, category, requestedAmount, , period, notes] = row;
+          const safeProj = String(programId).replace(/[^a-zA-Z0-9]/g,'').toUpperCase().slice(0,6);
           const safeCat  = String(category || 'GEN').replace(/[^a-zA-Z0-9]/g,'').toUpperCase().slice(0,4);
           const budgetId = `BDG-${safeProj}-${safeCat}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
           const allocated = parseFloat(requestedAmount) || 0;
-          // Budget: Budget ID | Project | Category | Allocated | Spent | Remaining | Period | Notes
-          // Clean programId: ALL_PROGRAMS means entire project → store as empty
-          const cleanProgramId = (programId === 'ALL_PROGRAMS' || !programId) ? '' : programId;
-          const budgetRow = [budgetId, projectId, cleanProgramId, category || 'General', allocated, 0, allocated,
+          // Budget: Budget ID | Program | Category | Allocated | Spent | Remaining | Period | Notes
+          // Clean projectId: ALL_PROJECTS means entire program → store as empty
+          const cleanprojectId = (projectId === 'ALL_PROJECTS' || !projectId) ? '' : projectId;
+          const budgetRow = [budgetId, programId, cleanprojectId, category || 'General', allocated, 0, allocated,
                              period || '', `Auto from proposal ${proposalId}. ${notes || ''}`.trim()];
           await appendToSheet(token, finSheetId, 'Budget', budgetRow);
         }
