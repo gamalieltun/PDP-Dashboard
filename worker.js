@@ -1221,15 +1221,22 @@ export default {
       if (!finSheetId) return new Response(JSON.stringify({ error: 'FINANCE_SPREADSHEET_ID not configured' }), { status: 500, headers });
 
       try {
-        const apiKey = env.GOOGLE_API_KEY;
+        // Use OAuth token — Finance sheet is private (API key only works on public sheets)
+        const token = await getDriveToken(env);
+        const finFetch = (sheet) => fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent(sheet)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
         const [budgetRes, txRes, queueRes] = await Promise.all([
-          fetch(`https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget?key=${apiKey}`),
-          fetch(`https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Transactions?key=${apiKey}`),
-          fetch(`https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Approval_Queue?key=${apiKey}`),
+          finFetch('Budget'),
+          finFetch('Transactions'),
+          finFetch('Approval_Queue'),
         ]);
 
         const toObjects = async (res) => {
           const d = await res.json();
+          if (d.error) throw new Error(`Sheets API: ${d.error.message}`);
           const rows = d.values || [];
           if (rows.length < 2) return [];
           const [headers, ...data] = rows;
@@ -1240,7 +1247,21 @@ export default {
           toObjects(budgetRes), toObjects(txRes), toObjects(queueRes)
         ]);
 
-        return new Response(JSON.stringify({ ok: true, budget, transactions, queue }), { status: 200, headers });
+        // Also fetch projects from main PDP sheet so finance.html can sync
+        let projects = [];
+        try {
+          const mainRows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Main Projects');
+          const hIdx = mainRows.findIndex(r => r && r.some(c => String(c).trim() === 'Project ID'));
+          if (hIdx >= 0) {
+            const [hdrs, ...rows] = mainRows.slice(hIdx);
+            projects = rows
+              .map(r => Object.fromEntries(hdrs.map((h,i) => [h.trim(), r[i] || ''])))
+              .filter(r => r['Project ID'] && !String(r['Project ID']).startsWith('#'))
+              .map(r => ({ id: r['Project ID'].trim(), name: (r['Project Name '] || r['Project Name'] || r['Project ID']).trim() }));
+          }
+        } catch(_) {}
+
+        return new Response(JSON.stringify({ ok: true, budget, transactions, queue, projects }), { status: 200, headers });
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
       }
@@ -1264,7 +1285,7 @@ export default {
       const txId = 'TX-' + Date.now().toString(36).toUpperCase();
 
       try {
-        const token = await getToken(env);
+        const token = await getDriveToken(env);
         // Append to Transactions sheet
         const txRow = [txId, now.slice(0,10), project, category, amount, description,
                        user.name || user._key, 'pending', '', ''];
@@ -1311,12 +1332,12 @@ export default {
       const now = new Date().toISOString();
 
       try {
-        const token = await getToken(env);
-        const apiKey = env.GOOGLE_API_KEY;
+        const token = await getDriveToken(env);
 
         // Find and update Transactions row
         const txData = await (await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Transactions?key=${apiKey}`
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Transactions`,
+          { headers: { Authorization: `Bearer ${token}` } }
         )).json();
         const txRows = txData.values || [];
         const txHeaderIdx = { id: 0, status: 7, approvedBy: 8, approvedAt: 9 };
@@ -1335,7 +1356,8 @@ export default {
 
         // Find and update Approval_Queue row
         const qData = await (await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Approval_Queue?key=${apiKey}`
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Approval_Queue`,
+          { headers: { Authorization: `Bearer ${token}` } }
         )).json();
         const qRows = qData.values || [];
         const qRowIdx = qRows.findIndex((r, i) => i > 0 && r[1] === txId);
@@ -1372,11 +1394,11 @@ export default {
       const finSheetId = env.FINANCE_SPREADSHEET_ID;
 
       try {
-        const token = await getToken(env);
-        const apiKey = env.GOOGLE_API_KEY;
+        const token = await getDriveToken(env);
 
         const bData = await (await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget?key=${apiKey}`
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget`,
+          { headers: { Authorization: `Bearer ${token}` } }
         )).json();
         const bRows = bData.values || [];
         const bRowIdx = bRows.findIndex((r, i) => i > 0 && r[0] === budgetId);
