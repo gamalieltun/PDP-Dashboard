@@ -1645,38 +1645,68 @@ export default {
       const token = await getDriveToken(env);
       const now = new Date().toISOString();
       const proposedBy = user.name || user._key;
+      const PROP_HEADERS = ['Proposal ID','Project ID','Program ID','Category','Requested Amount',
+                            'Justification','Period','Notes','Proposed By','Proposed At','Status',
+                            'Reviewed By','Reviewed At','Review Notes'];
 
-      try {
-        // Check if sheet exists and has headers
-        const existing = await fetch(
+      // Helper: fetch current sheet rows with OAuth
+      const fetchPropRows = async () => {
+        const d = await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}`,
           { headers: { Authorization: `Bearer ${token}` } }
         ).then(r => r.json());
+        return d.values || [];
+      };
 
-        const headers = ['Proposal ID','Project ID','Program ID','Category','Requested Amount',
-                         'Justification','Period','Notes','Proposed By','Proposed At','Status',
-                         'Reviewed By','Reviewed At','Review Notes'];
+      try {
+        // Ensure sheet exists with correct headers
+        let rows = await fetchPropRows();
+        const hasCorrectHeader = rows.length > 0 && rows[0][0] === 'Proposal ID';
 
-        if (!existing.values || existing.values.length === 0 || existing.error) {
-          // Sheet tab may not exist yet — create it first, then add headers
+        if (!hasCorrectHeader) {
+          // Create sheet tab (ignore "already exists")
           await createSheetTab(token, finSheetId, 'Budget_Proposals');
-          await appendToSheet(token, finSheetId, 'Budget_Proposals', headers);
+
+          if (rows.length === 0) {
+            // Brand new sheet — just append header
+            await appendToSheet(token, finSheetId, 'Budget_Proposals', PROP_HEADERS);
+          } else {
+            // Sheet exists but has wrong headers (data from earlier broken saves)
+            // Overwrite row 1 with correct headers using PUT
+            await fetch(
+              `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}!A1:N1?valueInputOption=USER_ENTERED`,
+              {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values: [PROP_HEADERS] })
+              }
+            );
+          }
+          // Re-fetch after fixing headers
+          rows = await fetchPropRows();
         }
 
         if (proposalId) {
-          // Update existing draft — find row and update cols A-N
-          const rows = existing.values || [];
+          // Update existing draft — find row by Proposal ID in col A
           const rowIdx = rows.findIndex((r, i) => i > 0 && r[0] === proposalId);
           if (rowIdx < 1) return new Response(JSON.stringify({ error: 'Proposal not found' }), { status: 404, headers });
           const sheetRow = rowIdx + 1;
+          const existingRow = rows[rowIdx];
           await fetch(
             `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}!A${sheetRow}:N${sheetRow}?valueInputOption=USER_ENTERED`,
             {
               method: 'PUT',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ values: [[proposalId, projectId, programId, category || '',
+              body: JSON.stringify({ values: [[
+                proposalId, projectId, programId, category || '',
                 requestedAmount, justification, period || '', notes || '',
-                proposedBy, rows[rowIdx][9] || now, rows[rowIdx][10] || 'draft', '', '', '']] })
+                proposedBy,
+                existingRow[9] || now,          // Proposed At — preserve original
+                existingRow[10] || 'draft',     // Status — preserve
+                existingRow[11] || '',          // Reviewed By
+                existingRow[12] || '',          // Reviewed At
+                existingRow[13] || ''           // Review Notes
+              ]] })
             }
           );
           return new Response(JSON.stringify({ ok: true, proposalId }), { status: 200, headers });
