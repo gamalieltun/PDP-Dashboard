@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDP Finance</title>
+<style>
+  /* ── Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:    #0f1f3d;
+    --navy2:   #1a2e52;
+    --blue:    #2563eb;
+    --blue-lt: #eff6ff;
+    --green:   #15803d;
+    --green-lt:#f0fdf4;
+    --amber:   #b45309;
+    --amber-lt:#fffbeb;
+    --red:     #dc2626;
+    --red-lt:  #fef2f2;
+    --purple:  #7c3aed;
+    --purple-lt:#f5f3ff;
+    --gray-50: #f9fafb;
+    --gray-100:#f3f4f6;
+    --gray-200:#e5e7eb;
+    --gray-300:#d1d5db;
+    --gray-400:#9ca3af;
+    --gray-500:#6b7280;
+    --gray-600:#4b5563;
+    --gray-700:#374151;
+    --gray-800:#1f2937;
+    --gray-900:#111827;
+    --radius:  8px;
+    --shadow:  0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    background: var(--gray-50);
+    color: var(--gray-800);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--navy);
+    color: #fff;
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-back {
+    background: rgba(255,255,255,.1);
+    border: none;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .header-back:hover { background: rgba(255,255,255,.18); }
+  .header-title { font-size: 16px; font-weight: 600; }
+  .header-subtitle { font-size: 12px; opacity: .6; }
+  .user-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.1);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+  }
+  .user-badge .role {
+    background: rgba(255,255,255,.15);
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  /* ── Layout ── */
+  .main { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+  /* ── Access denied ── */
+  #access-denied {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    gap: 12px;
+    color: var(--gray-500);
+  }
+  #access-denied .icon { font-size: 48px; }
+  #access-denied h2 { font-size: 18px; color: var(--gray-700); }
+
+  /* ── Stat cards ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--gray-500);
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-sub { font-size: 11px; color: var(--gray-400); }
+
+  /* ── Sub-tabs ── */
+  .subtab-bar {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 20px;
+  }
+  .subtab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-500);
+    cursor: pointer;
+    margin-bottom: -1px;
+    transition: color .15s, border-color .15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .subtab:hover { color: var(--gray-800); }
+  .subtab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .subtab-pane { display: none; }
+  .subtab-pane.active { display: block; animation: fadeIn .15s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .badge {
+    background: var(--red);
+    color: #fff;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .toolbar-right { display: flex; align-items: center; gap: 8px; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: background .15s, opacity .15s;
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+  .btn-secondary { background: #fff; color: var(--gray-700); border: 1px solid var(--gray-200); }
+  .btn-secondary:hover:not(:disabled) { background: var(--gray-50); }
+  .btn-danger { background: var(--red-lt); color: var(--red); border: 1px solid #fecaca; }
+  .btn-danger:hover:not(:disabled) { background: #fecaca; }
+  .btn-success { background: var(--green-lt); color: var(--green); border: 1px solid #bbf7d0; }
+  .btn-success:hover:not(:disabled) { background: #bbf7d0; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ── Select / Input ── */
+  select, input, textarea {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    font-size: 13px;
+    color: var(--gray-800);
+    background: #fff;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s;
+    font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--blue); }
+  label { font-size: 12px; font-weight: 600; color: var(--gray-600); display: block; margin-bottom: 4px; }
+
+  /* ── Card ── */
+  .card {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--gray-100);
+    display: flex; align-items: center; justify-content: space-between;
+    font-weight: 600; font-size: 14px; color: var(--gray-800);
+  }
+
+  /* ── Table ── */
+  .fin-table { width: 100%; border-collapse: collapse; }
+  .fin-table th {
+    padding: 9px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--gray-500);
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .fin-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-700);
+    vertical-align: middle;
+  }
+  .fin-table tr:last-child td { border-bottom: none; }
+  .fin-table tr:hover td { background: var(--gray-50); }
+  .fin-table .actions { display: flex; gap: 6px; }
+
+  /* ── Status pills ── */
+  .pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill-pending  { background: var(--amber-lt); color: var(--amber); border: 1px solid #fde68a; }
+  .pill-approved { background: var(--green-lt); color: var(--green); border: 1px solid #bbf7d0; }
+  .pill-rejected { background: var(--red-lt);   color: var(--red);   border: 1px solid #fecaca; }
+
+  /* ── Progress bar ── */
+  .progress-wrap { min-width: 100px; }
+  .progress-label { font-size: 11px; color: var(--gray-500); margin-bottom: 3px; }
+  .progress-bar { height: 6px; background: var(--gray-200); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width .4s; background: var(--blue); }
+  .progress-fill.warn { background: var(--amber); }
+  .progress-fill.over { background: var(--red); }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    width: 440px;
+    max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    transform: translateY(8px);
+    transition: transform .2s;
+  }
+  .modal-overlay.open .modal { transform: none; }
+  .modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 18px;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; color: var(--gray-900); }
+  .modal-close {
+    background: none; border: none; font-size: 22px;
+    color: var(--gray-400); cursor: pointer; line-height: 1;
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .modal-close:hover { background: var(--gray-100); color: var(--gray-600); }
+  .form-group { margin-bottom: 14px; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .25s, transform .25s;
+    z-index: 300;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: none; }
+  #toast.green { background: #15803d; }
+  #toast.red   { background: #dc2626; }
+  #toast.blue  { background: var(--blue); }
+
+  /* ── Empty state ── */
+  .empty {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--gray-400);
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 8px; }
+  .empty-text { font-size: 13px; }
+
+  /* ── Loading ── */
+  .loading { padding: 32px; text-align: center; color: var(--gray-400); font-size: 13px; }
+
+  /* ── Budget category label ── */
+  .cat-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--blue-lt);
+    color: var(--blue);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .main { padding: 16px 12px; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .fin-table th:nth-child(n+5),
+    .fin-table td:nth-child(n+5) { display: none; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="header">
+  <div class="header-left">
+    <button class="header-back" onclick="window.location.href='pdp_dashboard_v2.6.0.html'">
+      ← Dashboard
+    </button>
+    <div>
+      <div class="header-title">Finance</div>
+      <div class="header-subtitle">PDP Digital Development</div>
+    </div>
+  </div>
+  <div class="user-badge">
+    <span id="hdr-name">—</span>
+    <span class="role" id="hdr-role">—</span>
+  </div>
+</header>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+  <!-- Access denied -->
+  <div id="access-denied">
+    <div class="icon">🔒</div>
+    <h2>Access Denied</h2>
+    <p>This module is only accessible to Finance, Manager, and Admin users.</p>
+    <button class="btn btn-secondary" style="margin-top:12px;" onclick="window.location.href='pdp_dashboard_v2.6.0.html'">← Back to Dashboard</button>
+  </div>
+
+  <!-- Finance content -->
+  <div id="finance-content">
+
+    <!-- Stat cards -->
+    <div class="stat-grid" id="stat-grid">
+      <div class="stat-card"><div class="stat-label">Total Budget</div><div class="stat-value" id="st-total">—</div><div class="stat-sub">MMK allocated</div></div>
+      <div class="stat-card"><div class="stat-label">Total Spent</div><div class="stat-value" id="st-spent" >—</div><div class="stat-sub" id="st-pct">—</div></div>
+      <div class="stat-card"><div class="stat-label">Remaining</div><div class="stat-value" id="st-rem"  >—</div><div class="stat-sub">MMK available</div></div>
+      <div class="stat-card"><div class="stat-label">Pending Approvals</div><div class="stat-value" id="st-pending" style="color:var(--amber)">—</div><div class="stat-sub">awaiting review</div></div>
+    </div>
+
+    <!-- Sub-tab bar -->
+    <div class="subtab-bar">
+      <button class="subtab active" id="st-budget"       onclick="switchTab('budget')">Budget Overview</button>
+      <button class="subtab"        id="st-transactions" onclick="switchTab('transactions')">Transactions</button>
+      <button class="subtab"        id="st-queue"        onclick="switchTab('queue')">
+        Approval Queue
+        <span class="badge" id="queue-badge" style="display:none">0</span>
+      </button>
+    </div>
+
+    <!-- ══ BUDGET TAB ══ -->
+    <div class="subtab-pane active" id="pane-budget">
+      <div class="toolbar">
+        <span style="font-size:13px;color:var(--gray-500)">Budget lines by project and category</span>
+        <div class="toolbar-right">
+          <button class="btn btn-secondary" onclick="loadAll()">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="card">
+        <div id="budget-body"><div class="loading">Loading budget data…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ TRANSACTIONS TAB ══ -->
+    <div class="subtab-pane" id="pane-transactions">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="filter-project" onchange="renderTransactions()" style="width:160px;">
+            <option value="">All Projects</option>
+          </select>
+          <select id="filter-category" onchange="renderTransactions()" style="width:140px;">
+            <option value="">All Categories</option>
+          </select>
+          <select id="filter-status" onchange="renderTransactions()" style="width:130px;">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn btn-primary" id="btn-log-expense" onclick="openExpenseModal()">+ Log Expense</button>
+        </div>
+      </div>
+      <div class="card">
+        <div id="tx-body"><div class="loading">Loading transactions…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ APPROVAL QUEUE TAB ══ -->
+    <div class="subtab-pane" id="pane-queue">
+      <div class="toolbar">
+        <span style="font-size:13px;color:var(--gray-500)" id="queue-label">Pending expense requests</span>
+        <button class="btn btn-secondary" onclick="loadAll()">↻ Refresh</button>
+      </div>
+      <div class="card">
+        <div id="queue-body"><div class="loading">Loading queue…</div></div>
+      </div>
+    </div>
+
+  </div><!-- /finance-content -->
+</main>
+
+<!-- ══ LOG EXPENSE MODAL ══ -->
+<div class="modal-overlay" id="expense-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Log Expense</span>
+      <button class="modal-close" onclick="closeExpenseModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Project</label>
+      <select id="exp-project"></select>
+    </div>
+    <div class="form-group">
+      <label>Category</label>
+      <select id="exp-category">
+        <option value="Travel">Travel</option>
+        <option value="Training">Training</option>
+        <option value="Equipment">Equipment</option>
+        <option value="Supplies">Supplies</option>
+        <option value="Services">Services</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Amount (MMK)</label>
+      <input type="number" id="exp-amount" placeholder="0" min="0">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="exp-desc" rows="3" placeholder="Brief description of the expense…"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeExpenseModal()">Cancel</button>
+      <button class="btn btn-primary" id="exp-submit-btn" onclick="submitExpense()">Submit for Approval</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REJECT MODAL ══ -->
+<div class="modal-overlay" id="reject-modal">
+  <div class="modal" style="width:380px;">
+    <div class="modal-header">
+      <span class="modal-title">Reject Expense</span>
+      <button class="modal-close" onclick="closeRejectModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Reason (optional)</label>
+      <textarea id="reject-notes" rows="3" placeholder="Reason for rejection…"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRejectModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmReject()">Reject Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ UPDATE BUDGET MODAL ══ -->
+<div class="modal-overlay" id="budget-modal">
+  <div class="modal" style="width:380px;">
+    <div class="modal-header">
+      <span class="modal-title">Edit Budget Line</span>
+      <button class="modal-close" onclick="closeBudgetModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Budget Line</label>
+      <input type="text" id="bm-label" disabled style="background:var(--gray-50);color:var(--gray-500);">
+    </div>
+    <div class="form-group">
+      <label>Allocated Amount (MMK)</label>
+      <input type="number" id="bm-allocated" min="0">
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <input type="text" id="bm-notes" placeholder="Optional notes…">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeBudgetModal()">Cancel</button>
+      <button class="btn btn-primary" id="bm-submit-btn" onclick="submitBudgetUpdate()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════════════════════
+const WORKER_URL = 'https://pdp-dashboard.gamalieltun282.workers.dev/';
+
+// ── Auth (same pattern as dcr_form.html) ──
+const PDP_USER = JSON.parse(sessionStorage.getItem('pdp_user') || 'null');
+const PDP_PW   = sessionStorage.getItem('pdp_pw') || '';
+const PDP_ROLE = PDP_USER?.role || '';
+const PDP_NAME = PDP_USER?.name || '';
+
+const ALLOWED_ROLES = ['admin', 'manager', 'finance'];
+const CAN_APPROVE   = ['admin', 'manager'].includes(PDP_ROLE);
+const CAN_LOG       = ALLOWED_ROLES.includes(PDP_ROLE);
+
+// ════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // Populate header
+  document.getElementById('hdr-name').textContent = PDP_NAME || PDP_USER?.username || 'Unknown';
+  document.getElementById('hdr-role').textContent = PDP_ROLE || '—';
+
+  // Access gate
+  if (!ALLOWED_ROLES.includes(PDP_ROLE)) {
+    document.getElementById('access-denied').style.display   = 'flex';
+    document.getElementById('finance-content').style.display = 'none';
+    return;
+  }
+
+  // Hide log expense button for non-finance roles (managers/admins can still use it)
+  if (!CAN_LOG) document.getElementById('btn-log-expense').style.display = 'none';
+
+  loadAll();
+});
+
+// ════════════════════════════════════════════════════════════
+//  WORKER CALL
+// ════════════════════════════════════════════════════════════
+async function workerCall(action, extra = {}) {
+  const res = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action,
+      username: PDP_USER?.username || '',
+      password: PDP_PW,
+      ...extra
+    })
+  });
+  return res.json();
+}
+
+// ════════════════════════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════════════════════════
+let FIN = { budget: [], transactions: [], queue: [] };
+let PENDING_REJECT_TX = null;
+let PENDING_BUDGET_ID = null;
+
+async function loadAll() {
+  document.getElementById('budget-body').innerHTML  = '<div class="loading">Loading…</div>';
+  document.getElementById('tx-body').innerHTML      = '<div class="loading">Loading…</div>';
+  document.getElementById('queue-body').innerHTML   = '<div class="loading">Loading…</div>';
+
+  try {
+    const res = await workerCall('get_finance_data');
+    if (!res.ok) {
+      showErr('budget-body',  res.error || 'Failed to load');
+      showErr('tx-body',      res.error || 'Failed to load');
+      showErr('queue-body',   res.error || 'Failed to load');
+      return;
+    }
+    FIN.budget       = res.budget       || [];
+    FIN.transactions = res.transactions || [];
+    FIN.queue        = res.queue        || [];
+
+    updateStats();
+    renderBudget();
+    populateFilters();
+    renderTransactions();
+    renderQueue();
+  } catch(e) {
+    showErr('budget-body', 'Network error: ' + e.message);
+    showErr('tx-body',     'Network error: ' + e.message);
+    showErr('queue-body',  'Network error: ' + e.message);
+  }
+}
+
+function showErr(id, msg) {
+  document.getElementById(id).innerHTML =
+    `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-text" style="color:var(--red)">${msg}</div></div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+//  STATS
+// ════════════════════════════════════════════════════════════
+function fmtMMK(v) {
+  const n = parseFloat(v || 0);
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(0) + 'K';
+  return n.toLocaleString();
+}
+
+function updateStats() {
+  const totalAlloc   = FIN.budget.reduce((s,r) => s + parseFloat(r.Allocated || 0), 0);
+  const totalSpent   = FIN.budget.reduce((s,r) => s + parseFloat(r.Spent     || 0), 0);
+  const totalRem     = totalAlloc - totalSpent;
+  const pct          = totalAlloc > 0 ? Math.round(totalSpent / totalAlloc * 100) : 0;
+  const pendingCount = FIN.queue.filter(q => q.Status === 'pending').length;
+
+  document.getElementById('st-total').textContent   = fmtMMK(totalAlloc);
+  document.getElementById('st-spent').textContent   = fmtMMK(totalSpent);
+  document.getElementById('st-spent').style.color   = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--green)';
+  document.getElementById('st-pct').textContent     = pct + '% utilised';
+  document.getElementById('st-rem').textContent     = fmtMMK(totalRem);
+  document.getElementById('st-rem').style.color     = totalRem < 0 ? 'var(--red)' : 'inherit';
+  document.getElementById('st-pending').textContent = pendingCount;
+
+  const badge = document.getElementById('queue-badge');
+  badge.textContent   = pendingCount;
+  badge.style.display = pendingCount > 0 ? '' : 'none';
+}
+
+// ════════════════════════════════════════════════════════════
+//  BUDGET
+// ════════════════════════════════════════════════════════════
+function renderBudget() {
+  const el = document.getElementById('budget-body');
+  if (!FIN.budget.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No budget data yet.<br>Add rows to the Budget sheet to get started.</div></div>`;
+    return;
+  }
+
+  let html = `<table class="fin-table"><thead><tr>
+    <th>Project</th><th>Category</th><th>Allocated</th><th>Spent</th>
+    <th>Remaining</th><th style="min-width:120px">Usage</th>
+    ${PDP_ROLE === 'admin' ? '<th></th>' : ''}
+  </tr></thead><tbody>`;
+
+  FIN.budget.forEach(r => {
+    const alloc = parseFloat(r.Allocated || 0);
+    const spent = parseFloat(r.Spent     || 0);
+    const rem   = alloc - spent;
+    const pct   = alloc > 0 ? Math.min(100, Math.round(spent / alloc * 100)) : 0;
+    const cls   = pct > 90 ? 'over' : pct > 70 ? 'warn' : '';
+
+    html += `<tr>
+      <td style="font-weight:500">${r.Project || '—'}</td>
+      <td><span class="cat-pill">${r.Category || '—'}</span></td>
+      <td>${fmtMMK(alloc)}</td>
+      <td>${fmtMMK(spent)}</td>
+      <td style="font-weight:500;color:${rem < 0 ? 'var(--red)' : 'inherit'}">${fmtMMK(rem)}</td>
+      <td>
+        <div class="progress-wrap">
+          <div class="progress-label">${pct}%</div>
+          <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
+        </div>
+      </td>
+      ${PDP_ROLE === 'admin' ? `<td><button class="btn btn-secondary btn-sm" onclick="openBudgetModal('${r['Budget ID']||''}','${alloc}','${r.Notes||''}','${r.Project||''} — ${r.Category||''}')">Edit</button></td>` : ''}
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════
+//  TRANSACTIONS
+// ════════════════════════════════════════════════════════════
+function populateFilters() {
+  const projects   = [...new Set(FIN.transactions.map(t => t.Project).filter(Boolean))];
+  const categories = [...new Set(FIN.transactions.map(t => t.Category).filter(Boolean))];
+
+  const pSel = document.getElementById('filter-project');
+  const cSel = document.getElementById('filter-category');
+  const pExp = document.getElementById('exp-project');
+
+  // Keep first option, rebuild rest
+  pSel.innerHTML = '<option value="">All Projects</option>';
+  cSel.innerHTML = '<option value="">All Categories</option>';
+  pExp.innerHTML = '<option value="">Select project…</option>';
+
+  projects.forEach(p => {
+    pSel.add(new Option(p, p));
+    pExp.add(new Option(p, p));
+  });
+
+  // Also add from budget if no transactions yet
+  if (!projects.length) {
+    FIN.budget.forEach(b => {
+      if (b.Project) pExp.add(new Option(b.Project, b.Project));
+    });
+  }
+
+  categories.forEach(c => cSel.add(new Option(c, c)));
+}
+
+function renderTransactions() {
+  const el          = document.getElementById('tx-body');
+  const filterProj  = document.getElementById('filter-project')?.value  || '';
+  const filterCat   = document.getElementById('filter-category')?.value || '';
+  const filterSt    = document.getElementById('filter-status')?.value   || '';
+
+  let txs = [...FIN.transactions];
+  if (filterProj) txs = txs.filter(t => t.Project  === filterProj);
+  if (filterCat)  txs = txs.filter(t => t.Category === filterCat);
+  if (filterSt)   txs = txs.filter(t => t.Status   === filterSt);
+  txs.sort((a, b) => (b.Date || '').localeCompare(a.Date || ''));
+
+  if (!txs.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No transactions match your filters.</div></div>`;
+    return;
+  }
+
+  let html = `<table class="fin-table"><thead><tr>
+    <th>Date</th><th>Project</th><th>Category</th>
+    <th>Amount</th><th>Description</th><th>By</th><th>Status</th>
+    ${CAN_APPROVE ? '<th></th>' : ''}
+  </tr></thead><tbody>`;
+
+  txs.forEach(t => {
+    const st = t.Status || 'pending';
+    html += `<tr>
+      <td style="white-space:nowrap;color:var(--gray-500)">${t.Date || '—'}</td>
+      <td style="font-weight:500">${t.Project || '—'}</td>
+      <td><span class="cat-pill">${t.Category || '—'}</span></td>
+      <td style="font-weight:600">${parseFloat(t.Amount || 0).toLocaleString()}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.Description || ''}">${t.Description || '—'}</td>
+      <td>${t['Submitted By'] || '—'}</td>
+      <td><span class="pill pill-${st}">${st}</span></td>
+      ${CAN_APPROVE ? `<td><div class="actions">${st === 'pending'
+        ? `<button class="btn btn-success btn-sm" onclick="approveExpense('${t['Tx ID']||''}')">Approve</button>
+           <button class="btn btn-danger btn-sm"  onclick="openRejectModal('${t['Tx ID']||''}')">Reject</button>`
+        : `<span style="font-size:11px;color:var(--gray-400)">${t['Approved By']||'—'}</span>`
+      }</div></td>` : ''}
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════
+//  APPROVAL QUEUE
+// ════════════════════════════════════════════════════════════
+function renderQueue() {
+  const el      = document.getElementById('queue-body');
+  const pending = FIN.queue.filter(q => q.Status === 'pending');
+
+  document.getElementById('queue-label').textContent =
+    pending.length ? `${pending.length} pending approval${pending.length > 1 ? 's' : ''}` : 'No pending approvals';
+
+  if (!pending.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">All clear — no pending approvals.</div></div>`;
+    return;
+  }
+
+  let html = `<table class="fin-table"><thead><tr>
+    <th>Request ID</th><th>Requested By</th><th>Date</th>
+    <th>Amount</th><th>Description</th>
+    ${CAN_APPROVE ? '<th></th>' : ''}
+  </tr></thead><tbody>`;
+
+  pending.forEach(q => {
+    html += `<tr>
+      <td style="font-size:11px;color:var(--gray-400);font-family:monospace">${q['Request ID'] || '—'}</td>
+      <td style="font-weight:500">${q['Requested By'] || '—'}</td>
+      <td style="white-space:nowrap;color:var(--gray-500)">${(q['Requested At'] || '').slice(0, 10)}</td>
+      <td style="font-weight:700;color:var(--amber)">${parseFloat(q.Amount || 0).toLocaleString()}</td>
+      <td>${q.Description || '—'}</td>
+      ${CAN_APPROVE ? `<td><div class="actions">
+        <button class="btn btn-success btn-sm" onclick="approveExpense('${q['Tx ID']||''}')">Approve</button>
+        <button class="btn btn-danger btn-sm"  onclick="openRejectModal('${q['Tx ID']||''}')">Reject</button>
+      </div></td>` : ''}
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════
+//  SUB-TAB SWITCH
+// ════════════════════════════════════════════════════════════
+function switchTab(name) {
+  ['budget', 'transactions', 'queue'].forEach(n => {
+    document.getElementById(`pane-${n}`).classList.toggle('active', n === name);
+    document.getElementById(`st-${n}`).classList.toggle('active', n === name);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  LOG EXPENSE
+// ════════════════════════════════════════════════════════════
+function openExpenseModal() {
+  document.getElementById('exp-amount').value = '';
+  document.getElementById('exp-desc').value   = '';
+  document.getElementById('exp-submit-btn').disabled = false;
+  document.getElementById('exp-submit-btn').textContent = 'Submit for Approval';
+  document.getElementById('expense-modal').classList.add('open');
+}
+function closeExpenseModal() {
+  document.getElementById('expense-modal').classList.remove('open');
+}
+
+async function submitExpense() {
+  const project     = document.getElementById('exp-project').value;
+  const category    = document.getElementById('exp-category').value;
+  const amount      = document.getElementById('exp-amount').value;
+  const description = document.getElementById('exp-desc').value.trim();
+
+  if (!project || !amount || !description) {
+    toast('Please fill in all required fields', 'red'); return;
+  }
+
+  const btn = document.getElementById('exp-submit-btn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+
+  try {
+    const res = await workerCall('log_expense', { project, category, amount, description });
+    if (res.ok) {
+      toast('Expense logged — pending approval', 'green');
+      closeExpenseModal();
+      await loadAll();
+      switchTab('queue');
+    } else {
+      toast(res.error || 'Failed to log expense', 'red');
+      btn.disabled = false; btn.textContent = 'Submit for Approval';
+    }
+  } catch(e) {
+    toast('Network error', 'red');
+    btn.disabled = false; btn.textContent = 'Submit for Approval';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  APPROVE / REJECT
+// ════════════════════════════════════════════════════════════
+async function approveExpense(txId) {
+  if (!txId || !confirm('Approve this expense?')) return;
+  try {
+    const res = await workerCall('approve_expense', { txId });
+    if (res.ok) { toast('Expense approved', 'green'); await loadAll(); }
+    else toast(res.error || 'Failed to approve', 'red');
+  } catch(e) { toast('Network error', 'red'); }
+}
+
+function openRejectModal(txId) {
+  PENDING_REJECT_TX = txId;
+  document.getElementById('reject-notes').value = '';
+  document.getElementById('reject-modal').classList.add('open');
+}
+function closeRejectModal() {
+  document.getElementById('reject-modal').classList.remove('open');
+  PENDING_REJECT_TX = null;
+}
+async function confirmReject() {
+  if (!PENDING_REJECT_TX) return;
+  const notes = document.getElementById('reject-notes').value.trim();
+  try {
+    const res = await workerCall('reject_expense', { txId: PENDING_REJECT_TX, notes });
+    if (res.ok) { toast('Expense rejected', 'green'); closeRejectModal(); await loadAll(); }
+    else toast(res.error || 'Failed to reject', 'red');
+  } catch(e) { toast('Network error', 'red'); }
+}
+
+// ════════════════════════════════════════════════════════════
+//  UPDATE BUDGET (admin only)
+// ════════════════════════════════════════════════════════════
+function openBudgetModal(budgetId, allocated, notes, label) {
+  PENDING_BUDGET_ID = budgetId;
+  document.getElementById('bm-label').value     = label;
+  document.getElementById('bm-allocated').value = allocated;
+  document.getElementById('bm-notes').value     = notes;
+  document.getElementById('bm-submit-btn').disabled   = false;
+  document.getElementById('bm-submit-btn').textContent = 'Save Changes';
+  document.getElementById('budget-modal').classList.add('open');
+}
+function closeBudgetModal() {
+  document.getElementById('budget-modal').classList.remove('open');
+  PENDING_BUDGET_ID = null;
+}
+async function submitBudgetUpdate() {
+  const allocated = document.getElementById('bm-allocated').value;
+  const notes     = document.getElementById('bm-notes').value.trim();
+  if (!allocated || isNaN(parseFloat(allocated))) { toast('Enter a valid amount', 'red'); return; }
+
+  const btn = document.getElementById('bm-submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  try {
+    const res = await workerCall('update_budget', { budgetId: PENDING_BUDGET_ID, allocated, notes });
+    if (res.ok) { toast('Budget updated', 'green'); closeBudgetModal(); await loadAll(); }
+    else toast(res.error || 'Failed to update', 'red');
+  } catch(e) { toast('Network error', 'red'); }
+
+  btn.disabled = false; btn.textContent = 'Save Changes';
+}
+
+// ════════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════════
+let _toastTimer;
+function toast(msg, type = 'blue') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = `show ${type}`;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
