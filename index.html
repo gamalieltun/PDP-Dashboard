@@ -1579,7 +1579,7 @@ function applyRBAC() {
   setTabVisible('kpi',      true);
   setTabVisible('checkin',  true);
   setTabVisible('setup',    isAdmin());
-  const isFinance = () => CURRENT_USER?.role === 'finance';
+  const isFinance = () => ['finance','finance_staff','finance_manager'].includes(CURRENT_USER?.role);
   setTabVisible('finance',  isAdmin() || isManager() || isFinance());
 
   // Update header badge
@@ -1945,6 +1945,22 @@ function parseSheetData(sheets) {
         .sort((a, b) => a - b)
         .map(cw => ({ cw, ...staffMap[name][cw] }))
     };
+  });
+
+  // Programs — flat list attached to each project
+  const programRows = sheets['Programs'] || [];
+  const allPrograms = (() => {
+    const hIdx = programRows.findIndex(r => r && r.some(c => String(c).trim() === 'Program ID'));
+    if (hIdx < 0) return [];
+    const [hdrs, ...data] = programRows.slice(hIdx);
+    return data
+      .map(r => Object.fromEntries(hdrs.map((h,i) => [h.trim(), r[i] || ''])))
+      .filter(r => r['Program ID']);
+  })();
+  DATA.programs = allPrograms;
+  // Attach programs to each project for easy lookup
+  DATA.projects.forEach(p => {
+    p.programs = allPrograms.filter(pg => pg['Project ID'] === p.id);
   });
 
   // Weekly Reports → DATA.checkins (direct, no sessionStorage merge)
@@ -3623,6 +3639,8 @@ function renderRoleManagement() {
             <option value="manager" ${cfg.role==='manager' ?'selected':''}>Manager</option>
             <option value="admin"   ${cfg.role==='admin'   ?'selected':''}>Admin</option>
             <option value="finance" ${cfg.role==='finance'?'selected':''}>Finance</option>
+            <option value="finance_staff"   ${cfg.role==='finance_staff'  ?'selected':''}>Finance Staff</option>
+            <option value="finance_manager" ${cfg.role==='finance_manager'?'selected':''}>Finance Manager</option>
           </select>
         </div>
         <div class="rm-field">

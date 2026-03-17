@@ -273,6 +273,8 @@
     white-space: nowrap;
   }
   .pill-pending  { background: var(--amber-lt); color: var(--amber); border: 1px solid #fde68a; }
+  .pill-draft    { background: var(--gray-100); color: var(--gray-500); border: 1px solid var(--gray-300); }
+  .pill-submitted{ background: var(--amber-lt); color: var(--amber); border: 1px solid #fde68a; }
   .pill-approved { background: var(--green-lt); color: var(--green); border: 1px solid #bbf7d0; }
   .pill-rejected { background: var(--red-lt);   color: var(--red);   border: 1px solid #fecaca; }
 
@@ -424,6 +426,13 @@
       <button class="subtab" id="st-manage" onclick="switchTab('manage')" style="display:none">
         Manage Budgets
       </button>
+      <button class="subtab" id="st-programs" onclick="switchTab('programs')" style="display:none">
+        Programs
+      </button>
+      <button class="subtab" id="st-proposals" onclick="switchTab('proposals')">
+        Budget Proposals
+        <span class="badge" id="proposals-badge" style="display:none">0</span>
+      </button>
     </div>
 
     <!-- ══ BUDGET TAB ══ -->
@@ -538,6 +547,70 @@
       </div>
     </div>
 
+
+    <!-- ══ PROGRAMS PANE ══ -->
+    <div class="subtab-pane" id="pane-programs">
+      <!-- Add Program form (admin/manager only) -->
+      <div class="card" style="margin-bottom:16px;" id="add-program-card">
+        <div class="card-header">Add Program</div>
+        <div style="padding:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;" id="add-program-grid">
+          <div>
+            <label>Project</label>
+            <select id="prog-project" onchange="loadProgramsForProject()"></select>
+          </div>
+          <div>
+            <label>Program Name</label>
+            <input type="text" id="prog-name" placeholder="e.g. Youth Leadership Camp">
+          </div>
+          <div>
+            <label>Description (optional)</label>
+            <input type="text" id="prog-desc" placeholder="Brief description…">
+          </div>
+          <div></div>
+          <div></div>
+          <div style="display:flex;align-items:flex-end;">
+            <button class="btn btn-primary" id="prog-submit-btn" onclick="submitAddProgram()" style="width:100%;">+ Add Program</button>
+          </div>
+        </div>
+        <div id="prog-msg" style="display:none;padding:0 18px 14px;font-size:13px;"></div>
+      </div>
+
+      <!-- Programs list by project -->
+      <div class="card">
+        <div class="card-header">
+          <span>Programs</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="prog-filter-project" onchange="renderPrograms()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:6px;">
+              <option value="">All Projects</option>
+            </select>
+            <button class="btn btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="loadAll()">↻</button>
+          </div>
+        </div>
+        <div id="programs-body"><div class="loading">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ BUDGET PROPOSALS PANE ══ -->
+    <div class="subtab-pane" id="pane-proposals">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="prop-filter-status" onchange="renderProposals()" style="width:150px;">
+            <option value="">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="submitted">Submitted</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn btn-primary" id="btn-new-proposal" onclick="openProposalModal(null)">+ New Proposal</button>
+        </div>
+      </div>
+      <div class="card">
+        <div id="proposals-body"><div class="loading">Loading…</div></div>
+      </div>
+    </div>
+
   </div><!-- /finance-content -->
 </main>
 
@@ -637,7 +710,7 @@ const PDP_PW   = sessionStorage.getItem('pdp_pw') || '';
 const PDP_ROLE = PDP_USER?.role || '';
 const PDP_NAME = PDP_USER?.name || '';
 
-const ALLOWED_ROLES = ['admin', 'manager', 'finance'];
+const ALLOWED_ROLES = ['admin', 'manager', 'finance', 'finance_staff', 'finance_manager'];
 const CAN_APPROVE   = ['admin', 'manager'].includes(PDP_ROLE);
 const CAN_LOG       = ALLOWED_ROLES.includes(PDP_ROLE);
 
@@ -658,6 +731,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Hide log expense button for non-finance roles (managers/admins can still use it)
   if (!CAN_LOG) document.getElementById('btn-log-expense').style.display = 'none';
+  const propBtn = document.getElementById('btn-new-proposal');
+  if (propBtn && !CAN_PROPOSE) propBtn.style.display = 'none';
 
   loadAll();
 });
@@ -682,7 +757,7 @@ async function workerCall(action, extra = {}) {
 // ════════════════════════════════════════════════════════════
 //  DATA
 // ════════════════════════════════════════════════════════════
-let FIN = { budget: [], transactions: [], queue: [], projects: [] };
+let FIN = { budget: [], transactions: [], queue: [], projects: [], proposals: [], programs: [] };
 let PENDING_REJECT_TX = null;
 let PENDING_BUDGET_ID = null;
 
@@ -703,6 +778,9 @@ async function loadAll() {
     FIN.transactions = res.transactions || [];
     FIN.queue        = res.queue        || [];
     FIN.projects     = res.projects     || [];
+    FIN.proposals    = res.proposals    || [];
+    // Load programs in parallel (needed for proposal name lookups)
+    workerCall('get_programs', {}).then(r => { FIN.programs = r.programs || []; }).catch(() => {});
 
     updateStats();
     renderBudget();
@@ -710,6 +788,11 @@ async function loadAll() {
     renderTransactions();
     renderQueue();
     if (document.getElementById('pane-manage')?.classList.contains('active')) renderManageBudget();
+    renderProposals();
+    // Proposals badge — submitted proposals visible to admin
+    const submittedCount = FIN.proposals.filter(p => p['Status'] === 'submitted').length;
+    const propBadge = document.getElementById('proposals-badge');
+    if (propBadge) { propBadge.textContent = submittedCount; propBadge.style.display = submittedCount > 0 ? '' : 'none'; }
   } catch(e) {
     showErr('budget-body', 'Network error: ' + e.message);
     showErr('tx-body',     'Network error: ' + e.message);
@@ -812,6 +895,23 @@ function populateFilters() {
   // Show manage tab for admin/manager
   const manageTab = document.getElementById('st-manage');
   if (manageTab) manageTab.style.display = (PDP_ROLE === 'admin') ? '' : 'none';
+  // Programs tab: admin and manager
+  const programsTab = document.getElementById('st-programs');
+  if (programsTab) programsTab.style.display = (CAN_APPROVE) ? '' : 'none';
+  // Hide add-program card for non-admin/manager
+  const addProgCard = document.getElementById('add-program-card');
+  if (addProgCard) addProgCard.style.display = CAN_APPROVE ? '' : 'none';
+  // Populate project filters for programs
+  const progFilterSel = document.getElementById('prog-filter-project');
+  const progProjSel = document.getElementById('prog-project');
+  if (FIN.projects.length) {
+    [progFilterSel, progProjSel].forEach(sel => {
+      if (!sel) return;
+      const isFilter = sel.id === 'prog-filter-project';
+      sel.innerHTML = isFilter ? '<option value="">All Projects</option>' : '<option value="">Select project…</option>';
+      FIN.projects.forEach(p => sel.add(new Option(`${p.id} — ${p.name}`, p.id)));
+    });
+  }
 
   // Populate nb-project (add budget form)
   const nbProj = document.getElementById('nb-project');
@@ -930,11 +1030,16 @@ function renderQueue() {
 //  SUB-TAB SWITCH
 // ════════════════════════════════════════════════════════════
 function switchTab(name) {
-  ['budget', 'transactions', 'queue', 'manage'].forEach(n => {
+  ['budget', 'transactions', 'queue', 'manage', 'programs', 'proposals'].forEach(n => {
     document.getElementById(`pane-${n}`)?.classList.toggle('active', n === name);
     document.getElementById(`st-${n}`)?.classList.toggle('active', n === name);
   });
   if (name === 'manage') renderManageBudget();
+  if (name === 'programs') { loadProgramsList(); }
+  if (name === 'proposals') {
+    if (!FIN.programs.length) loadProgramsList().then(() => renderProposals());
+    else renderProposals();
+  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1129,6 +1234,332 @@ async function submitAddBudget() {
 }
 
 // ════════════════════════════════════════════════════════════
+//  PROGRAMS
+// ════════════════════════════════════════════════════════════
+async function loadProgramsList() {
+  const el = document.getElementById('programs-body');
+  if (!el) return;
+  el.innerHTML = '<div class="loading">Loading programs…</div>';
+  try {
+    const res = await workerCall('get_programs', {});
+    FIN.programs = res.programs || [];
+    renderPrograms();
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-text" style="color:var(--red)">${e.message}</div></div>`;
+  }
+}
+
+function loadProgramsForProject() {
+  // No async needed — just filter cached list
+  renderPrograms();
+}
+
+function renderPrograms() {
+  const el = document.getElementById('programs-body');
+  if (!el) return;
+  const filterProj = document.getElementById('prog-filter-project')?.value || '';
+  let programs = FIN.programs;
+  if (filterProj) programs = programs.filter(p => p['Project ID'] === filterProj);
+
+  if (!programs.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📂</div><div class="empty-text">No programs yet. Add one above.</div></div>';
+    return;
+  }
+
+  // Group by project
+  const byProject = {};
+  programs.forEach(p => {
+    const pid = p['Project ID'] || '—';
+    if (!byProject[pid]) byProject[pid] = [];
+    byProject[pid].push(p);
+  });
+
+  let html = '';
+  Object.entries(byProject).forEach(([pid, progs]) => {
+    const projName = FIN.projects.find(p => p.id === pid)?.name || pid;
+    html += `<div style="padding:10px 16px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);background:var(--gray-50);border-bottom:1px solid var(--gray-100);">${pid} — ${projName}</div>`;
+    progs.forEach(pg => {
+      html += `<div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid var(--gray-100);gap:12px;">
+        <div style="flex:1;">
+          <div style="font-weight:500;font-size:13px;">${pg['Program Name'] || '—'}</div>
+          ${pg['Description'] ? `<div style="font-size:12px;color:var(--gray-500);margin-top:2px;">${pg['Description']}</div>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--gray-400);font-family:monospace">${pg['Program ID'] || ''}</div>
+        <div style="font-size:11px;color:var(--gray-400)">Added by ${pg['Created By'] || '—'}</div>
+      </div>`;
+    });
+  });
+
+  el.innerHTML = html;
+}
+
+async function submitAddProgram() {
+  const projectId = document.getElementById('prog-project').value;
+  const programName = document.getElementById('prog-name').value.trim();
+  const description = document.getElementById('prog-desc').value.trim();
+  const msgEl = document.getElementById('prog-msg');
+  const btn = document.getElementById('prog-submit-btn');
+
+  if (!projectId || !programName) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Project and Program Name are required.'; return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Adding…';
+  msgEl.style.display = 'none';
+  try {
+    const res = await workerCall('add_program', { projectId, programName, description });
+    if (res.ok) {
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--green)';
+      msgEl.textContent = `✓ Program added (${res.programId})`;
+      document.getElementById('prog-name').value = '';
+      document.getElementById('prog-desc').value = '';
+      toast('Program added', 'green');
+      await loadProgramsList();
+    } else {
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+      msgEl.textContent = res.error || 'Failed to add program';
+    }
+  } catch(e) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Network error: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = '+ Add Program';
+}
+
+// ════════════════════════════════════════════════════════════
+//  BUDGET PROPOSALS
+// ════════════════════════════════════════════════════════════
+let CURRENT_PROPOSAL_ID = null;
+let PENDING_REVIEW_PROPOSAL_ID = null;
+const CAN_PROPOSE = ['admin','manager','finance_staff','finance_manager'].includes(PDP_ROLE);
+const IS_ADMIN = PDP_ROLE === 'admin';
+
+function renderProposals() {
+  const el = document.getElementById('proposals-body');
+  if (!el) return;
+  const filterStatus = document.getElementById('prop-filter-status')?.value || '';
+  let props = FIN.proposals || [];
+  if (filterStatus) props = props.filter(p => p['Status'] === filterStatus);
+  props = [...props].sort((a,b) => (b['Proposed At']||'').localeCompare(a['Proposed At']||''));
+
+  if (!props.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No proposals found.</div></div>';
+    return;
+  }
+
+  const statusColor = { draft:'var(--gray-400)', submitted:'var(--amber)', approved:'var(--green)', rejected:'var(--red)' };
+
+  let html = `<table class="fin-table"><thead><tr>
+    <th>ID</th><th>Project</th><th>Program</th><th>Category</th>
+    <th>Amount</th><th>Period</th><th>By</th><th>Status</th><th></th>
+  </tr></thead><tbody>`;
+
+  props.forEach(p => {
+    const st = p['Status'] || 'draft';
+    const projName = FIN.projects.find(pr => pr.id === p['Project ID'])?.name || p['Project ID'] || '—';
+    const canEdit = (st === 'draft') && (IS_ADMIN || p['Proposed By'] === PDP_NAME);
+    const canSubmit = (st === 'draft') && (IS_ADMIN || p['Proposed By'] === PDP_NAME);
+    const canReview = IS_ADMIN && st === 'submitted';
+
+    html += `<tr>
+      <td style="font-family:monospace;font-size:11px;color:var(--gray-400)">${p['Proposal ID']||'—'}</td>
+      <td style="font-weight:500">${projName}</td>
+      <td>${p['Program ID']||'—'}</td>
+      <td><span class="cat-pill">${p['Category']||'—'}</span></td>
+      <td style="font-weight:600">${parseFloat(p['Requested Amount']||0).toLocaleString()}</td>
+      <td style="color:var(--gray-500)">${p['Period']||'—'}</td>
+      <td>${p['Proposed By']||'—'}</td>
+      <td><span class="pill pill-${st}">${st}</span></td>
+      <td><div class="actions">
+        ${canEdit ? `<button class="btn btn-secondary btn-sm" onclick="openProposalModal('${p['Proposal ID']}')">Edit</button>` : ''}
+        ${canSubmit ? `<button class="btn btn-primary btn-sm" onclick="quickSubmitProposal('${p['Proposal ID']}')">Submit</button>` : ''}
+        ${canReview ? `<button class="btn btn-success btn-sm" onclick="openReviewModal('${p['Proposal ID']}')">Review</button>` : ''}
+        ${!canEdit && !canSubmit && !canReview ? `<button class="btn btn-secondary btn-sm" onclick="openProposalModal('${p['Proposal ID']}', true)">View</button>` : ''}
+      </div></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ── Proposal Modal ──
+function openProposalModal(proposalId, readOnly = false) {
+  CURRENT_PROPOSAL_ID = proposalId;
+  const modal = document.getElementById('proposal-modal');
+  const titleEl = document.getElementById('proposal-modal-title');
+  titleEl.textContent = proposalId ? (readOnly ? 'View Proposal' : 'Edit Proposal') : 'New Budget Proposal';
+
+  // Populate project dropdown
+  const projSel = document.getElementById('prop-project');
+  projSel.innerHTML = '<option value="">Select project…</option>';
+  FIN.projects.forEach(p => projSel.add(new Option(`${p.id} — ${p.name}`, p.id)));
+
+  // Populate with existing data if editing
+  if (proposalId) {
+    const prop = FIN.proposals.find(p => p['Proposal ID'] === proposalId);
+    if (prop) {
+      projSel.value = prop['Project ID'] || '';
+      loadProposalPrograms(prop['Program ID']);
+      document.getElementById('prop-category').value = prop['Category'] || 'Travel';
+      document.getElementById('prop-period').value   = prop['Period'] || 'Q1 2026';
+      document.getElementById('prop-amount').value   = prop['Requested Amount'] || '';
+      document.getElementById('prop-justification').value = prop['Justification'] || '';
+      document.getElementById('prop-notes').value    = prop['Notes'] || '';
+    }
+  } else {
+    // Reset
+    projSel.value = '';
+    document.getElementById('prop-program').innerHTML = '<option value="">— Select project first —</option>';
+    document.getElementById('prop-amount').value   = '';
+    document.getElementById('prop-justification').value = '';
+    document.getElementById('prop-notes').value = '';
+  }
+
+  // Read-only state
+  ['prop-project','prop-program','prop-category','prop-period','prop-amount','prop-justification','prop-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = readOnly;
+  });
+  document.getElementById('prop-save-btn').style.display   = readOnly ? 'none' : '';
+  document.getElementById('prop-submit-btn').style.display = readOnly ? 'none' : '';
+  document.getElementById('prop-modal-msg').style.display  = 'none';
+
+  modal.classList.add('open');
+}
+
+function closeProposalModal() {
+  document.getElementById('proposal-modal').classList.remove('open');
+  CURRENT_PROPOSAL_ID = null;
+}
+
+function loadProposalPrograms(selectProgramId) {
+  const projId = document.getElementById('prop-project').value;
+  const progSel = document.getElementById('prop-program');
+  progSel.innerHTML = '<option value="">— Select program —</option>';
+  const programs = FIN.programs.filter(p => p['Project ID'] === projId);
+  programs.forEach(p => {
+    const opt = new Option(`${p['Program Name']} (${p['Program ID']})`, p['Program ID']);
+    progSel.add(opt);
+  });
+  if (selectProgramId) progSel.value = selectProgramId;
+}
+
+async function saveProposal(submitAfter) {
+  const projectId = document.getElementById('prop-project').value;
+  const programId = document.getElementById('prop-program').value;
+  const category  = document.getElementById('prop-category').value;
+  const period    = document.getElementById('prop-period').value;
+  const requestedAmount = document.getElementById('prop-amount').value;
+  const justification   = document.getElementById('prop-justification').value.trim();
+  const notes     = document.getElementById('prop-notes').value.trim();
+  const msgEl     = document.getElementById('prop-modal-msg');
+
+  if (!projectId || !programId || !requestedAmount || !justification) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Project, Program, Amount and Justification are required.'; return;
+  }
+
+  const saveBtn   = document.getElementById('prop-save-btn');
+  const submitBtn = document.getElementById('prop-submit-btn');
+  saveBtn.disabled = true; submitBtn.disabled = true;
+  saveBtn.textContent = 'Saving…'; msgEl.style.display = 'none';
+
+  try {
+    const saveRes = await workerCall('save_proposal', {
+      proposalId: CURRENT_PROPOSAL_ID, projectId, programId, category,
+      requestedAmount, justification, period, notes
+    });
+
+    if (!saveRes.ok) {
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+      msgEl.textContent = saveRes.error || 'Failed to save';
+      saveBtn.disabled = false; submitBtn.disabled = false;
+      saveBtn.textContent = 'Save Draft'; return;
+    }
+
+    const pid = saveRes.proposalId;
+    if (submitAfter) {
+      const subRes = await workerCall('submit_proposal', { proposalId: pid });
+      if (subRes.ok) {
+        toast('Proposal submitted for approval', 'green');
+      } else {
+        toast(subRes.error || 'Saved but failed to submit', 'blue');
+      }
+    } else {
+      toast('Proposal saved as draft', 'blue');
+    }
+    closeProposalModal();
+    await loadAll();
+    switchTab('proposals');
+  } catch(e) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Network error: ' + e.message;
+  }
+  saveBtn.disabled = false; submitBtn.disabled = false;
+  saveBtn.textContent = 'Save Draft';
+}
+
+async function quickSubmitProposal(proposalId) {
+  if (!confirm('Submit this proposal for admin approval?')) return;
+  try {
+    const res = await workerCall('submit_proposal', { proposalId });
+    if (res.ok) { toast('Proposal submitted', 'green'); await loadAll(); renderProposals(); }
+    else toast(res.error || 'Failed to submit', 'red');
+  } catch(e) { toast('Network error', 'red'); }
+}
+
+// ── Review Modal (Admin) ──
+function openReviewModal(proposalId) {
+  PENDING_REVIEW_PROPOSAL_ID = proposalId;
+  const prop = FIN.proposals.find(p => p['Proposal ID'] === proposalId);
+  if (!prop) return;
+  const projName = FIN.projects.find(pr => pr.id === prop['Project ID'])?.name || prop['Project ID'];
+  document.getElementById('review-modal-title').textContent = `Review: ${prop['Proposal ID']}`;
+  document.getElementById('review-proposal-summary').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+      <div><b>Project:</b> ${projName}</div>
+      <div><b>Program:</b> ${prop['Program ID']}</div>
+      <div><b>Category:</b> ${prop['Category']}</div>
+      <div><b>Period:</b> ${prop['Period']}</div>
+      <div style="grid-column:1/-1"><b>Amount:</b> <span style="font-size:16px;font-weight:700;color:var(--amber)">${parseFloat(prop['Requested Amount']||0).toLocaleString()} MMK</span></div>
+      <div style="grid-column:1/-1"><b>Justification:</b> ${prop['Justification']}</div>
+      ${prop['Notes'] ? `<div style="grid-column:1/-1"><b>Notes:</b> ${prop['Notes']}</div>` : ''}
+      <div><b>Proposed by:</b> ${prop['Proposed By']}</div>
+    </div>`;
+  document.getElementById('review-notes-input').value = '';
+  document.getElementById('review-modal-msg').style.display = 'none';
+  document.getElementById('review-modal').classList.add('open');
+}
+function closeReviewModal() {
+  document.getElementById('review-modal').classList.remove('open');
+  PENDING_REVIEW_PROPOSAL_ID = null;
+}
+async function submitReview(decision) {
+  if (!PENDING_REVIEW_PROPOSAL_ID) return;
+  const reviewNotes = document.getElementById('review-notes-input').value.trim();
+  if (decision === 'approved' && !confirm('Approve this proposal? A Budget line will be created automatically.')) return;
+  try {
+    const res = await workerCall('review_proposal', { proposalId: PENDING_REVIEW_PROPOSAL_ID, decision, reviewNotes });
+    if (res.ok) {
+      const msg = decision === 'approved'
+        ? 'Proposal approved — Budget line created automatically'
+        : 'Proposal rejected';
+      toast(msg, decision === 'approved' ? 'green' : 'blue');
+      closeReviewModal();
+      await loadAll();
+      if (decision === 'approved') switchTab('budget');
+      else renderProposals();
+    } else {
+      document.getElementById('review-modal-msg').style.display = 'block';
+      document.getElementById('review-modal-msg').style.color = 'var(--red)';
+      document.getElementById('review-modal-msg').textContent = res.error || 'Failed';
+    }
+  } catch(e) { toast('Network error', 'red'); }
+}
+
+// ════════════════════════════════════════════════════════════
 //  TOAST
 // ════════════════════════════════════════════════════════════
 let _toastTimer;
@@ -1147,5 +1578,94 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
   });
 });
 </script>
+
+<!-- ══ PROPOSAL MODAL ══ -->
+<div class="modal-overlay" id="proposal-modal">
+  <div class="modal" style="width:520px;">
+    <div class="modal-header">
+      <span class="modal-title" id="proposal-modal-title">New Budget Proposal</span>
+      <button class="modal-close" onclick="closeProposalModal()">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Project</label>
+        <select id="prop-project" onchange="loadProposalPrograms()"></select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Program</label>
+        <select id="prop-program">
+          <option value="">— Select project first —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="prop-category">
+          <option value="Travel">Travel</option>
+          <option value="Training">Training</option>
+          <option value="Equipment">Equipment</option>
+          <option value="Supplies">Supplies</option>
+          <option value="Services">Services</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Period</label>
+        <select id="prop-period">
+          <option value="Q1 2026">Q1 2026</option>
+          <option value="Q2 2026">Q2 2026</option>
+          <option value="Q3 2026">Q3 2026</option>
+          <option value="Q4 2026">Q4 2026</option>
+          <option value="Annual 2026">Annual 2026</option>
+          <option value="Q1 2027">Q1 2027</option>
+          <option value="Q2 2027">Q2 2027</option>
+          <option value="Q3 2027">Q3 2027</option>
+          <option value="Q4 2027">Q4 2027</option>
+          <option value="Annual 2027">Annual 2027</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Requested Amount (MMK)</label>
+        <input type="number" id="prop-amount" placeholder="e.g. 1500000" min="0">
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Justification <span style="color:var(--red)">*</span></label>
+        <textarea id="prop-justification" rows="3" placeholder="Why is this budget needed?"></textarea>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Supporting Notes (optional)</label>
+        <textarea id="prop-notes" rows="2" placeholder="Additional context, references, etc."></textarea>
+      </div>
+    </div>
+    <div id="prop-modal-msg" style="display:none;font-size:13px;margin-top:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeProposalModal()">Cancel</button>
+      <button class="btn btn-secondary" id="prop-save-btn" onclick="saveProposal(false)">Save Draft</button>
+      <button class="btn btn-primary" id="prop-submit-btn" onclick="saveProposal(true)">Submit for Approval</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REVIEW PROPOSAL MODAL ══ -->
+<div class="modal-overlay" id="review-modal">
+  <div class="modal" style="width:400px;">
+    <div class="modal-header">
+      <span class="modal-title" id="review-modal-title">Review Proposal</span>
+      <button class="modal-close" onclick="closeReviewModal()">×</button>
+    </div>
+    <div id="review-proposal-summary" style="background:var(--gray-50);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;color:var(--gray-700);"></div>
+    <div class="form-group">
+      <label>Review Notes (optional)</label>
+      <textarea id="review-notes-input" rows="3" placeholder="Reason for decision…"></textarea>
+    </div>
+    <div id="review-modal-msg" style="display:none;font-size:13px;margin-top:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeReviewModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="submitReview('rejected')">Reject</button>
+      <button class="btn btn-success" onclick="submitReview('approved')">Approve → Create Budget</button>
+    </div>
+  </div>
+</div>
+
+
 </body>
 </html>
