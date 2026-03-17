@@ -1427,13 +1427,13 @@ export default {
 
             const bRows = bData.values || [];
             // Find first budget row matching project and category
-            const bRowIdx = bRows.findIndex((r, i) => i > 0 && r[1] === txProject && r[2] === txCategory);
+            const bRowIdx = bRows.findIndex((r, i) => i > 0 && r[1] === txProject && r[3] === txCategory);
             if (bRowIdx > 0) {
               const allocated  = parseFloat(bRows[bRowIdx][3] || 0);
               const remaining  = allocated - totalSpent;
               const bSheetRow  = bRowIdx + 1;
               await fetch(
-                `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget!E${bSheetRow}:F${bSheetRow}?valueInputOption=USER_ENTERED`,
+                `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget!F${bSheetRow}:G${bSheetRow}?valueInputOption=USER_ENTERED`,
                 {
                   method: 'PUT',
                   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -1479,13 +1479,13 @@ export default {
 
         const sheetRow = bRowIdx + 1;
         await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget!D${sheetRow}:H${sheetRow}?valueInputOption=USER_ENTERED`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget!E${sheetRow}:I${sheetRow}?valueInputOption=USER_ENTERED`,
           {
             method: 'PUT',
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ values: [[allocated, bRows[bRowIdx][4] || 0,
-              parseFloat(allocated) - parseFloat(bRows[bRowIdx][4] || 0),
-              bRows[bRowIdx][6] || '', notes || bRows[bRowIdx][7] || '']] })
+            body: JSON.stringify({ values: [[allocated, bRows[bRowIdx][5] || 0,
+              parseFloat(allocated) - parseFloat(bRows[bRowIdx][5] || 0),
+              bRows[bRowIdx][7] || '', notes || bRows[bRowIdx][8] || '']] })
           }
         );
 
@@ -1504,7 +1504,7 @@ export default {
       if (user.role !== 'admin')
         return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers });
 
-      const { project, category, allocated, period, notes } = body;
+      const { project, programId, category, allocated, period, notes } = body;
       if (!project || !category || !allocated)
         return new Response(JSON.stringify({ error: 'Missing required fields: project, category, allocated' }), { status: 400, headers });
 
@@ -1522,8 +1522,8 @@ export default {
         const spent     = 0;
         const remaining = parseFloat(allocated) - spent;
 
-        // Budget columns: Budget ID | Project | Category | Allocated | Spent | Remaining | Period | Notes
-        const row = [budgetId, project, category, parseFloat(allocated), spent, remaining, period || '', notes || ''];
+        // Budget columns: Budget ID | Project | Program ID | Category | Allocated | Spent | Remaining | Period | Notes
+        const row = [budgetId, project, programId || '', category, parseFloat(allocated), spent, remaining, period || '', notes || ''];
 
         await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget:append?valueInputOption=USER_ENTERED`,
@@ -1812,8 +1812,10 @@ export default {
           const budgetId = `BDG-${safeProj}-${safeCat}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
           const allocated = parseFloat(requestedAmount) || 0;
           // Budget: Budget ID | Project | Category | Allocated | Spent | Remaining | Period | Notes
-          const budgetRow = [budgetId, projectId, category || 'General', allocated, 0, allocated,
-                             period || '', `Auto from proposal ${proposalId}. Program: ${programId}. ${notes || ''}`];
+          // Clean programId: ALL_PROGRAMS means entire project → store as empty
+          const cleanProgramId = (programId === 'ALL_PROGRAMS' || !programId) ? '' : programId;
+          const budgetRow = [budgetId, projectId, cleanProgramId, category || 'General', allocated, 0, allocated,
+                             period || '', `Auto from proposal ${proposalId}. ${notes || ''}`.trim()];
           await appendToSheet(token, finSheetId, 'Budget', budgetRow);
         }
 
