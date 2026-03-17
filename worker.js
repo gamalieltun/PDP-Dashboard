@@ -95,6 +95,26 @@ async function appendToSheet(accessToken, sheetId, sheetName, row) {
   return res.json();
 }
 
+// ─── Create sheet tab if it doesn't exist ─────────
+async function createSheetTab(accessToken, sheetId, sheetName) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: sheetName } } }] })
+    }
+  );
+  // Ignore "already exists" error (code 400 with "already exists" message)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = err.error?.message || '';
+    if (!msg.toLowerCase().includes('already exists')) {
+      throw new Error(`createSheet failed: ${msg || res.status}`);
+    }
+  }
+}
+
 // ─── Get Gmail OAuth2 access token from refresh token ─
 async function getAccessToken(clientId, clientSecret, refreshToken) {
   const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -1637,7 +1657,9 @@ export default {
                          'Justification','Period','Notes','Proposed By','Proposed At','Status',
                          'Reviewed By','Reviewed At','Review Notes'];
 
-        if (!existing.values || existing.values.length === 0) {
+        if (!existing.values || existing.values.length === 0 || existing.error) {
+          // Sheet tab may not exist yet — create it first, then add headers
+          await createSheetTab(token, finSheetId, 'Budget_Proposals');
           await appendToSheet(token, finSheetId, 'Budget_Proposals', headers);
         }
 

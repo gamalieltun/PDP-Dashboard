@@ -670,6 +670,8 @@ const PDP_NAME = PDP_USER?.name || '';
 const ALLOWED_ROLES = ['admin', 'manager', 'finance', 'finance_staff', 'finance_manager'];
 const CAN_APPROVE   = ['admin', 'manager'].includes(PDP_ROLE);
 const CAN_LOG       = ALLOWED_ROLES.includes(PDP_ROLE);
+const CAN_PROPOSE   = ['admin', 'manager', 'finance_staff', 'finance_manager', 'finance'].includes(PDP_ROLE);
+const IS_ADMIN      = PDP_ROLE === 'admin';
 
 // ════════════════════════════════════════════════════════════
 //  INIT
