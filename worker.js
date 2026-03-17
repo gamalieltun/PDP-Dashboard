@@ -1400,38 +1400,52 @@ export default {
           );
         }
 
-        // On approval: recalculate Budget Spent/Remaining for matching project+category
+        // On approval: recalculate Budget Spent/Remaining for matching budget line
         if (action === 'approve_expense') {
           try {
-            const txRow      = txRows[txRowIdx];
-            const txProject  = txRow[2] || '';  // col C = Project
-            const txCategory = txRow[4] || '';  // col E = Category (col D is now Program ID)
-            const txAmount   = parseFloat(txRow[5] || 0); // col F = Amount
+            const txRow       = txRows[txRowIdx];
+            const txProject   = txRow[2] || '';   // col C = Project
+            const txProgramId = txRow[3] || '';   // col D = Program ID
+            const txCategory  = txRow[4] || '';   // col E = Category
+            // col F = Amount (index 5)
 
-            // Fetch all approved transactions for this project+category to get total spent
+            // Fetch all transactions to recalculate total spent for this budget line
             const allTxData = await fetch(
               `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Transactions`,
               { headers: { Authorization: `Bearer ${token}` } }
             ).then(r => r.json());
 
             const allTxRows = allTxData.values || [];
+            // Sum approved amounts for same Project + Program + Category
+            // Include the current txId (being approved right now) in the sum
             const totalSpent = allTxRows.slice(1)
-              .filter(r => r[2] === txProject && r[4] === txCategory && (r[8] === 'approved' || r[0] === txId))
-              .reduce((sum, r) => sum + parseFloat(r[4] || 0), 0);
+              .filter(r =>
+                r[2] === txProject &&
+                (r[3] || '') === txProgramId &&
+                r[4] === txCategory &&
+                (r[8] === 'approved' || r[0] === txId)
+              )
+              .reduce((sum, r) => sum + parseFloat(r[5] || 0), 0); // r[5] = Amount
 
-            // Find matching Budget row by Project + Category
+            // Find matching Budget row: Project + Program ID + Category
             const bData = await fetch(
               `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget`,
               { headers: { Authorization: `Bearer ${token}` } }
             ).then(r => r.json());
 
             const bRows = bData.values || [];
-            // Find first budget row matching project and category
-            const bRowIdx = bRows.findIndex((r, i) => i > 0 && r[1] === txProject && r[3] === txCategory);
+            // Budget schema: A(0)=ID B(1)=Project C(2)=ProgramID D(3)=Category E(4)=Alloc F(5)=Spent G(6)=Rem
+            const bRowIdx = bRows.findIndex((r, i) =>
+              i > 0 &&
+              r[1] === txProject &&
+              (r[2] || '') === txProgramId &&
+              r[3] === txCategory
+            );
+
             if (bRowIdx > 0) {
-              const allocated  = parseFloat(bRows[bRowIdx][4] || 0);  // col E = Allocated
-              const remaining  = allocated - totalSpent;
-              const bSheetRow  = bRowIdx + 1;
+              const allocated = parseFloat(bRows[bRowIdx][4] || 0); // col E
+              const remaining = allocated - totalSpent;
+              const bSheetRow = bRowIdx + 1;
               await fetch(
                 `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget!F${bSheetRow}:G${bSheetRow}?valueInputOption=USER_ENTERED`,
                 {
