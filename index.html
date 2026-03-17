@@ -2003,7 +2003,7 @@ function parseSheetData(sheets) {
     return rows.filter(r => {
       const name = String(r['Task Name'] || '').trim();
       const pid  = String(r['Project ID'] || '').trim();
-      return name && pid && !name.startsWith('#') && !name.startsWith('=') && pid.startsWith('P');
+      return name && pid && !name.startsWith('#') && !name.startsWith('=') && !pid.startsWith('=');
     });
   });
 

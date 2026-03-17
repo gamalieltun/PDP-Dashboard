@@ -426,9 +426,7 @@
       <button class="subtab" id="st-manage" onclick="switchTab('manage')" style="display:none">
         Manage Budgets
       </button>
-      <button class="subtab" id="st-programs" onclick="switchTab('programs')" style="display:none">
-        Programs
-      </button>
+
       <button class="subtab" id="st-proposals" onclick="switchTab('proposals')">
         Budget Proposals
         <span class="badge" id="proposals-badge" style="display:none">0</span>
@@ -548,82 +546,8 @@
     </div>
 
 
-    <!-- ══ PROGRAMS PANE ══ -->
-    <div class="subtab-pane" id="pane-programs">
-      <!-- Add Program form (admin/manager only) -->
-      <div class="card" style="margin-bottom:16px;" id="add-program-card">
-        <div class="card-header">Add Program</div>
-        <div style="padding:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;" id="add-program-grid">
-          <div>
-            <label>Project</label>
-            <select id="prog-project" onchange="loadProgramsForProject()"></select>
-          </div>
-          <div>
-            <label>Program Name</label>
-            <input type="text" id="prog-name" placeholder="e.g. Youth Leadership Camp">
-          </div>
-          <div>
-            <label>Description (optional)</label>
-            <input type="text" id="prog-desc" placeholder="Brief description…">
-          </div>
-          <div>
-            <label>Start CW</label>
-            <input type="number" id="prog-start-cw" placeholder="e.g. 1" min="1" max="52">
-          </div>
-          <div>
-            <label>End CW</label>
-            <input type="number" id="prog-end-cw" placeholder="e.g. 26" min="1" max="52">
-          </div>
-          <div>
-            <label>Quarter</label>
-            <select id="prog-quarter">
-              <option value="">— Select —</option>
-              <option value="26Q1">2026 Q1</option>
-              <option value="26Q2">2026 Q2</option>
-              <option value="26Q3">2026 Q3</option>
-              <option value="26Q4">2026 Q4</option>
-              <option value="27Q1">2027 Q1</option>
-              <option value="27Q2">2027 Q2</option>
-              <option value="27Q3">2027 Q3</option>
-              <option value="27Q4">2027 Q4</option>
-            </select>
-          </div>
-          <div>
-            <label>Status</label>
-            <select id="prog-status">
-              <option value="Planning">Planning</option>
-              <option value="Active">Active</option>
-              <option value="Completed">Completed</option>
-              <option value="On Hold">On Hold</option>
-            </select>
-          </div>
-          <div>
-            <label>Responsible Person</label>
-            <input type="text" id="prog-responsible" placeholder="e.g. John">
-          </div>
-          <div style="display:flex;align-items:flex-end;">
-            <button class="btn btn-primary" id="prog-submit-btn" onclick="submitAddProgram()" style="width:100%;">+ Add Program</button>
-          </div>
-        </div>
-        <div id="prog-msg" style="display:none;padding:0 18px 14px;font-size:13px;"></div>
-      </div>
 
-      <!-- Programs list by project -->
-      <div class="card">
-        <div class="card-header">
-          <span>Programs</span>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <select id="prog-filter-project" onchange="renderPrograms()" style="font-size:12px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:6px;">
-              <option value="">All Projects</option>
-            </select>
-            <button class="btn btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="loadAll()">↻</button>
-          </div>
-        </div>
-        <div id="programs-body"><div class="loading">Loading…</div></div>
-      </div>
-    </div>
-
-    <!-- ══ BUDGET PROPOSALS PANE ══ -->
+        <!-- ══ BUDGET PROPOSALS PANE ══ -->
     <div class="subtab-pane" id="pane-proposals">
       <div class="toolbar">
         <div class="toolbar-left">
@@ -790,7 +714,7 @@ async function workerCall(action, extra = {}) {
 // ════════════════════════════════════════════════════════════
 //  DATA
 // ════════════════════════════════════════════════════════════
-let FIN = { budget: [], transactions: [], queue: [], projects: [], proposals: [], programs: [] };
+let FIN = { budget: [], transactions: [], queue: [], projects: [], proposals: [] };
 let PENDING_REJECT_TX = null;
 let PENDING_BUDGET_ID = null;
 
@@ -812,8 +736,6 @@ async function loadAll() {
     FIN.queue        = res.queue        || [];
     FIN.projects     = res.projects     || [];
     FIN.proposals    = res.proposals    || [];
-    // Load programs in parallel (needed for proposal name lookups)
-    workerCall('get_programs', {}).then(r => { FIN.programs = r.programs || []; }).catch(() => {});
 
     updateStats();
     renderBudget();
@@ -932,23 +854,6 @@ function populateFilters() {
   // Show manage tab for admin/manager
   const manageTab = document.getElementById('st-manage');
   if (manageTab) manageTab.style.display = (PDP_ROLE === 'admin') ? '' : 'none';
-  // Programs tab: visible to ALL finance roles (read-only for staff/manager)
-  const programsTab = document.getElementById('st-programs');
-  if (programsTab) programsTab.style.display = '';
-  // Hide add-program card for non-admin/manager
-  const addProgCard = document.getElementById('add-program-card');
-  if (addProgCard) addProgCard.style.display = CAN_APPROVE ? '' : 'none';
-  // Populate project filters for programs
-  const progFilterSel = document.getElementById('prog-filter-project');
-  const progProjSel = document.getElementById('prog-project');
-  if (FIN.projects.length) {
-    [progFilterSel, progProjSel].forEach(sel => {
-      if (!sel) return;
-      const isFilter = sel.id === 'prog-filter-project';
-      sel.innerHTML = isFilter ? '<option value="">All Projects</option>' : '<option value="">Select project…</option>';
-      FIN.projects.forEach(p => sel.add(new Option(`${p.id} — ${p.name}`, p.id)));
-    });
-  }
 
   // Populate nb-project (add budget form)
   const nbProj = document.getElementById('nb-project');
@@ -1067,16 +972,12 @@ function renderQueue() {
 //  SUB-TAB SWITCH
 // ════════════════════════════════════════════════════════════
 function switchTab(name) {
-  ['budget', 'transactions', 'queue', 'manage', 'programs', 'proposals'].forEach(n => {
+  ['budget', 'transactions', 'queue', 'manage', 'proposals'].forEach(n => {
     document.getElementById(`pane-${n}`)?.classList.toggle('active', n === name);
     document.getElementById(`st-${n}`)?.classList.toggle('active', n === name);
   });
   if (name === 'manage') renderManageBudget();
-  if (name === 'programs') { loadProgramsList(); }
-  if (name === 'proposals') {
-    if (!FIN.programs.length) loadProgramsList().then(() => renderProposals());
-    else renderProposals();
-  }
+  if (name === 'proposals') renderProposals();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1285,124 +1186,6 @@ async function submitAddBudget() {
 // ════════════════════════════════════════════════════════════
 //  PROGRAMS
 // ════════════════════════════════════════════════════════════
-async function loadProgramsList() {
-  const el = document.getElementById('programs-body');
-  if (!el) return;
-  el.innerHTML = '<div class="loading">Loading programs…</div>';
-  try {
-    const res = await workerCall('get_programs', {});
-    FIN.programs = res.programs || [];
-    renderPrograms();
-  } catch(e) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-text" style="color:var(--red)">${e.message}</div></div>`;
-  }
-}
-
-function loadProgramsForProject() {
-  // No async needed — just filter cached list
-  renderPrograms();
-}
-
-function renderPrograms() {
-  const el = document.getElementById('programs-body');
-  if (!el) return;
-  const filterProj = document.getElementById('prog-filter-project')?.value || '';
-  let programs = FIN.programs;
-  if (filterProj) programs = programs.filter(p => p['Project ID'] === filterProj);
-
-  if (!programs.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">📂</div><div class="empty-text">No programs yet. Add one above.</div></div>';
-    return;
-  }
-
-  // Group by project
-  const byProject = {};
-  programs.forEach(p => {
-    const pid = p['Project ID'] || '—';
-    if (!byProject[pid]) byProject[pid] = [];
-    byProject[pid].push(p);
-  });
-
-  let html = '';
-  Object.entries(byProject).forEach(([pid, progs]) => {
-    const projName = FIN.projects.find(p => p.id === pid)?.name || pid;
-    html += `<div style="padding:10px 16px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);background:var(--gray-50);border-bottom:1px solid var(--gray-100);">${pid} — ${projName}</div>`;
-    progs.forEach(pg => {
-      const statusColors = {
-        'Planning':  { bg:'#eff6ff', color:'#1d4ed8' },
-        'Active':    { bg:'#f0fdf4', color:'#15803d' },
-        'Completed': { bg:'#f9fafb', color:'#6b7280' },
-        'On Hold':   { bg:'#fffbeb', color:'#b45309' },
-      };
-      const sc = statusColors[pg['Status']] || statusColors['Planning'];
-      const cwRange = pg['Start CW'] && pg['End CW'] ? `CW ${pg['Start CW']}–${pg['End CW']}` : '';
-      html += `<div style="display:flex;align-items:center;padding:11px 16px;border-bottom:1px solid var(--gray-100);gap:12px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:180px;">
-          <div style="font-weight:500;font-size:13px;">${pg['Program Name'] || '—'}</div>
-          ${pg['Description'] ? `<div style="font-size:12px;color:var(--gray-500);margin-top:2px;">${pg['Description']}</div>` : ''}
-        </div>
-        <span style="background:${sc.bg};color:${sc.color};border-radius:10px;padding:2px 9px;font-size:11px;font-weight:600;">${pg['Status'] || 'Planning'}</span>
-        ${cwRange ? `<span style="font-size:11px;color:var(--gray-500);">${cwRange}</span>` : ''}
-        ${pg['Quarter'] ? `<span style="font-size:11px;color:var(--gray-500);">${pg['Quarter']}</span>` : ''}
-        ${pg['Responsible'] ? `<span style="font-size:11px;color:var(--gray-600);">👤 ${pg['Responsible']}</span>` : ''}
-        <div style="font-size:11px;color:var(--gray-400);font-family:monospace">${pg['Program ID'] || ''}</div>
-      </div>`;
-    });
-  });
-
-  el.innerHTML = html;
-}
-
-async function submitAddProgram() {
-  const projectId = document.getElementById('prog-project').value;
-  const programName = document.getElementById('prog-name').value.trim();
-  const description = document.getElementById('prog-desc').value.trim();
-  const msgEl = document.getElementById('prog-msg');
-  const btn = document.getElementById('prog-submit-btn');
-
-  if (!projectId || !programName) {
-    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
-    msgEl.textContent = 'Project and Program Name are required.'; return;
-  }
-
-  btn.disabled = true; btn.textContent = 'Adding…';
-  msgEl.style.display = 'none';
-  const startCW     = document.getElementById('prog-start-cw').value;
-  const endCW       = document.getElementById('prog-end-cw').value;
-  const quarter     = document.getElementById('prog-quarter').value;
-  const status      = document.getElementById('prog-status').value;
-  const responsible = document.getElementById('prog-responsible').value.trim();
-
-  try {
-    const res = await workerCall('add_program', { projectId, programName, description, startCW, endCW, quarter, status, responsible });
-    if (res.ok) {
-      msgEl.style.display = 'block'; msgEl.style.color = 'var(--green)';
-      msgEl.textContent = `✓ Program added (${res.programId})`;
-      document.getElementById('prog-name').value        = '';
-      document.getElementById('prog-desc').value        = '';
-      document.getElementById('prog-start-cw').value   = '';
-      document.getElementById('prog-end-cw').value     = '';
-      document.getElementById('prog-responsible').value = '';
-      toast('Program added', 'green');
-      await loadProgramsList();
-    } else {
-      msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
-      msgEl.textContent = res.error || 'Failed to add program';
-    }
-  } catch(e) {
-    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
-    msgEl.textContent = 'Network error: ' + e.message;
-  }
-  btn.disabled = false; btn.textContent = '+ Add Program';
-}
-
-// ════════════════════════════════════════════════════════════
-//  BUDGET PROPOSALS
-// ════════════════════════════════════════════════════════════
-let CURRENT_PROPOSAL_ID = null;
-let PENDING_REVIEW_PROPOSAL_ID = null;
-const CAN_PROPOSE = ['admin','manager','finance_staff','finance_manager'].includes(PDP_ROLE);
-const IS_ADMIN = PDP_ROLE === 'admin';
 
 function renderProposals() {
   const el = document.getElementById('proposals-body');
@@ -1503,16 +1286,23 @@ function closeProposalModal() {
   CURRENT_PROPOSAL_ID = null;
 }
 
-function loadProposalPrograms(selectProgramId) {
-  const projId = document.getElementById('prop-project').value;
+async function loadProposalPrograms(selectProgramId) {
+  const projId  = document.getElementById('prop-project').value;
   const progSel = document.getElementById('prop-program');
-  progSel.innerHTML = '<option value="">— Select program —</option>';
-  const programs = FIN.programs.filter(p => p['Project ID'] === projId);
-  programs.forEach(p => {
-    const opt = new Option(`${p['Program Name']} (${p['Program ID']})`, p['Program ID']);
-    progSel.add(opt);
-  });
-  if (selectProgramId) progSel.value = selectProgramId;
+  progSel.innerHTML = '<option value="">Loading…</option>';
+  progSel.disabled = true;
+  try {
+    const res = await workerCall('get_programs', { projectId: projId });
+    const programs = (res.programs || []).filter(p => !projId || p['Project ID'] === projId);
+    progSel.innerHTML = '<option value="">— Select program —</option>';
+    programs.forEach(p => {
+      progSel.add(new Option(`${p['Program Name']} (${p['Program ID']})`, p['Program ID']));
+    });
+    if (selectProgramId) progSel.value = selectProgramId;
+  } catch(e) {
+    progSel.innerHTML = '<option value="">Error loading programs</option>';
+  }
+  progSel.disabled = false;
 }
 
 async function saveProposal(submitAfter) {
