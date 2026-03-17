@@ -42,6 +42,7 @@
 const BASE_SHEETS = [
   'Main Projects',
   'Weekly Reports',
+  'Programs',
   // Login Audit is write-only — not needed in data fetch
 ];
 
@@ -1228,24 +1229,30 @@ export default {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        const [budgetRes, txRes, queueRes] = await Promise.all([
+        const [budgetRes, txRes, queueRes, propRes] = await Promise.all([
           finFetch('Budget'),
           finFetch('Transactions'),
           finFetch('Approval_Queue'),
+          finFetch('Budget_Proposals'),
         ]);
 
         const toObjects = async (res) => {
           const d = await res.json();
-          if (d.error) throw new Error(`Sheets API: ${d.error.message}`);
+          if (d.error) return []; // sheet may not exist yet
           const rows = d.values || [];
           if (rows.length < 2) return [];
           const [headers, ...data] = rows;
-          return data.map(r => Object.fromEntries(headers.map((h, i) => [h, r[i] || ''])));
+          return data.map(r => Object.fromEntries(headers.map((h, i) => [h.trim(), r[i] || ''])));
         };
 
-        const [budget, transactions, queue] = await Promise.all([
-          toObjects(budgetRes), toObjects(txRes), toObjects(queueRes)
+        let [budget, transactions, queue, allProposals] = await Promise.all([
+          toObjects(budgetRes), toObjects(txRes), toObjects(queueRes), toObjects(propRes)
         ]);
+
+        // Role-filter proposals: finance_staff sees own only
+        const proposals = (user.role === 'finance_staff')
+          ? allProposals.filter(p => p['Proposed By'] === (user.name || user._key))
+          : allProposals;
 
         // Also fetch projects from main PDP sheet so finance.html can sync
         let projects = [];
@@ -1261,7 +1268,7 @@ export default {
           }
         } catch(_) {}
 
-        return new Response(JSON.stringify({ ok: true, budget, transactions, queue, projects }), { status: 200, headers });
+        return new Response(JSON.stringify({ ok: true, budget, transactions, queue, proposals, projects }), { status: 200, headers });
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
       }
@@ -1373,6 +1380,50 @@ export default {
           );
         }
 
+        // On approval: recalculate Budget Spent/Remaining for matching project+category
+        if (action === 'approve_expense') {
+          try {
+            const txRow      = txRows[txRowIdx];
+            const txProject  = txRow[2] || '';  // col C = Project
+            const txCategory = txRow[3] || '';  // col D = Category
+            const txAmount   = parseFloat(txRow[4] || 0); // col E = Amount
+
+            // Fetch all approved transactions for this project+category to get total spent
+            const allTxData = await fetch(
+              `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Transactions`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            ).then(r => r.json());
+
+            const allTxRows = allTxData.values || [];
+            const totalSpent = allTxRows.slice(1)
+              .filter(r => r[2] === txProject && r[3] === txCategory && (r[7] === 'approved' || r[0] === txId))
+              .reduce((sum, r) => sum + parseFloat(r[4] || 0), 0);
+
+            // Find matching Budget row by Project + Category
+            const bData = await fetch(
+              `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            ).then(r => r.json());
+
+            const bRows = bData.values || [];
+            // Find first budget row matching project and category
+            const bRowIdx = bRows.findIndex((r, i) => i > 0 && r[1] === txProject && r[2] === txCategory);
+            if (bRowIdx > 0) {
+              const allocated  = parseFloat(bRows[bRowIdx][3] || 0);
+              const remaining  = allocated - totalSpent;
+              const bSheetRow  = bRowIdx + 1;
+              await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget!E${bSheetRow}:F${bSheetRow}?valueInputOption=USER_ENTERED`,
+                {
+                  method: 'PUT',
+                  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ values: [[totalSpent, remaining]] })
+                }
+              );
+            }
+          } catch(_) {} // Budget update is best-effort; don't fail the approval
+        }
+
         return new Response(JSON.stringify({ ok: true, status: newStatus }), { status: 200, headers });
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
@@ -1465,6 +1516,255 @@ export default {
 
         return new Response(JSON.stringify({ ok: true, budgetId }), { status: 200, headers });
       } catch (e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
+      }
+    }
+
+
+    // ─── get_programs ─────────────────────────────────────────
+    if (action === 'get_programs') {
+      const user = validateUser(body.username, body.password);
+      if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+
+      try {
+        const rows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Programs');
+        const hIdx = rows.findIndex(r => r && r.some(c => String(c).trim() === 'Program ID'));
+        if (hIdx < 0) return new Response(JSON.stringify({ ok: true, programs: [] }), { status: 200, headers });
+        const [hdrs, ...data] = rows.slice(hIdx);
+        const programs = data
+          .map(r => Object.fromEntries(hdrs.map((h,i) => [h.trim(), r[i] || ''])))
+          .filter(r => r['Program ID']);
+        const projectId = body.projectId;
+        const filtered = projectId ? programs.filter(p => p['Project ID'] === projectId) : programs;
+        return new Response(JSON.stringify({ ok: true, programs: filtered }), { status: 200, headers });
+      } catch(e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
+      }
+    }
+
+    // ─── add_program ──────────────────────────────────────────
+    if (action === 'add_program') {
+      const user = validateUser(body.username, body.password);
+      if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+      if (!['admin', 'manager'].includes(user.role))
+        return new Response(JSON.stringify({ error: 'Admin or Manager only' }), { status: 403, headers });
+
+      const { projectId, programName, description } = body;
+      if (!projectId || !programName)
+        return new Response(JSON.stringify({ error: 'Missing projectId or programName' }), { status: 400, headers });
+
+      try {
+        const token = await getDriveToken(env);
+        // Ensure Programs sheet has headers
+        const existing = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Programs').catch(() => []);
+        if (!existing.length || !existing[0] || !existing[0].includes('Program ID')) {
+          await appendToSheet(token, env.SPREADSHEET_ID, 'Programs',
+            ['Program ID', 'Project ID', 'Program Name', 'Description', 'Created By', 'Created At']);
+        }
+        const programId = `PRG-${String(projectId).replace(/[^a-zA-Z0-9]/g,'').toUpperCase()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
+        const now = new Date().toISOString();
+        await appendToSheet(token, env.SPREADSHEET_ID, 'Programs',
+          [programId, projectId, programName, description || '', user.name || user._key, now]);
+        return new Response(JSON.stringify({ ok: true, programId }), { status: 200, headers });
+      } catch(e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
+      }
+    }
+
+    // ─── get_proposals ────────────────────────────────────────
+    if (action === 'get_proposals') {
+      const user = validateUser(body.username, body.password);
+      if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+
+      const finRoles = ['finance_staff', 'finance_manager'];
+      const allRoles = ['admin', 'manager', 'finance_manager'];
+      if (!['admin', 'manager', 'finance_staff', 'finance_manager'].includes(user.role))
+        return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
+
+      const finSheetId = env.FINANCE_SPREADSHEET_ID;
+      if (!finSheetId) return new Response(JSON.stringify({ error: 'FINANCE_SPREADSHEET_ID not configured' }), { status: 500, headers });
+
+      try {
+        const token = await getDriveToken(env);
+        const res = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const d = await res.json();
+        if (d.error) return new Response(JSON.stringify({ ok: true, proposals: [] }), { status: 200, headers });
+        const rows = d.values || [];
+        if (rows.length < 2) return new Response(JSON.stringify({ ok: true, proposals: [] }), { status: 200, headers });
+        const [hdrs, ...data] = rows;
+        let proposals = data
+          .map(r => Object.fromEntries(hdrs.map((h,i) => [h.trim(), r[i] || ''])))
+          .filter(r => r['Proposal ID']);
+        // finance_staff only sees own proposals
+        if (user.role === 'finance_staff') {
+          proposals = proposals.filter(p => p['Proposed By'] === (user.name || user._key));
+        }
+        return new Response(JSON.stringify({ ok: true, proposals }), { status: 200, headers });
+      } catch(e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
+      }
+    }
+
+    // ─── save_proposal ────────────────────────────────────────
+    if (action === 'save_proposal') {
+      const user = validateUser(body.username, body.password);
+      if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+      if (!['admin', 'manager', 'finance_staff', 'finance_manager'].includes(user.role))
+        return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
+
+      const { projectId, programId, category, requestedAmount, justification, period, notes, proposalId } = body;
+      if (!projectId || !programId || !requestedAmount || !justification)
+        return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers });
+
+      const finSheetId = env.FINANCE_SPREADSHEET_ID;
+      const token = await getDriveToken(env);
+      const now = new Date().toISOString();
+      const proposedBy = user.name || user._key;
+
+      try {
+        // Check if sheet exists and has headers
+        const existing = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).then(r => r.json());
+
+        const headers = ['Proposal ID','Project ID','Program ID','Category','Requested Amount',
+                         'Justification','Period','Notes','Proposed By','Proposed At','Status',
+                         'Reviewed By','Reviewed At','Review Notes'];
+
+        if (!existing.values || existing.values.length === 0) {
+          await appendToSheet(token, finSheetId, 'Budget_Proposals', headers);
+        }
+
+        if (proposalId) {
+          // Update existing draft — find row and update cols A-N
+          const rows = existing.values || [];
+          const rowIdx = rows.findIndex((r, i) => i > 0 && r[0] === proposalId);
+          if (rowIdx < 1) return new Response(JSON.stringify({ error: 'Proposal not found' }), { status: 404, headers });
+          const sheetRow = rowIdx + 1;
+          await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}!A${sheetRow}:N${sheetRow}?valueInputOption=USER_ENTERED`,
+            {
+              method: 'PUT',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ values: [[proposalId, projectId, programId, category || '',
+                requestedAmount, justification, period || '', notes || '',
+                proposedBy, rows[rowIdx][9] || now, rows[rowIdx][10] || 'draft', '', '', '']] })
+            }
+          );
+          return new Response(JSON.stringify({ ok: true, proposalId }), { status: 200, headers });
+        } else {
+          // New proposal
+          const newId = `PROP-${Date.now().toString(36).toUpperCase()}`;
+          await appendToSheet(token, finSheetId, 'Budget_Proposals',
+            [newId, projectId, programId, category || '', requestedAmount,
+             justification, period || '', notes || '', proposedBy, now, 'draft', '', '', '']);
+          return new Response(JSON.stringify({ ok: true, proposalId: newId }), { status: 200, headers });
+        }
+      } catch(e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
+      }
+    }
+
+    // ─── submit_proposal ──────────────────────────────────────
+    if (action === 'submit_proposal') {
+      const user = validateUser(body.username, body.password);
+      if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+      if (!['admin', 'manager', 'finance_staff', 'finance_manager'].includes(user.role))
+        return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
+
+      const { proposalId } = body;
+      if (!proposalId) return new Response(JSON.stringify({ error: 'Missing proposalId' }), { status: 400, headers });
+
+      const finSheetId = env.FINANCE_SPREADSHEET_ID;
+      const token = await getDriveToken(env);
+
+      try {
+        const d = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).then(r => r.json());
+
+        const rows = d.values || [];
+        const rowIdx = rows.findIndex((r, i) => i > 0 && r[0] === proposalId);
+        if (rowIdx < 1) return new Response(JSON.stringify({ error: 'Proposal not found' }), { status: 404, headers });
+
+        // Finance staff can only submit their own
+        const proposedBy = rows[rowIdx][8] || '';
+        if (user.role === 'finance_staff' && proposedBy !== (user.name || user._key))
+          return new Response(JSON.stringify({ error: 'Can only submit your own proposals' }), { status: 403, headers });
+
+        const sheetRow = rowIdx + 1;
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}!K${sheetRow}?valueInputOption=USER_ENTERED`,
+          {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [['submitted']] })
+          }
+        );
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+      } catch(e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
+      }
+    }
+
+    // ─── review_proposal ──────────────────────────────────────
+    if (action === 'review_proposal') {
+      const user = validateUser(body.username, body.password);
+      if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+      if (user.role !== 'admin')
+        return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers });
+
+      const { proposalId, decision, reviewNotes } = body;
+      if (!proposalId || !decision) return new Response(JSON.stringify({ error: 'Missing proposalId or decision' }), { status: 400, headers });
+      if (!['approved', 'rejected'].includes(decision)) return new Response(JSON.stringify({ error: 'Decision must be approved or rejected' }), { status: 400, headers });
+
+      const finSheetId = env.FINANCE_SPREADSHEET_ID;
+      const token = await getDriveToken(env);
+      const now = new Date().toISOString();
+
+      try {
+        const d = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).then(r => r.json());
+
+        const rows = d.values || [];
+        const rowIdx = rows.findIndex((r, i) => i > 0 && r[0] === proposalId);
+        if (rowIdx < 1) return new Response(JSON.stringify({ error: 'Proposal not found' }), { status: 404, headers });
+
+        const row = rows[rowIdx];
+        const sheetRow = rowIdx + 1;
+
+        // Update status, reviewer, reviewed at, review notes
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/${encodeURIComponent('Budget_Proposals')}!K${sheetRow}:N${sheetRow}?valueInputOption=USER_ENTERED`,
+          {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [[decision, user.name || user._key, now, reviewNotes || '']] })
+          }
+        );
+
+        // On approval: auto-create Budget line
+        if (decision === 'approved') {
+          const [, projectId, programId, category, requestedAmount, , period, notes] = row;
+          const safeProj = String(projectId).replace(/[^a-zA-Z0-9]/g,'').toUpperCase().slice(0,6);
+          const safeCat  = String(category || 'GEN').replace(/[^a-zA-Z0-9]/g,'').toUpperCase().slice(0,4);
+          const budgetId = `BDG-${safeProj}-${safeCat}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
+          const allocated = parseFloat(requestedAmount) || 0;
+          // Budget: Budget ID | Project | Category | Allocated | Spent | Remaining | Period | Notes
+          const budgetRow = [budgetId, projectId, category || 'General', allocated, 0, allocated,
+                             period || '', `Auto from proposal ${proposalId}. Program: ${programId}. ${notes || ''}`];
+          await appendToSheet(token, finSheetId, 'Budget', budgetRow);
+        }
+
+        return new Response(JSON.stringify({ ok: true, decision, budgetCreated: decision === 'approved' }), { status: 200, headers });
+      } catch(e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
       }
     }

@@ -1590,7 +1590,7 @@ function applyRBAC() {
     nameBadge.style.display = 'flex';
     nameLabel.textContent   = CURRENT_USER.name;
     const roleLabels = { admin:'Admin', manager:'Manager', staff:'Staff' };
-    const roleClasses = { admin:'role-admin', manager:'role-manager', staff:'role-staff' };
+    const roleClasses = { admin:'role-admin', manager:'role-manager', staff:'role-staff', finance:'role-finance', finance_staff:'role-finance', finance_manager:'role-finance' };
     roleBadge.textContent  = roleLabels[CURRENT_USER.role] || CURRENT_USER.role;
     roleBadge.className    = `role-badge ${roleClasses[CURRENT_USER.role] || 'role-staff'}`;
   }
@@ -3432,14 +3432,29 @@ function renderProjectManagement() {
   }
   listEl.innerHTML = DATA.projects.map(p => {
     const pct = p.total > 0 ? Math.round((p.delivered/p.total)*100) : 0;
+    const programs = p.programs || [];
+    const progHtml = programs.length
+      ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">
+          ${programs.map(pg => `<span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:500;">
+            ${pg['Program Name']}
+            <span style="color:#93c5fd;font-size:10px;">${pg['Program ID']}</span>
+          </span>`).join('')}
+        </div>`
+      : `<div style="margin-top:4px;font-size:11px;color:var(--gray-400);">No programs yet</div>`;
     return `
-      <div class="pm-proj-row">
-        <div style="flex:1">
-          <div class="pm-proj-name">${p.id} — ${p.name}</div>
-          <div class="pm-proj-meta">CW ${p.start}–${p.end} · ${p.total} tasks · ${p.delivered} delivered · ${pct}% complete</div>
+      <div class="pm-proj-row" style="flex-direction:column;align-items:stretch;gap:4px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:1">
+            <div class="pm-proj-name">${p.id} — ${p.name}</div>
+            <div class="pm-proj-meta">CW ${p.start}–${p.end} · ${p.total} tasks · ${p.delivered} delivered · ${pct}% complete</div>
+          </div>
+          <span class="pm-task-count">${p.total} tasks</span>
+          <button class="pm-add-task-btn" onclick="quickAddTask('${p.id}')">+ Add Task</button>
         </div>
-        <span class="pm-task-count">${p.total} tasks</span>
-        <button class="pm-add-task-btn" onclick="quickAddTask('${p.id}')">+ Add Task</button>
+        <div style="padding-left:4px;padding-bottom:4px;">
+          <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Programs (${programs.length})</div>
+          ${progHtml}
+        </div>
       </div>`;
   }).join('');
 }
@@ -3627,7 +3642,7 @@ function renderRoleManagement() {
           <div class="rm-avatar" style="background:${color}">${name[0]}</div>
           <div>
             <div class="rm-name">${name}</div>
-            <span class="role-badge ${cfg.role==='admin'?'role-admin':cfg.role==='manager'?'role-manager':'role-staff'}" id="rm-badge-${name}">
+            <span class="role-badge ${cfg.role==='admin'?'role-admin':cfg.role==='manager'?'role-manager':['finance','finance_staff','finance_manager'].includes(cfg.role)?'role-finance':'role-staff'}" id="rm-badge-${name}">
               ${cfg.role}
             </span>
           </div>
@@ -3668,7 +3683,7 @@ function onRoleChange(name, selectEl) {
   // Update badge
   if (badge) {
     badge.textContent = role;
-    badge.className = `role-badge ${role==='admin'?'role-admin':role==='manager'?'role-manager':'role-staff'}`;
+    badge.className = `role-badge ${role==='admin'?'role-admin':role==='manager'?'role-manager':['finance','finance_staff','finance_manager'].includes(role)?'role-finance':'role-staff'}`;
   }
   // Admin/manager get all features automatically
   if (role === 'admin' || role === 'manager') {

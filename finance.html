@@ -895,9 +895,9 @@ function populateFilters() {
   // Show manage tab for admin/manager
   const manageTab = document.getElementById('st-manage');
   if (manageTab) manageTab.style.display = (PDP_ROLE === 'admin') ? '' : 'none';
-  // Programs tab: admin and manager
+  // Programs tab: visible to ALL finance roles (read-only for staff/manager)
   const programsTab = document.getElementById('st-programs');
-  if (programsTab) programsTab.style.display = (CAN_APPROVE) ? '' : 'none';
+  if (programsTab) programsTab.style.display = '';
   // Hide add-program card for non-admin/manager
   const addProgCard = document.getElementById('add-program-card');
   if (addProgCard) addProgCard.style.display = CAN_APPROVE ? '' : 'none';
