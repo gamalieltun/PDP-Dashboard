@@ -633,7 +633,13 @@
     </div>
     <div class="form-group">
       <label>Project</label>
-      <select id="exp-project"></select>
+      <select id="exp-project" onchange="loadExpensePrograms()"></select>
+    </div>
+    <div class="form-group">
+      <label>Program <span style="font-weight:400;font-size:11px;color:var(--gray-400)">(optional)</span></label>
+      <select id="exp-program">
+        <option value="">— Select project first —</option>
+      </select>
     </div>
     <div class="form-group">
       <label>Category</label>
@@ -998,7 +1004,7 @@ function renderTransactions() {
   }
 
   let html = `<table class="fin-table"><thead><tr>
-    <th>Date</th><th>Project</th><th>Category</th>
+    <th>Date</th><th>Project</th><th>Program</th><th>Category</th>
     <th>Amount</th><th>Description</th><th>By</th><th>Status</th>
     ${CAN_APPROVE ? '<th></th>' : ''}
   </tr></thead><tbody>`;
@@ -1008,6 +1014,7 @@ function renderTransactions() {
     html += `<tr>
       <td class="hide-mobile" style="white-space:nowrap;color:var(--gray-500)">${t.Date || '—'}</td>
       <td style="font-weight:500">${t.Project || '—'}</td>
+      <td class="hide-mobile" style="font-size:12px;color:var(--gray-500)">${t['Program ID'] || '—'}</td>
       <td><span class="cat-pill">${t.Category || '—'}</span></td>
       <td style="font-weight:600">${parseFloat(t.Amount || 0).toLocaleString()}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.Description || ''}">${t.Description || '—'}</td>
@@ -1082,6 +1089,7 @@ function switchTab(name) {
 function openExpenseModal() {
   document.getElementById('exp-amount').value = '';
   document.getElementById('exp-desc').value   = '';
+  document.getElementById('exp-program').innerHTML = '<option value="">— Select project first —</option>';
   document.getElementById('exp-submit-btn').disabled = false;
   document.getElementById('exp-submit-btn').textContent = 'Submit for Approval';
   document.getElementById('expense-modal').classList.add('open');
@@ -1090,8 +1098,22 @@ function closeExpenseModal() {
   document.getElementById('expense-modal').classList.remove('open');
 }
 
+async function loadExpensePrograms() {
+  const projId  = document.getElementById('exp-project').value;
+  const progSel = document.getElementById('exp-program');
+  progSel.innerHTML = '<option value="">— No program —</option>';
+  if (!projId) return;
+  try {
+    const res = await workerCall('get_programs', { projectId: projId });
+    (res.programs || []).forEach(p => {
+      progSel.add(new Option(`${p['Program Name']} (${p['Program ID']})`, p['Program ID']));
+    });
+  } catch(_) {}
+}
+
 async function submitExpense() {
   const project     = document.getElementById('exp-project').value;
+  const programId   = document.getElementById('exp-program').value;
   const category    = document.getElementById('exp-category').value;
   const amount      = document.getElementById('exp-amount').value;
   const description = document.getElementById('exp-desc').value.trim();
@@ -1104,7 +1126,7 @@ async function submitExpense() {
   btn.disabled = true; btn.textContent = 'Submitting…';
 
   try {
-    const res = await workerCall('log_expense', { project, category, amount, description });
+    const res = await workerCall('log_expense', { project, programId, category, amount, description });
     if (res.ok) {
       toast('Expense logged — pending approval', 'green');
       closeExpenseModal();

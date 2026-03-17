@@ -1303,7 +1303,7 @@ export default {
       if (!allowed.includes(user.role))
         return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
 
-      const { project, category, amount, description } = body;
+      const { project, programId, category, amount, description } = body;
       if (!project || !category || !amount || !description)
         return new Response(JSON.stringify({ error: 'Missing fields: project, category, amount, description' }), { status: 400, headers });
 
@@ -1314,7 +1314,7 @@ export default {
       try {
         const token = await getDriveToken(env);
         // Append to Transactions sheet
-        const txRow = [txId, now.slice(0,10), project, category, amount, description,
+        const txRow = [txId, now.slice(0,10), project, programId || '', category, amount, description,
                        user.name || user._key, 'pending', '', ''];
         await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Transactions:append?valueInputOption=USER_ENTERED`,
@@ -1405,8 +1405,8 @@ export default {
           try {
             const txRow      = txRows[txRowIdx];
             const txProject  = txRow[2] || '';  // col C = Project
-            const txCategory = txRow[3] || '';  // col D = Category
-            const txAmount   = parseFloat(txRow[4] || 0); // col E = Amount
+            const txCategory = txRow[4] || '';  // col E = Category (col D is now Program ID)
+            const txAmount   = parseFloat(txRow[5] || 0); // col F = Amount
 
             // Fetch all approved transactions for this project+category to get total spent
             const allTxData = await fetch(
@@ -1416,7 +1416,7 @@ export default {
 
             const allTxRows = allTxData.values || [];
             const totalSpent = allTxRows.slice(1)
-              .filter(r => r[2] === txProject && r[3] === txCategory && (r[7] === 'approved' || r[0] === txId))
+              .filter(r => r[2] === txProject && r[4] === txCategory && (r[8] === 'approved' || r[0] === txId))
               .reduce((sum, r) => sum + parseFloat(r[4] || 0), 0);
 
             // Find matching Budget row by Project + Category
@@ -1429,7 +1429,7 @@ export default {
             // Find first budget row matching project and category
             const bRowIdx = bRows.findIndex((r, i) => i > 0 && r[1] === txProject && r[3] === txCategory);
             if (bRowIdx > 0) {
-              const allocated  = parseFloat(bRows[bRowIdx][3] || 0);
+              const allocated  = parseFloat(bRows[bRowIdx][4] || 0);  // col E = Allocated
               const remaining  = allocated - totalSpent;
               const bSheetRow  = bRowIdx + 1;
               await fetch(
