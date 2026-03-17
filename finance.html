@@ -368,6 +368,7 @@
     .fin-table th:nth-child(n+5),
     .fin-table td:nth-child(n+5) { display: none; }
     .toolbar { flex-direction: column; align-items: stretch; }
+    #add-budget-grid { grid-template-columns: 1fr !important; }
   }
 </style>
 </head>
@@ -420,6 +421,9 @@
         Approval Queue
         <span class="badge" id="queue-badge" style="display:none">0</span>
       </button>
+      <button class="subtab" id="st-manage" onclick="switchTab('manage')" style="display:none">
+        Manage Budgets
+      </button>
     </div>
 
     <!-- ══ BUDGET TAB ══ -->
@@ -469,6 +473,68 @@
       </div>
       <div class="card">
         <div id="queue-body"><div class="loading">Loading queue…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ MANAGE BUDGETS PANE ══ -->
+    <div class="subtab-pane" id="pane-manage">
+
+      <!-- Add Budget Line form -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">Add Budget Line</div>
+        <div style="padding:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;" id="add-budget-grid">
+          <div>
+            <label>Project</label>
+            <select id="nb-project"></select>
+          </div>
+          <div>
+            <label>Category</label>
+            <select id="nb-category">
+              <option value="Travel">Travel</option>
+              <option value="Training">Training</option>
+              <option value="Equipment">Equipment</option>
+              <option value="Supplies">Supplies</option>
+              <option value="Services">Services</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label>Allocated Amount (MMK)</label>
+            <input type="number" id="nb-allocated" placeholder="e.g. 500000" min="0">
+          </div>
+          <div>
+            <label>Period</label>
+            <select id="nb-period">
+              <option value="Q1 2026">Q1 2026</option>
+              <option value="Q2 2026">Q2 2026</option>
+              <option value="Q3 2026">Q3 2026</option>
+              <option value="Q4 2026">Q4 2026</option>
+              <option value="Annual 2026">Annual 2026</option>
+              <option value="Q1 2027">Q1 2027</option>
+              <option value="Q2 2027">Q2 2027</option>
+              <option value="Q3 2027">Q3 2027</option>
+              <option value="Q4 2027">Q4 2027</option>
+              <option value="Annual 2027">Annual 2027</option>
+            </select>
+          </div>
+          <div>
+            <label>Notes (optional)</label>
+            <input type="text" id="nb-notes" placeholder="e.g. Approved by Director">
+          </div>
+          <div style="display:flex;align-items:flex-end;">
+            <button class="btn btn-primary" id="nb-submit-btn" onclick="submitAddBudget()" style="width:100%;">+ Add Budget Line</button>
+          </div>
+        </div>
+        <div id="nb-msg" style="display:none;padding:0 18px 14px;font-size:13px;"></div>
+      </div>
+
+      <!-- Existing budget lines table -->
+      <div class="card">
+        <div class="card-header">
+          <span>Existing Budget Lines</span>
+          <button class="btn btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="loadAll()">↻ Refresh</button>
+        </div>
+        <div id="manage-budget-body"><div class="loading">Loading…</div></div>
       </div>
     </div>
 
@@ -643,6 +709,7 @@ async function loadAll() {
     populateFilters();
     renderTransactions();
     renderQueue();
+    if (document.getElementById('pane-manage')?.classList.contains('active')) renderManageBudget();
   } catch(e) {
     showErr('budget-body', 'Network error: ' + e.message);
     showErr('tx-body',     'Network error: ' + e.message);
@@ -741,6 +808,19 @@ function populateFilters() {
   pSel.innerHTML = '<option value="">All Projects</option>';
   cSel.innerHTML = '<option value="">All Categories</option>';
   pExp.innerHTML = '<option value="">Select project…</option>';
+
+  // Show manage tab for admin/manager
+  const manageTab = document.getElementById('st-manage');
+  if (manageTab) manageTab.style.display = (PDP_ROLE === 'admin') ? '' : 'none';
+
+  // Populate nb-project (add budget form)
+  const nbProj = document.getElementById('nb-project');
+  if (nbProj) {
+    nbProj.innerHTML = '<option value="">Select project…</option>';
+    if (FIN.projects.length) {
+      FIN.projects.forEach(p => nbProj.add(new Option(`${p.id} — ${p.name}`, p.id)));
+    }
+  }
 
   // Priority: synced projects from Main Projects sheet > budget > transactions
   let projectList = [];
@@ -850,10 +930,11 @@ function renderQueue() {
 //  SUB-TAB SWITCH
 // ════════════════════════════════════════════════════════════
 function switchTab(name) {
-  ['budget', 'transactions', 'queue'].forEach(n => {
-    document.getElementById(`pane-${n}`).classList.toggle('active', n === name);
-    document.getElementById(`st-${n}`).classList.toggle('active', n === name);
+  ['budget', 'transactions', 'queue', 'manage'].forEach(n => {
+    document.getElementById(`pane-${n}`)?.classList.toggle('active', n === name);
+    document.getElementById(`st-${n}`)?.classList.toggle('active', n === name);
   });
+  if (name === 'manage') renderManageBudget();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -962,6 +1043,89 @@ async function submitBudgetUpdate() {
   } catch(e) { toast('Network error', 'red'); }
 
   btn.disabled = false; btn.textContent = 'Save Changes';
+}
+
+// ════════════════════════════════════════════════════════════
+//  MANAGE BUDGETS
+// ════════════════════════════════════════════════════════════
+function renderManageBudget() {
+  const el = document.getElementById('manage-budget-body');
+  if (!el) return;
+  if (!FIN.budget.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No budget lines yet. Use the form above to add the first one.</div></div>';
+    return;
+  }
+
+  let html = `<table class="fin-table"><thead><tr>
+    <th>Budget ID</th><th>Project</th><th>Category</th>
+    <th>Allocated</th><th>Spent</th><th>Remaining</th><th>Period</th><th>Notes</th><th></th>
+  </tr></thead><tbody>`;
+
+  FIN.budget.forEach(r => {
+    const alloc = parseFloat(r.Allocated || 0);
+    const spent = parseFloat(r.Spent || 0);
+    const rem   = alloc - spent;
+    html += `<tr>
+      <td style="font-family:monospace;font-size:11px;color:var(--gray-400)">${r['Budget ID'] || '—'}</td>
+      <td style="font-weight:500">${r.Project || '—'}</td>
+      <td><span class="cat-pill">${r.Category || '—'}</span></td>
+      <td>${fmtMMK(alloc)}</td>
+      <td>${fmtMMK(spent)}</td>
+      <td style="color:${rem < 0 ? 'var(--red)' : 'inherit'}">${fmtMMK(rem)}</td>
+      <td style="color:var(--gray-500)">${r.Period || '—'}</td>
+      <td style="color:var(--gray-500);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Notes || '—'}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="openBudgetModal('${r['Budget ID']||''}','${r.Allocated||0}','${(r.Notes||'').replace(/'/g,"\'")}','${(r.Project||'')} — ${(r.Category||'')}')">Edit</button></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+async function submitAddBudget() {
+  const project   = document.getElementById('nb-project').value;
+  const category  = document.getElementById('nb-category').value;
+  const allocated = document.getElementById('nb-allocated').value;
+  const period    = document.getElementById('nb-period').value;
+  const notes     = document.getElementById('nb-notes').value.trim();
+  const msgEl     = document.getElementById('nb-msg');
+  const btn       = document.getElementById('nb-submit-btn');
+
+  if (!project || !allocated) {
+    msgEl.style.display = 'block';
+    msgEl.style.color   = 'var(--red)';
+    msgEl.textContent   = 'Project and allocated amount are required.';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Adding…';
+  msgEl.style.display = 'none';
+
+  try {
+    const res = await workerCall('add_budget', { project, category, allocated, period, notes });
+    if (res.ok) {
+      msgEl.style.display = 'block';
+      msgEl.style.color   = 'var(--green)';
+      msgEl.textContent   = `✓ Budget line added (${res.budgetId})`;
+      // Clear form
+      document.getElementById('nb-project').value   = '';
+      document.getElementById('nb-allocated').value = '';
+      document.getElementById('nb-notes').value     = '';
+      await loadAll();
+      renderManageBudget();
+      toast('Budget line added', 'green');
+    } else {
+      msgEl.style.display = 'block';
+      msgEl.style.color   = 'var(--red)';
+      msgEl.textContent   = res.error || 'Failed to add budget line';
+    }
+  } catch(e) {
+    msgEl.style.display = 'block';
+    msgEl.style.color   = 'var(--red)';
+    msgEl.textContent   = 'Network error: ' + e.message;
+  }
+
+  btn.disabled = false; btn.textContent = '+ Add Budget Line';
 }
 
 // ════════════════════════════════════════════════════════════

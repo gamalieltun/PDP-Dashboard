@@ -1424,6 +1424,51 @@ export default {
       }
     }
 
+
+    // ─── add_budget ───────────────────────────────────────────
+    if (action === 'add_budget') {
+      const user = validateUser(body.username, body.password);
+      if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+
+      if (user.role !== 'admin')
+        return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers });
+
+      const { project, category, allocated, period, notes } = body;
+      if (!project || !category || !allocated)
+        return new Response(JSON.stringify({ error: 'Missing required fields: project, category, allocated' }), { status: 400, headers });
+
+      const finSheetId = env.FINANCE_SPREADSHEET_ID;
+      if (!finSheetId) return new Response(JSON.stringify({ error: 'FINANCE_SPREADSHEET_ID not configured' }), { status: 500, headers });
+
+      try {
+        const token = await getDriveToken(env);
+
+        // Generate Budget ID: BDG-<PROJECT>-<CATEGORY>-<timestamp short>
+        const safeProj = String(project).replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+        const safeCat  = String(category).replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4);
+        const budgetId = `BDG-${safeProj}-${safeCat}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
+
+        const spent     = 0;
+        const remaining = parseFloat(allocated) - spent;
+
+        // Budget columns: Budget ID | Project | Category | Allocated | Spent | Remaining | Period | Notes
+        const row = [budgetId, project, category, parseFloat(allocated), spent, remaining, period || '', notes || ''];
+
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${finSheetId}/values/Budget:append?valueInputOption=USER_ENTERED`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [row] })
+          }
+        );
+
+        return new Response(JSON.stringify({ ok: true, budgetId }), { status: 200, headers });
+      } catch (e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
+      }
+    }
+
       return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers });
 
     } catch(e) {
