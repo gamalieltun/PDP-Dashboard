@@ -72,7 +72,7 @@ function corsHeaders() {
 async function fetchSheet(apiKey, sheetId, sheetName) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}?key=${apiKey}&valueRenderOption=FORMATTED_VALUE`;
   const res = await fetch(url);
-  if (res.status === 404) return [];
+  if (res.status === 404 || res.status === 400) return []; // 400 = sheet doesn't exist yet
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(`Sheet "${sheetName}": ${err.error?.message || res.status}`);

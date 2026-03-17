@@ -1127,9 +1127,71 @@
 
       </div>
 
+      <!-- ADD PROGRAM TO PROJECT -->
+      <div class="panel" id="pm-add-program-panel">
+        <div class="panel-title" style="margin-bottom:16px;">📂 Add Program to Project</div>
+
+        <div class="rm-field">
+          <div class="rm-label">Project</div>
+          <select class="rm-select" id="pm-prog-project">
+            <option value="">— Select project —</option>
+          </select>
+        </div>
+        <div class="rm-field">
+          <div class="rm-label">Program Name</div>
+          <input class="form-input" id="pm-prog-name" placeholder="e.g. Youth Leadership Camp" style="font-family:var(--font);">
+        </div>
+        <div class="rm-field">
+          <div class="rm-label">Description (optional)</div>
+          <input class="form-input" id="pm-prog-desc" placeholder="Brief description…" style="font-family:var(--font);">
+        </div>
+        <div class="form-row" style="gap:10px;">
+          <div class="rm-field" style="flex:1">
+            <div class="rm-label">Start CW</div>
+            <input class="form-input" id="pm-prog-start" type="number" min="1" max="52" placeholder="e.g. 1" style="font-family:var(--font);">
+          </div>
+          <div class="rm-field" style="flex:1">
+            <div class="rm-label">End CW</div>
+            <input class="form-input" id="pm-prog-end" type="number" min="1" max="52" placeholder="e.g. 26" style="font-family:var(--font);">
+          </div>
+        </div>
+        <div class="form-row" style="gap:10px;">
+          <div class="rm-field" style="flex:1">
+            <div class="rm-label">Quarter</div>
+            <select class="rm-select" id="pm-prog-quarter">
+              <option value="">— Select —</option>
+              <option value="26Q1">2026 Q1</option>
+              <option value="26Q2">2026 Q2</option>
+              <option value="26Q3">2026 Q3</option>
+              <option value="26Q4">2026 Q4</option>
+              <option value="27Q1">2027 Q1</option>
+              <option value="27Q2">2027 Q2</option>
+              <option value="27Q3">2027 Q3</option>
+              <option value="27Q4">2027 Q4</option>
+            </select>
+          </div>
+          <div class="rm-field" style="flex:1">
+            <div class="rm-label">Status</div>
+            <select class="rm-select" id="pm-prog-status">
+              <option value="Planning">Planning</option>
+              <option value="Active">Active</option>
+              <option value="Completed">Completed</option>
+              <option value="On Hold">On Hold</option>
+            </select>
+          </div>
+        </div>
+        <div class="rm-field">
+          <div class="rm-label">Responsible Person</div>
+          <input class="form-input" id="pm-prog-responsible" placeholder="e.g. John" style="font-family:var(--font);">
+        </div>
+
+        <button class="rm-save-btn" onclick="addProgramFromDashboard()" id="pm-prog-btn" style="background:var(--blue);">Add Program →</button>
+        <div id="pm-prog-msg" style="font-size:12px;margin-top:8px;text-align:center;display:none;"></div>
+      </div>
+
       <!-- PROJECT TASK OVERVIEW -->
       <div class="panel">
-        <div class="panel-title" style="margin-bottom:4px;">📋 Current Projects & Task Counts</div>
+        <div class="panel-title" style="margin-bottom:4px;">📋 Current Projects & Programs</div>
         <div style="font-size:12px;color:var(--gray-400);margin-bottom:14px;">Live from Google Sheets — reflects all projects including newly added ones.</div>
         <div id="pm-project-list"></div>
       </div>
@@ -3456,10 +3518,15 @@ function renderProjectManagement() {
     if (el && !el.options.length) el.innerHTML = quarterOptions();
   });
 
-  // Populate project dropdown for task add
+  // Populate project dropdowns for task add + program add
   const sel = document.getElementById('nt-project');
   if (sel) {
     sel.innerHTML = '<option value="">— Select project —</option>' +
+      DATA.projects.map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
+  }
+  const pmProgSel = document.getElementById('pm-prog-project');
+  if (pmProgSel) {
+    pmProgSel.innerHTML = '<option value="">— Select project —</option>' +
       DATA.projects.map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
   }
 
@@ -3480,6 +3547,10 @@ function renderProjectManagement() {
   }
 
   // Project overview list
+  // Show/hide Add Program panel based on role
+  const addProgPanel = document.getElementById('pm-add-program-panel');
+  if (addProgPanel) addProgPanel.style.display = (isAdmin() || isManager()) ? '' : 'none';
+
   const listEl = document.getElementById('pm-project-list');
   if (!listEl) return;
   if (!DATA.projects.length) {
@@ -3603,6 +3674,61 @@ function renderProgramsGantt() {
   });
 
   rowsEl.innerHTML = html;
+}
+
+async function addProgramFromDashboard() {
+  const projectId    = document.getElementById('pm-prog-project').value;
+  const programName  = document.getElementById('pm-prog-name').value.trim();
+  const description  = document.getElementById('pm-prog-desc').value.trim();
+  const startCW      = document.getElementById('pm-prog-start').value;
+  const endCW        = document.getElementById('pm-prog-end').value;
+  const quarter      = document.getElementById('pm-prog-quarter').value;
+  const status       = document.getElementById('pm-prog-status').value;
+  const responsible  = document.getElementById('pm-prog-responsible').value.trim();
+  const btn          = document.getElementById('pm-prog-btn');
+  const msgEl        = document.getElementById('pm-prog-msg');
+
+  if (!projectId || !programName) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '⚠ Project and Program Name are required.';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Adding…';
+  msgEl.style.display = 'none';
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'add_program',
+        username: SESSION_USERNAME,
+        password: SESSION_PASSWORD,
+        projectId, programName, description, startCW, endCW, quarter, status, responsible
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--green)';
+    msgEl.textContent = `✓ Program "${programName}" added (${data.programId})`;
+
+    // Clear form
+    ['pm-prog-name','pm-prog-desc','pm-prog-start','pm-prog-end','pm-prog-responsible'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+
+    // Reload data so programs appear immediately in the list and gantt
+    setTimeout(() => {
+      loadFromWorker().then(() => { renderAll(); renderProjectManagement(); });
+    }, 800);
+
+  } catch(e) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '⚠ Error: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Add Program →';
 }
 
 function quickAddTask(projectId) {

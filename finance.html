@@ -903,7 +903,11 @@ function renderBudget() {
           <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
         </div>
       </td>
-      ${PDP_ROLE === 'admin' ? `<td><button class="btn btn-secondary btn-sm" onclick="openBudgetModal('${r['Budget ID']||''}','${alloc}','${r.Notes||''}','${r.Project||''} — ${r.Category||''}')">Edit</button></td>` : ''}
+      ${PDP_ROLE === 'admin' ? `<td><button class="btn btn-secondary btn-sm" onclick="openBudgetModal(this)"
+        data-id="${(r['Budget ID']||'').replace(/"/g,'&quot;')}"
+        data-alloc="${alloc}"
+        data-notes="${(r.Notes||'').replace(/"/g,'&quot;')}"
+        data-label="${(r.Project||'').replace(/"/g,'&quot;')} — ${(r.Category||'').replace(/"/g,'&quot;')}">Edit</button></td>` : ''}
     </tr>`;
   });
 
@@ -1153,11 +1157,19 @@ async function confirmReject() {
 // ════════════════════════════════════════════════════════════
 //  UPDATE BUDGET (admin only)
 // ════════════════════════════════════════════════════════════
-function openBudgetModal(budgetId, allocated, notes, label) {
+function openBudgetModal(btnOrId, allocated, notes, label) {
+  // Support both data-attribute buttons and direct calls
+  let budgetId = btnOrId;
+  if (btnOrId && typeof btnOrId === 'object' && btnOrId.dataset) {
+    budgetId  = btnOrId.dataset.id;
+    allocated = btnOrId.dataset.alloc;
+    notes     = btnOrId.dataset.notes;
+    label     = btnOrId.dataset.label;
+  }
   PENDING_BUDGET_ID = budgetId;
-  document.getElementById('bm-label').value     = label;
-  document.getElementById('bm-allocated').value = allocated;
-  document.getElementById('bm-notes').value     = notes;
+  document.getElementById('bm-label').value     = label || '';
+  document.getElementById('bm-allocated').value = allocated || '';
+  document.getElementById('bm-notes').value     = notes || '';
   document.getElementById('bm-submit-btn').disabled   = false;
   document.getElementById('bm-submit-btn').textContent = 'Save Changes';
   document.getElementById('budget-modal').classList.add('open');
@@ -1212,7 +1224,11 @@ function renderManageBudget() {
       <td style="color:${rem < 0 ? 'var(--red)' : 'inherit'}">${fmtMMK(rem)}</td>
       <td style="color:var(--gray-500)">${r.Period || '—'}</td>
       <td style="color:var(--gray-500);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Notes || '—'}</td>
-      <td><button class="btn btn-secondary btn-sm" onclick="openBudgetModal('${r['Budget ID']||''}','${r.Allocated||0}','${(r.Notes||'').replace(/'/g,"\'")}','${(r.Project||'')} — ${(r.Category||'')}')">Edit</button></td>
+      <td><button class="btn btn-secondary btn-sm" onclick="openBudgetModal(this)"
+        data-id="${(r['Budget ID']||'').replace(/"/g,'&quot;')}"
+        data-alloc="${r.Allocated||0}"
+        data-notes="${(r.Notes||'').replace(/"/g,'&quot;')}"
+        data-label="${(r.Project||'').replace(/"/g,'&quot;')} — ${(r.Category||'').replace(/"/g,'&quot;')}">Edit</button></td>
     </tr>`;
   });
 
