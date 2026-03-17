@@ -270,6 +270,26 @@
   }
   .gantt-meta { width: 52px; text-align: right; font-size: 11px; color: var(--gray-400); flex-shrink: 0; }
 
+  /* ── PROGRAMS GANTT ── */
+  .prog-gantt-row   { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+  .prog-gantt-label { width:160px; flex-shrink:0; }
+  .prog-gantt-name  { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .prog-gantt-sub   { font-size:10px; color:var(--gray-400); }
+  .prog-gantt-track { flex:1; background:var(--gray-100); border-radius:6px; height:22px; position:relative; }
+  .prog-gantt-bar   { position:absolute; height:100%; border-radius:6px; display:flex; align-items:center; padding:0 6px; }
+  .prog-gantt-bar-label { font-size:9px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .prog-status-planning  { background:#3b82f6; }
+  .prog-status-active    { background:#16a34a; }
+  .prog-status-completed { background:#9ca3af; }
+  .prog-status-on-hold   { background:#f59e0b; }
+  .prog-view-toggle { display:flex; gap:4px; background:var(--gray-100); border-radius:8px; padding:3px; margin-bottom:16px; width:fit-content; }
+  .prog-view-btn { border:none; background:none; padding:5px 14px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; color:var(--gray-500); }
+  .prog-view-btn.active { background:#fff; color:var(--gray-800); box-shadow:0 1px 3px rgba(0,0,0,.1); }
+  .prog-legend { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  .prog-legend-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--gray-500); }
+  .prog-legend-dot { width:10px; height:10px; border-radius:3px; }
+  .prog-group-header { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--gray-400); padding:8px 0 4px; border-bottom:1px solid var(--gray-100); margin-bottom:8px; }
+
   /* ── PROJECT LIST ── */
   .proj-item { padding: 11px 0; border-bottom: 1px solid var(--gray-100); }
   .proj-item:last-child { border: none; padding-bottom: 0; }
@@ -856,6 +876,15 @@
       <div id="p-error"   class="error-box"    style="display:none;"></div>
       <div id="p-content" style="display:none;">
         <div class="stat-grid" id="p-stats"></div>
+
+        <!-- View toggle -->
+        <div class="prog-view-toggle">
+          <button class="prog-view-btn active" id="view-btn-projects" onclick="setProgressView('projects')">Projects</button>
+          <button class="prog-view-btn" id="view-btn-programs" onclick="setProgressView('programs')">Programs Gantt</button>
+        </div>
+
+        <!-- Projects view (original) -->
+        <div id="progress-view-projects">
         <div class="grid-2 mb16">
           <div class="panel">
             <div class="panel-title">Timeline <span class="panel-tag">CW 1–52</span></div>
@@ -877,6 +906,32 @@
             <div class="chart-h200"><canvas id="projChart"></canvas></div>
           </div>
         </div>
+        </div><!-- /progress-view-projects -->
+
+        <!-- Programs Gantt view -->
+        <div id="progress-view-programs" style="display:none;">
+          <div class="panel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+              <div>
+                <div class="panel-title" style="margin-bottom:4px;">Programs Timeline <span class="panel-tag">CW 1–52</span></div>
+              </div>
+              <select id="prog-gantt-filter" onchange="renderProgramsGantt()" style="font-size:12px;padding:5px 10px;border:1px solid var(--gray-200);border-radius:6px;background:#fff;">
+                <option value="">All Projects</option>
+              </select>
+            </div>
+            <div class="prog-legend">
+              <div class="prog-legend-item"><div class="prog-legend-dot prog-status-planning"></div>Planning</div>
+              <div class="prog-legend-item"><div class="prog-legend-dot prog-status-active"></div>Active</div>
+              <div class="prog-legend-item"><div class="prog-legend-dot prog-status-completed"></div>Completed</div>
+              <div class="prog-legend-item"><div class="prog-legend-dot prog-status-on-hold"></div>On Hold</div>
+            </div>
+            <div id="prog-gantt-q" class="gantt-q-row"></div>
+            <div id="prog-gantt-rows">
+              <div style="text-align:center;color:var(--gray-400);font-size:13px;padding:32px 0;">No programs added yet. Go to Finance → Programs to add programs.</div>
+            </div>
+          </div>
+        </div><!-- /progress-view-programs -->
+
       </div>
     </div>
 
@@ -2370,6 +2425,7 @@ function switchTab(name, btn) {
 
 function renderAll() {
   renderProgress();
+  if (PROGRESS_VIEW === 'programs') renderProgramsGantt();
   renderKpi();
   renderStaff();
   renderCheckinTab();
@@ -3457,6 +3513,96 @@ function renderProjectManagement() {
         </div>
       </div>`;
   }).join('');
+}
+
+// ── Programs Gantt ──────────────────────────────────────────
+let PROGRESS_VIEW = 'projects';
+
+function setProgressView(view) {
+  PROGRESS_VIEW = view;
+  document.getElementById('progress-view-projects').style.display = view === 'projects' ? '' : 'none';
+  document.getElementById('progress-view-programs').style.display = view === 'programs'  ? '' : 'none';
+  document.getElementById('view-btn-projects').classList.toggle('active', view === 'projects');
+  document.getElementById('view-btn-programs').classList.toggle('active', view === 'programs');
+  if (view === 'programs') renderProgramsGantt();
+}
+
+function renderProgramsGantt() {
+  const programs = DATA.programs || [];
+  const rowsEl   = document.getElementById('prog-gantt-rows');
+  const qEl      = document.getElementById('prog-gantt-q');
+  const filterEl = document.getElementById('prog-gantt-filter');
+
+  // Populate filter dropdown
+  if (filterEl && filterEl.options.length <= 1) {
+    DATA.projects.forEach(p => {
+      filterEl.add(new Option(`${p.id} — ${p.name}`, p.id));
+    });
+  }
+
+  const filterProj = filterEl?.value || '';
+  const filtered   = filterProj ? programs.filter(p => p['Project ID'] === filterProj) : programs;
+
+  if (!filtered.length) {
+    rowsEl.innerHTML = '<div style="text-align:center;color:var(--gray-400);font-size:13px;padding:32px 0;">No programs found. Go to Finance → Programs to add programs.</div>';
+    if (qEl) qEl.innerHTML = '';
+    return;
+  }
+
+  // Q header
+  if (qEl) qEl.innerHTML = ['Q1','Q2','Q3','Q4'].map(q => `<div class="gantt-q">${q}</div>`).join('');
+
+  const nowPct   = ((CURRENT_CW - 1) / TOTAL_CW) * 100;
+  const statusClass = {
+    'Planning': 'prog-status-planning',
+    'Active':   'prog-status-active',
+    'Completed':'prog-status-completed',
+    'On Hold':  'prog-status-on-hold',
+  };
+
+  // Group by project
+  const byProject = {};
+  filtered.forEach(pg => {
+    const pid = pg['Project ID'] || 'Unknown';
+    if (!byProject[pid]) byProject[pid] = [];
+    byProject[pid].push(pg);
+  });
+
+  let html = '';
+  Object.entries(byProject).forEach(([pid, progs]) => {
+    const proj = DATA.projects.find(p => p.id === pid);
+    html += `<div class="prog-group-header">${pid}${proj ? ' — ' + proj.name : ''}</div>`;
+
+    progs.forEach(pg => {
+      const startCW = parseInt(pg['Start CW']) || 1;
+      const endCW   = parseInt(pg['End CW'])   || 52;
+      const sp      = ((startCW - 1) / TOTAL_CW) * 100;
+      const wp      = Math.max(1, ((endCW - startCW + 1) / TOTAL_CW) * 100);
+      const sc      = statusClass[pg['Status']] || 'prog-status-planning';
+      const label   = pg['Program Name'] || '—';
+      const sub     = [
+        pg['Quarter'] || '',
+        pg['Responsible'] ? '👤 ' + pg['Responsible'] : '',
+        pg['Start CW'] && pg['End CW'] ? `CW ${startCW}–${endCW}` : ''
+      ].filter(Boolean).join(' · ');
+
+      html += `<div class="prog-gantt-row">
+        <div class="prog-gantt-label">
+          <div class="prog-gantt-name" title="${label}">${label}</div>
+          <div class="prog-gantt-sub">${sub}</div>
+        </div>
+        <div class="prog-gantt-track">
+          <div class="prog-gantt-bar ${sc}" style="left:${sp.toFixed(1)}%;width:${wp.toFixed(1)}%;">
+            <span class="prog-gantt-bar-label">${label}</span>
+          </div>
+          <div class="gantt-now" style="left:${nowPct.toFixed(1)}%;"></div>
+        </div>
+        <div class="gantt-meta" style="font-size:10px;">${pg['Status'] || 'Planning'}</div>
+      </div>`;
+    });
+  });
+
+  rowsEl.innerHTML = html;
 }
 
 function quickAddTask(projectId) {

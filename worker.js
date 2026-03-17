@@ -1214,7 +1214,7 @@ export default {
       const user = validateUser(body.username, body.password);
       if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
 
-      const allowed = ['admin', 'manager', 'finance'];
+      const allowed = ['admin', 'manager', 'finance', 'finance_staff', 'finance_manager'];
       if (!allowed.includes(user.role))
         return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
 
@@ -1279,7 +1279,7 @@ export default {
       const user = validateUser(body.username, body.password);
       if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
 
-      const allowed = ['admin', 'manager', 'finance'];
+      const allowed = ['admin', 'manager', 'finance', 'finance_staff', 'finance_manager'];
       if (!allowed.includes(user.role))
         return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
 
@@ -1549,7 +1549,7 @@ export default {
       if (!['admin', 'manager'].includes(user.role))
         return new Response(JSON.stringify({ error: 'Admin or Manager only' }), { status: 403, headers });
 
-      const { projectId, programName, description } = body;
+      const { projectId, programName, description, startCW, endCW, quarter, status, responsible } = body;
       if (!projectId || !programName)
         return new Response(JSON.stringify({ error: 'Missing projectId or programName' }), { status: 400, headers });
 
@@ -1559,12 +1559,14 @@ export default {
         const existing = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Programs').catch(() => []);
         if (!existing.length || !existing[0] || !existing[0].includes('Program ID')) {
           await appendToSheet(token, env.SPREADSHEET_ID, 'Programs',
-            ['Program ID', 'Project ID', 'Program Name', 'Description', 'Created By', 'Created At']);
+            ['Program ID', 'Project ID', 'Program Name', 'Description', 'Start CW', 'End CW', 'Quarter', 'Status', 'Responsible', 'Created By', 'Created At']);
         }
         const programId = `PRG-${String(projectId).replace(/[^a-zA-Z0-9]/g,'').toUpperCase()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
         const now = new Date().toISOString();
         await appendToSheet(token, env.SPREADSHEET_ID, 'Programs',
-          [programId, projectId, programName, description || '', user.name || user._key, now]);
+          [programId, projectId, programName, description || '',
+           startCW || '', endCW || '', quarter || '', status || 'Planning', responsible || '',
+           user.name || user._key, now]);
         return new Response(JSON.stringify({ ok: true, programId }), { status: 200, headers });
       } catch(e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });

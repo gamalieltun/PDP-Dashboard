@@ -566,8 +566,41 @@
             <label>Description (optional)</label>
             <input type="text" id="prog-desc" placeholder="Brief description…">
           </div>
-          <div></div>
-          <div></div>
+          <div>
+            <label>Start CW</label>
+            <input type="number" id="prog-start-cw" placeholder="e.g. 1" min="1" max="52">
+          </div>
+          <div>
+            <label>End CW</label>
+            <input type="number" id="prog-end-cw" placeholder="e.g. 26" min="1" max="52">
+          </div>
+          <div>
+            <label>Quarter</label>
+            <select id="prog-quarter">
+              <option value="">— Select —</option>
+              <option value="26Q1">2026 Q1</option>
+              <option value="26Q2">2026 Q2</option>
+              <option value="26Q3">2026 Q3</option>
+              <option value="26Q4">2026 Q4</option>
+              <option value="27Q1">2027 Q1</option>
+              <option value="27Q2">2027 Q2</option>
+              <option value="27Q3">2027 Q3</option>
+              <option value="27Q4">2027 Q4</option>
+            </select>
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="prog-status">
+              <option value="Planning">Planning</option>
+              <option value="Active">Active</option>
+              <option value="Completed">Completed</option>
+              <option value="On Hold">On Hold</option>
+            </select>
+          </div>
+          <div>
+            <label>Responsible Person</label>
+            <input type="text" id="prog-responsible" placeholder="e.g. John">
+          </div>
           <div style="display:flex;align-items:flex-end;">
             <button class="btn btn-primary" id="prog-submit-btn" onclick="submitAddProgram()" style="width:100%;">+ Add Program</button>
           </div>
@@ -1279,13 +1312,24 @@ function renderPrograms() {
     const projName = FIN.projects.find(p => p.id === pid)?.name || pid;
     html += `<div style="padding:10px 16px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);background:var(--gray-50);border-bottom:1px solid var(--gray-100);">${pid} — ${projName}</div>`;
     progs.forEach(pg => {
-      html += `<div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid var(--gray-100);gap:12px;">
-        <div style="flex:1;">
+      const statusColors = {
+        'Planning':  { bg:'#eff6ff', color:'#1d4ed8' },
+        'Active':    { bg:'#f0fdf4', color:'#15803d' },
+        'Completed': { bg:'#f9fafb', color:'#6b7280' },
+        'On Hold':   { bg:'#fffbeb', color:'#b45309' },
+      };
+      const sc = statusColors[pg['Status']] || statusColors['Planning'];
+      const cwRange = pg['Start CW'] && pg['End CW'] ? `CW ${pg['Start CW']}–${pg['End CW']}` : '';
+      html += `<div style="display:flex;align-items:center;padding:11px 16px;border-bottom:1px solid var(--gray-100);gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:180px;">
           <div style="font-weight:500;font-size:13px;">${pg['Program Name'] || '—'}</div>
           ${pg['Description'] ? `<div style="font-size:12px;color:var(--gray-500);margin-top:2px;">${pg['Description']}</div>` : ''}
         </div>
+        <span style="background:${sc.bg};color:${sc.color};border-radius:10px;padding:2px 9px;font-size:11px;font-weight:600;">${pg['Status'] || 'Planning'}</span>
+        ${cwRange ? `<span style="font-size:11px;color:var(--gray-500);">${cwRange}</span>` : ''}
+        ${pg['Quarter'] ? `<span style="font-size:11px;color:var(--gray-500);">${pg['Quarter']}</span>` : ''}
+        ${pg['Responsible'] ? `<span style="font-size:11px;color:var(--gray-600);">👤 ${pg['Responsible']}</span>` : ''}
         <div style="font-size:11px;color:var(--gray-400);font-family:monospace">${pg['Program ID'] || ''}</div>
-        <div style="font-size:11px;color:var(--gray-400)">Added by ${pg['Created By'] || '—'}</div>
       </div>`;
     });
   });
@@ -1307,13 +1351,22 @@ async function submitAddProgram() {
 
   btn.disabled = true; btn.textContent = 'Adding…';
   msgEl.style.display = 'none';
+  const startCW     = document.getElementById('prog-start-cw').value;
+  const endCW       = document.getElementById('prog-end-cw').value;
+  const quarter     = document.getElementById('prog-quarter').value;
+  const status      = document.getElementById('prog-status').value;
+  const responsible = document.getElementById('prog-responsible').value.trim();
+
   try {
-    const res = await workerCall('add_program', { projectId, programName, description });
+    const res = await workerCall('add_program', { projectId, programName, description, startCW, endCW, quarter, status, responsible });
     if (res.ok) {
       msgEl.style.display = 'block'; msgEl.style.color = 'var(--green)';
       msgEl.textContent = `✓ Program added (${res.programId})`;
-      document.getElementById('prog-name').value = '';
-      document.getElementById('prog-desc').value = '';
+      document.getElementById('prog-name').value        = '';
+      document.getElementById('prog-desc').value        = '';
+      document.getElementById('prog-start-cw').value   = '';
+      document.getElementById('prog-end-cw').value     = '';
+      document.getElementById('prog-responsible').value = '';
       toast('Program added', 'green');
       await loadProgramsList();
     } else {
