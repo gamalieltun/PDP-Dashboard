@@ -278,6 +278,11 @@
   .pill-approved { background: var(--green-lt); color: var(--green); border: 1px solid #bbf7d0; }
   .pill-rejected { background: var(--red-lt);   color: var(--red);   border: 1px solid #fecaca; }
 
+  /* ── Project summary cards ── */
+  .proj-summary-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-bottom:16px; }
+  .proj-summary-card { background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius); padding:12px 14px; }
+  .proj-summary-name { font-size:12px; font-weight:700; color:var(--gray-600); text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+
   /* ── Progress bar ── */
   .progress-wrap { min-width: 100px; }
   .progress-label { font-size: 11px; color: var(--gray-500); margin-bottom: 3px; }
@@ -363,14 +368,43 @@
     color: var(--blue);
   }
 
+  /* ── Project summary cards ── */
+  .proj-summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:20px; }
+  .proj-summary-card { background:#fff; border:1px solid var(--gray-200); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); }
+  .proj-summary-name { font-size:13px; font-weight:600; color:var(--gray-800); margin-bottom:2px; }
+  .proj-summary-id   { font-size:11px; color:var(--gray-400); margin-bottom:10px; }
+  .proj-summary-bar  { height:6px; background:var(--gray-100); border-radius:3px; margin:6px 0 4px; overflow:hidden; }
+  .proj-summary-fill { height:100%; border-radius:3px; transition:width .4s; }
+  .proj-summary-row  { display:flex; justify-content:space-between; font-size:11px; color:var(--gray-500); }
+  .proj-summary-pct  { font-size:12px; font-weight:700; }
+
+  /* ── Section labels ── */
+  .section-heading {
+    font-size:11px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--gray-400);
+    padding:0 0 8px; margin-bottom:12px;
+    border-bottom:1px solid var(--gray-100);
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-heading::before { content:''; display:inline-block; width:3px; height:14px; border-radius:2px; background:var(--blue); }
+
+  /* ── Color-coded status ── */
+  .stat-value-red   { color:var(--red) !important; }
+  .stat-value-amber { color:var(--amber) !important; }
+  .stat-value-green { color:var(--green) !important; }
+
   /* ── Responsive ── */
   @media (max-width: 640px) {
     .main { padding: 16px 12px; }
     .stat-grid { grid-template-columns: repeat(2, 1fr); }
-    .fin-table th:nth-child(n+5),
-    .fin-table td:nth-child(n+5) { display: none; }
+    .proj-summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .fin-table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .toolbar { flex-direction: column; align-items: stretch; }
+    .toolbar-right { width: 100%; }
+    .toolbar-right .btn { width: 100%; justify-content: center; }
     #add-budget-grid { grid-template-columns: 1fr !important; }
+    .modal { width: 95vw !important; padding: 16px; }
+    .subtab { padding: 8px 10px; font-size: 12px; }
   }
 </style>
 </head>
@@ -407,7 +441,10 @@
   <!-- Finance content -->
   <div id="finance-content">
 
-    <!-- Stat cards -->
+    <!-- Overview summary -->
+    <div style="margin-bottom:6px;">
+      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);">Overview</span>
+    </div>
     <div class="stat-grid" id="stat-grid">
       <div class="stat-card"><div class="stat-label">Total Budget</div><div class="stat-value" id="st-total">—</div><div class="stat-sub">MMK allocated</div></div>
       <div class="stat-card"><div class="stat-label">Total Spent</div><div class="stat-value" id="st-spent" >—</div><div class="stat-sub" id="st-pct">—</div></div>
@@ -435,12 +472,18 @@
 
     <!-- ══ BUDGET TAB ══ -->
     <div class="subtab-pane active" id="pane-budget">
-      <div class="toolbar">
-        <span style="font-size:13px;color:var(--gray-500)">Budget lines by project and category</span>
-        <div class="toolbar-right">
-          <button class="btn btn-secondary" onclick="loadAll()">↻ Refresh</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:600;color:var(--gray-800);">Budget Overview</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">Allocated vs spent by project, program and category</div>
         </div>
+        <button class="btn btn-secondary" onclick="loadAll()">↻ Refresh</button>
       </div>
+      <!-- Per-project summary cards -->
+      <div class="section-heading">By Project</div>
+      <div class="proj-summary-grid" id="proj-summary-cards"></div>
+      <!-- Full budget lines table -->
+      <div class="section-heading" style="margin-top:8px;">Budget Lines</div>
       <div class="card">
         <div id="budget-body"><div class="loading">Loading budget data…</div></div>
       </div>
@@ -448,6 +491,7 @@
 
     <!-- ══ TRANSACTIONS TAB ══ -->
     <div class="subtab-pane" id="pane-transactions">
+      <div class="section-heading">Expense Transactions</div>
       <div class="toolbar">
         <div class="toolbar-left">
           <select id="filter-project" onchange="renderTransactions()" style="width:160px;">
@@ -474,8 +518,9 @@
 
     <!-- ══ APPROVAL QUEUE TAB ══ -->
     <div class="subtab-pane" id="pane-queue">
+      <div class="section-heading">Pending Approvals</div>
       <div class="toolbar">
-        <span style="font-size:13px;color:var(--gray-500)" id="queue-label">Pending expense requests</span>
+        <span style="font-size:13px;font-weight:500;color:var(--gray-600)" id="queue-label">Pending expense requests</span>
         <button class="btn btn-secondary" onclick="loadAll()">↻ Refresh</button>
       </div>
       <div class="card">
@@ -486,13 +531,14 @@
     <!-- ══ MANAGE BUDGETS PANE ══ -->
     <div class="subtab-pane" id="pane-manage">
 
+      <div class="section-heading">Manage Budget Lines</div>
       <!-- Add Budget Line form -->
       <div class="card" style="margin-bottom:16px;">
         <div class="card-header">Add Budget Line</div>
         <div style="padding:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;" id="add-budget-grid">
           <div>
             <label>Project</label>
-            <select id="nb-project"></select>
+            <select id="nb-project" onchange="loadBudgetPrograms()"></select>
           </div>
           <div>
             <label>Category</label>
@@ -503,6 +549,12 @@
               <option value="Supplies">Supplies</option>
               <option value="Services">Services</option>
               <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label>Program <span style="font-weight:400;font-size:11px;color:var(--gray-400)">(optional)</span></label>
+            <select id="nb-program-id">
+              <option value="">— Entire project —</option>
             </select>
           </div>
           <div>
@@ -549,6 +601,7 @@
 
         <!-- ══ BUDGET PROPOSALS PANE ══ -->
     <div class="subtab-pane" id="pane-proposals">
+      <div class="section-heading">Budget Proposals</div>
       <div class="toolbar">
         <div class="toolbar-left">
           <select id="prop-filter-status" onchange="renderProposals()" style="width:150px;">
@@ -798,32 +851,63 @@ function updateStats() {
 function renderBudget() {
   const el = document.getElementById('budget-body');
   if (!FIN.budget.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No budget data yet.<br>Add rows to the Budget sheet to get started.</div></div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No budget data yet.<br>Use Manage Budgets to add budget lines.</div></div>`;
     return;
   }
 
+  // ── Project summary cards ──
+  const byProject = {};
+  FIN.budget.forEach(r => {
+    const pid = r.Project || 'Unknown';
+    if (!byProject[pid]) byProject[pid] = { alloc: 0, spent: 0 };
+    byProject[pid].alloc += parseFloat(r.Allocated || 0);
+    byProject[pid].spent += parseFloat(r.Spent     || 0);
+  });
+
+  let summaryHtml = '';
+  Object.entries(byProject).forEach(([pid, s]) => {
+    const pct = s.alloc > 0 ? Math.min(100, Math.round(s.spent / s.alloc * 100)) : 0;
+    const statusColor = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--green)';
+    summaryHtml += `<div class="proj-summary-card">
+      <div class="proj-summary-name">${pid}</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 4px;">
+        <span style="font-size:18px;font-weight:700;">${fmtMMK(s.spent)}</span>
+        <span style="font-size:12px;color:var(--gray-400);">of ${fmtMMK(s.alloc)}</span>
+      </div>
+      <div class="progress-bar" style="margin-bottom:4px;">
+        <div class="progress-fill ${pct>90?'over':pct>70?'warn':''}" style="width:${pct}%"></div>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:${statusColor}">${pct}% utilised</div>
+    </div>`;
+  });
+
+
+  // ── Budget lines table ──
   let html = `<table class="fin-table"><thead><tr>
-    <th>Project</th><th>Category</th><th>Allocated</th><th>Spent</th>
-    <th>Remaining</th><th style="min-width:120px">Usage</th>
+    <th>Project</th><th>Program</th><th>Category</th><th>Allocated</th><th>Spent</th>
+    <th>Remaining</th><th style="min-width:110px">Usage</th>
     ${PDP_ROLE === 'admin' ? '<th></th>' : ''}
   </tr></thead><tbody>`;
 
   FIN.budget.forEach(r => {
-    const alloc = parseFloat(r.Allocated || 0);
-    const spent = parseFloat(r.Spent     || 0);
-    const rem   = alloc - spent;
-    const pct   = alloc > 0 ? Math.min(100, Math.round(spent / alloc * 100)) : 0;
-    const cls   = pct > 90 ? 'over' : pct > 70 ? 'warn' : '';
+    const alloc  = parseFloat(r.Allocated || 0);
+    const spent  = parseFloat(r.Spent     || 0);
+    const rem    = alloc - spent;
+    const pct    = alloc > 0 ? Math.min(100, Math.round(spent / alloc * 100)) : 0;
+    const cls    = pct > 90 ? 'over' : pct > 70 ? 'warn' : '';
+    const remColor = rem < 0 ? 'var(--red)' : rem === 0 ? 'var(--amber)' : 'inherit';
+    const prog   = r['Program ID'] || '—';
 
     html += `<tr>
       <td style="font-weight:500">${r.Project || '—'}</td>
+      <td class="hide-mobile" style="font-size:12px;color:var(--gray-500);font-family:monospace">${prog}</td>
       <td><span class="cat-pill">${r.Category || '—'}</span></td>
       <td>${fmtMMK(alloc)}</td>
-      <td>${fmtMMK(spent)}</td>
-      <td style="font-weight:500;color:${rem < 0 ? 'var(--red)' : 'inherit'}">${fmtMMK(rem)}</td>
+      <td style="color:${spent>0?'var(--amber)':'inherit'}">${fmtMMK(spent)}</td>
+      <td style="font-weight:600;color:${remColor}">${fmtMMK(rem)}</td>
       <td>
         <div class="progress-wrap">
-          <div class="progress-label">${pct}%</div>
+          <div class="progress-label" style="color:${pct>90?'var(--red)':pct>70?'var(--amber)':'var(--gray-500)'}">${pct}%</div>
           <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
         </div>
       </td>
@@ -836,6 +920,9 @@ function renderBudget() {
   });
 
   html += '</tbody></table>';
+  // Render summary into separate cards container, table into budget-body
+  const summaryEl = document.getElementById('proj-summary-cards');
+  if (summaryEl) summaryEl.innerHTML = summaryHtml;
   el.innerHTML = html;
 }
 
@@ -864,6 +951,13 @@ function populateFilters() {
     if (FIN.projects.length) {
       FIN.projects.forEach(p => nbProj.add(new Option(`${p.id} — ${p.name}`, p.id)));
     }
+  }
+
+  // Populate nb-program-id with a note it's optional
+  const nbProg = document.getElementById('nb-program-id');
+  if (nbProg) {
+    nbProg.innerHTML = '<option value="">— Entire project —</option>';
+    // Programs will be loaded when user selects project
   }
 
   // Priority: synced projects from Main Projects sheet > budget > transactions
@@ -912,7 +1006,7 @@ function renderTransactions() {
   txs.forEach(t => {
     const st = t.Status || 'pending';
     html += `<tr>
-      <td style="white-space:nowrap;color:var(--gray-500)">${t.Date || '—'}</td>
+      <td class="hide-mobile" style="white-space:nowrap;color:var(--gray-500)">${t.Date || '—'}</td>
       <td style="font-weight:500">${t.Project || '—'}</td>
       <td><span class="cat-pill">${t.Category || '—'}</span></td>
       <td style="font-weight:600">${parseFloat(t.Amount || 0).toLocaleString()}</td>
@@ -1110,7 +1204,7 @@ function renderManageBudget() {
   }
 
   let html = `<table class="fin-table"><thead><tr>
-    <th>Budget ID</th><th>Project</th><th>Category</th>
+    <th>Budget ID</th><th>Project</th><th>Program</th><th>Category</th>
     <th>Allocated</th><th>Spent</th><th>Remaining</th><th>Period</th><th>Notes</th><th></th>
   </tr></thead><tbody>`;
 
@@ -1121,6 +1215,7 @@ function renderManageBudget() {
     html += `<tr>
       <td style="font-family:monospace;font-size:11px;color:var(--gray-400)">${r['Budget ID'] || '—'}</td>
       <td style="font-weight:500">${r.Project || '—'}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${r['Program ID'] || '<span style="color:var(--gray-300)">All</span>'}</td>
       <td><span class="cat-pill">${r.Category || '—'}</span></td>
       <td>${fmtMMK(alloc)}</td>
       <td>${fmtMMK(spent)}</td>
@@ -1137,6 +1232,20 @@ function renderManageBudget() {
 
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+async function loadBudgetPrograms() {
+  const projId = document.getElementById('nb-project').value;
+  const progSel = document.getElementById('nb-program-id');
+  if (!progSel) return;
+  progSel.innerHTML = '<option value="">— Entire project —</option>';
+  if (!projId) return;
+  try {
+    const res = await workerCall('get_programs', { projectId: projId });
+    (res.programs || []).forEach(p => {
+      progSel.add(new Option(`${p['Program Name']} (${p['Program ID']})`, p['Program ID']));
+    });
+  } catch(_) {}
 }
 
 async function submitAddBudget() {
@@ -1159,7 +1268,8 @@ async function submitAddBudget() {
   msgEl.style.display = 'none';
 
   try {
-    const res = await workerCall('add_budget', { project, category, allocated, period, notes });
+    const programId = document.getElementById('nb-program-id')?.value || '';
+    const res = await workerCall('add_budget', { project, programId, category, allocated, period, notes });
     if (res.ok) {
       msgEl.style.display = 'block';
       msgEl.style.color   = 'var(--green)';
@@ -1255,7 +1365,16 @@ function openProposalModal(proposalId, readOnly = false) {
     const prop = FIN.proposals.find(p => p['Proposal ID'] === proposalId);
     if (prop) {
       projSel.value = prop['Project ID'] || '';
-      loadProposalPrograms(prop['Program ID']);
+      const isEntire = prop['Program ID'] === 'ALL_PROGRAMS';
+      document.getElementById('prop-entire-project').checked = isEntire;
+      if (isEntire) {
+        const progSel = document.getElementById('prop-program');
+        progSel.disabled = true;
+        progSel.innerHTML = '<option value="ALL_PROGRAMS">— Entire project —</option>';
+        progSel.value = 'ALL_PROGRAMS';
+      } else {
+        loadProposalPrograms(prop['Program ID']);
+      }
       document.getElementById('prop-category').value = prop['Category'] || 'Travel';
       document.getElementById('prop-period').value   = prop['Period'] || 'Q1 2026';
       document.getElementById('prop-amount').value   = prop['Requested Amount'] || '';
@@ -1266,13 +1385,15 @@ function openProposalModal(proposalId, readOnly = false) {
     // Reset
     projSel.value = '';
     document.getElementById('prop-program').innerHTML = '<option value="">— Select project first —</option>';
+    document.getElementById('prop-program').disabled = false;
+    document.getElementById('prop-entire-project').checked = false;
     document.getElementById('prop-amount').value   = '';
     document.getElementById('prop-justification').value = '';
     document.getElementById('prop-notes').value = '';
   }
 
   // Read-only state
-  ['prop-project','prop-program','prop-category','prop-period','prop-amount','prop-justification','prop-notes'].forEach(id => {
+  ['prop-project','prop-program','prop-category','prop-period','prop-amount','prop-justification','prop-notes','prop-entire-project'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = readOnly;
   });
@@ -1286,6 +1407,18 @@ function openProposalModal(proposalId, readOnly = false) {
 function closeProposalModal() {
   document.getElementById('proposal-modal').classList.remove('open');
   CURRENT_PROPOSAL_ID = null;
+}
+
+async function toggleEntireProject(checked) {
+  const progSel = document.getElementById('prop-program');
+  if (checked) {
+    progSel.disabled = true;
+    progSel.innerHTML = '<option value="ALL_PROGRAMS">— Entire project —</option>';
+    progSel.value = 'ALL_PROGRAMS';
+  } else {
+    progSel.disabled = false;
+    loadProposalPrograms();
+  }
 }
 
 async function loadProposalPrograms(selectProgramId) {
@@ -1453,7 +1586,13 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
         <select id="prop-project" onchange="loadProposalPrograms()"></select>
       </div>
       <div class="form-group" style="grid-column:1/-1;">
-        <label>Program</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="margin-bottom:0;">Program</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:400;color:var(--gray-500);cursor:pointer;">
+            <input type="checkbox" id="prop-entire-project" onchange="toggleEntireProject(this.checked)" style="width:auto;margin:0;">
+            Apply to entire project
+          </label>
+        </div>
         <select id="prop-program">
           <option value="">— Select project first —</option>
         </select>
