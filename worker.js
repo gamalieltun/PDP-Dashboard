@@ -22,24 +22,31 @@
  *    DRIVE_FOLDER_ID       → Google Drive folder ID for PDP_DCR_Reports
  *
  *  ── INITIAL USERS_CONFIG SETUP ──────────────────────────────
- *  Add the full USERS_CONFIG JSON as a Secret in Cloudflare:
+ *  Add this minimal JSON as a Secret in Cloudflare:
  *  Workers → pdp-dashboard → Settings → Variables → Add Secret
- *  Name: USERS_CONFIG
+ *  Name: USERS_CONFIG  |  Type: Secret
  *
- *  PDD Org Structure → System Role Mapping:
+ *  {
+ *    "director": {
+ *      "name": "Director",
+ *      "password": "ChangeMe123!",
+ *      "role": "admin",
+ *      "mustChangePassword": true
+ *    }
+ *  }
+ *
+ *  Then log in as Director → Role Management → User Accounts
+ *  to add all remaining staff from the dashboard UI.
+ *
+ *  Role mapping (PDD org levels):
  *  Level 2  Director              → admin
  *  Level 3  Programme Manager     → manager
  *  Level 3  Finance Manager       → finance_manager
- *  Level 3  HR Manager            → manager
+ *  Level 3  HR / Admin Manager    → manager
  *  Level 3  M&E Director          → manager
- *  Level 3  Programme Officers    → staff (program-restricted)
+ *  Level 3  Programme Officers    → staff
  *  Level 3  Finance Officer       → finance_staff
- *  Level 4  Diocesan Dev Officers → staff (program-restricted)
- *
- *  All accounts have mustChangePassword: true — users must set
- *  a new password on first login.
- *
- *  Full config: see USERS_CONFIG.json in the repository.
+ *  Level 4  Diocesan Dev Officers → staff
  */
 
 // ─── Sheet names ──────────────────────────────────
