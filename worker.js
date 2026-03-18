@@ -379,8 +379,318 @@ async function checkAndSendAlert(env, weeklyRows) {
   }
 }
 
+// ─── PDD Notification System ──────────────────────
+// sendNotification(env, event, data)
+//
+// event types:
+//   task_assigned       — new task assigned to a staff member
+//   task_updated        — task status changed
+//   program_created     — new program added
+//   project_created     — new project added under a program
+//   proposal_submitted  — budget proposal submitted
+//   proposal_reviewed   — proposal approved or rejected
+//   expense_reviewed    — expense approved or rejected
+//   checkin_reminder    — weekly Monday reminder
+//   dcr_submitted       — DCR report submitted
+//
+// data fields vary per event — see each template below.
+// All sends are fire-and-forget (errors logged, never thrown).
+
+async function sendNotification(env, event, data) {
+  // Require Gmail secrets — skip silently if not configured
+  if (!env.GMAIL_CLIENT_ID || !env.GMAIL_CLIENT_SECRET || !env.GMAIL_REFRESH_TOKEN) return;
+
+  try {
+    // Build recipient list and email content for this event
+    const { to, subject, html } = buildNotificationEmail(event, data, env);
+    if (!to || to.length === 0) return; // no recipients with email set — skip
+
+    const token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, env.GMAIL_REFRESH_TOKEN);
+
+    // Send to each recipient (fire individually so one failure doesn't block others)
+    await Promise.allSettled(
+      to.map(addr => sendEmail(token, addr, subject, html))
+    );
+  } catch(e) {
+    console.error(`[Notify] ${event} failed:`, e.message);
+  }
+}
+
+function buildNotificationEmail(event, data, env) {
+  // Shared helpers
+  const FROM_NAME = 'PDD Dashboard';
+  const BASE_URL  = env.DASHBOARD_URL || 'https://gamalieltun.com';
+
+  // Resolve recipients — respects each user's notifOptOut preferences
+  function emailOf(name, eventType) {
+    if (!name) return null;
+    try {
+      const users = JSON.parse(env.USERS_CONFIG || '{}');
+      const match = Object.values(users).find(u => u.name === name);
+      if (!match?.email) return null;
+      if (eventType && (match.notifOptOut || []).includes(eventType)) return null;
+      return match.email;
+    } catch { return null; }
+  }
+
+  function emailsOfRole(eventType, ...roles) {
+    try {
+      const users = JSON.parse(env.USERS_CONFIG || '{}');
+      return Object.values(users)
+        .filter(u => roles.includes(u.role) && u.email)
+        .filter(u => !eventType || !(u.notifOptOut || []).includes(eventType))
+        .map(u => u.email);
+    } catch { return []; }
+  }
+
+  function wrap(body) {
+    return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
+      <div style="background:#0f172a;padding:20px 28px;border-radius:10px 10px 0 0;">
+        <span style="color:#fff;font-size:16px;font-weight:700;">PDD Dashboard</span>
+        <span style="color:#94a3b8;font-size:12px;margin-left:10px;">Provincial Development Department</span>
+      </div>
+      <div style="background:#f8fafc;padding:28px;border-radius:0 0 10px 10px;border:1px solid #e2e8f0;border-top:none;">
+        ${body}
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;">
+        <p style="font-size:11px;color:#94a3b8;margin:0;">
+          This is an automated notification from PDD Dashboard. Do not reply to this email.<br>
+          <a href="${BASE_URL}" style="color:#2563eb;">Open Dashboard</a>
+        </p>
+      </div>
+    </body></html>`;
+  }
+
+  function badge(text, color) {
+    return `<span style="display:inline-block;background:${color};color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${text}</span>`;
+  }
+
+  function row(label, value) {
+    return `<tr>
+      <td style="padding:8px 12px;font-size:12px;color:#64748b;font-weight:600;white-space:nowrap;">${label}</td>
+      <td style="padding:8px 12px;font-size:13px;color:#1e293b;">${value}</td>
+    </tr>`;
+  }
+
+  function table(...rows) {
+    return `<table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;border:1px solid #e2e8f0;margin:16px 0;">${rows.join('')}</table>`;
+  }
+
+  // ── Event templates ────────────────────────────────────────────────────────
+
+  if (event === 'task_assigned') {
+    const { taskName, programId, programName, cw, quarter, assignee, assignedBy } = data;
+    const ownerEmail = emailOf(assignee, 'task_assigned');
+    return {
+      to:      [ownerEmail].filter(Boolean),
+      subject: `New task assigned to you — ${taskName}`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">You have a new task</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Assigned by ${assignedBy || 'admin'}</p>
+        ${table(
+          row('Task',    `<strong>${taskName}</strong>`),
+          row('Program', `${programId} — ${programName || ''}`),
+          row('CW',      `CW ${cw}`),
+          row('Quarter', quarter || '—'),
+          row('Owner',   assignee),
+        )}
+      `),
+    };
+  }
+
+  if (event === 'task_updated') {
+    const { taskName, programId, status, owner, updatedBy } = data;
+    const ownerEmail    = emailOf(owner, 'task_updated');
+    const managerEmails = emailsOfRole('task_updated', 'manager', 'admin');
+    const statusColor   = status === 'Delivered' ? '#16a34a' : '#2563eb';
+    return {
+      to:      [...new Set([ownerEmail, ...managerEmails].filter(Boolean))],
+      subject: `Task status updated — ${taskName}`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">Task status changed</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Updated by ${updatedBy || 'system'}</p>
+        ${table(
+          row('Task',    `<strong>${taskName}</strong>`),
+          row('Program', programId || '—'),
+          row('Status',  badge(status, statusColor)),
+          row('Owner',   owner),
+        )}
+      `),
+    };
+  }
+
+  if (event === 'program_created') {
+    const { programId, programName, createdBy } = data;
+    const directorEmails = emailsOfRole('program_created', 'admin');
+    const managerEmails  = emailsOfRole('program_created', 'manager');
+    return {
+      to:      [...new Set([...directorEmails, ...managerEmails])],
+      subject: `New program created — ${programId}: ${programName}`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">New program added</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Created by ${createdBy || 'admin'}</p>
+        ${table(
+          row('Program ID',   programId),
+          row('Program Name', programName),
+          row('Created By',   createdBy || '—'),
+        )}
+      `),
+    };
+  }
+
+  if (event === 'project_created') {
+    const { projectId, projectName, programId, programName, createdBy } = data;
+    const directorEmails = emailsOfRole('project_created', 'admin');
+    const managerEmails  = emailsOfRole('project_created', 'manager');
+    return {
+      to:      [...new Set([...directorEmails, ...managerEmails])],
+      subject: `New project created — ${projectName}`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">New project added</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Created by ${createdBy || 'admin'}</p>
+        ${table(
+          row('Project',    `<strong>${projectName}</strong>`),
+          row('Project ID', projectId),
+          row('Program',    `${programId} — ${programName || ''}`),
+          row('Created By', createdBy || '—'),
+        )}
+      `),
+    };
+  }
+
+  if (event === 'proposal_submitted') {
+    const { proposalId, programId, category, amount, proposedBy } = data;
+    const directorEmails = emailsOfRole('proposal_submitted', 'admin');
+    return {
+      to:      directorEmails,
+      subject: `Budget proposal submitted — ${category} (${programId})`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">New budget proposal</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Requires your review</p>
+        ${table(
+          row('Proposal ID', proposalId),
+          row('Program',     programId),
+          row('Category',    category),
+          row('Amount',      `MMK ${Number(amount||0).toLocaleString()}`),
+          row('Proposed By', proposedBy),
+        )}
+        <p style="font-size:13px;color:#475569;">Log in to approve or reject this proposal.</p>
+      `),
+    };
+  }
+
+  if (event === 'proposal_reviewed') {
+    const { proposalId, category, status, reviewedBy, reviewNotes, proposedBy } = data;
+    const proposerEmail = emailOf(proposedBy, 'proposal_reviewed');
+    const isApproved    = status === 'approved';
+    return {
+      to:      [proposerEmail].filter(Boolean),
+      subject: `Your budget proposal has been ${status} — ${category}`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">Budget proposal ${status}</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Reviewed by ${reviewedBy}</p>
+        ${table(
+          row('Proposal ID',  proposalId),
+          row('Category',     category),
+          row('Status',       badge(status.toUpperCase(), isApproved ? '#16a34a' : '#dc2626')),
+          row('Reviewed By',  reviewedBy),
+          row('Notes',        reviewNotes || '—'),
+        )}
+      `),
+    };
+  }
+
+  if (event === 'expense_reviewed') {
+    const { txId, description, amount, status, reviewedBy, submittedBy } = data;
+    const submitterEmail = emailOf(submittedBy, 'expense_reviewed');
+    const directorEmails = emailsOfRole('expense_reviewed', 'admin');
+    const isApproved     = status === 'approved';
+    return {
+      to:      [...new Set([submitterEmail, ...directorEmails].filter(Boolean))],
+      subject: `Expense ${status} — ${description}`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">Expense ${status}</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Reviewed by ${reviewedBy}</p>
+        ${table(
+          row('Transaction', txId),
+          row('Description', description),
+          row('Amount',      `MMK ${Number(amount||0).toLocaleString()}`),
+          row('Status',      badge(status.toUpperCase(), isApproved ? '#16a34a' : '#dc2626')),
+          row('Reviewed By', reviewedBy),
+        )}
+      `),
+    };
+  }
+
+  if (event === 'dcr_submitted') {
+    const { reportType, submittedBy, diocese, period } = data;
+    const managerEmails  = emailsOfRole('dcr_submitted', 'manager', 'admin');
+    return {
+      to:      managerEmails,
+      subject: `DCR report submitted — ${reportType} (${diocese || 'Province'})`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">DCR report submitted</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Submitted by ${submittedBy}</p>
+        ${table(
+          row('Report Type',  reportType),
+          row('Diocese',      diocese || 'Province'),
+          row('Period',       period  || '—'),
+          row('Submitted By', submittedBy),
+        )}
+      `),
+    };
+  }
+
+  if (event === 'checkin_reminder') {
+    const { cw } = data;
+    const allStaffEmails = emailsOfRole('checkin_reminder', 'staff', 'external', 'manager', 'finance_staff', 'finance_manager');
+    return {
+      to:      allStaffEmails,
+      subject: `Reminder — submit your weekly check-in for CW ${cw}`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">Weekly check-in reminder</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Calendar Week ${cw}</p>
+        <p style="font-size:14px;color:#475569;line-height:1.6;">
+          Please log in and submit your weekly check-in for <strong>CW ${cw}</strong>.
+          Mark your delivered tasks, note any blockers, and add comments for the week.
+        </p>
+        <a href="${BASE_URL}" style="display:inline-block;margin-top:12px;padding:10px 20px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;">
+          Open Dashboard →
+        </a>
+      `),
+    };
+  }
+
+  // Unknown event — return empty
+  return { to: [], subject: '', html: '' };
+}
+
+
 // ─── Main handler ─────────────────────────────────
+// ─── Monday check-in reminder (called by cron) ───────────────
+async function sendCheckinReminder(env) {
+  try {
+    // Calculate current calendar week
+    const now = new Date();
+    const day = now.getUTCDay() || 7;
+    const d   = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const cw = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+
+    await sendNotification(env, 'checkin_reminder', { cw });
+    console.log(`[Cron] Check-in reminder sent for CW ${cw}`);
+  } catch(e) {
+    console.error('[Cron] Reminder failed:', e.message);
+  }
+}
+
 export default {
+  // ── Cron trigger — runs on schedule set in Cloudflare Dashboard ──
+  // Schedule: 0 1 * * 1  (every Monday at 01:00 UTC = ~08:00 Myanmar time)
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(sendCheckinReminder(env));
+  },
+
   async fetch(request, env) {
     const headers = corsHeaders();
 
@@ -424,7 +734,7 @@ export default {
       // Return user list without passwords
       return Object.entries(users).map(([username, u]) => ({
         username, name: u.name, role: u.role, email: u.email || null,
-        mustChangePassword: !!u.mustChangePassword
+        notifOptOut: u.notifOptOut || [], mustChangePassword: !!u.mustChangePassword
       }));
     }
 
@@ -505,7 +815,8 @@ export default {
             programs: usr.programs || [],
             features: usr.features || [],
             diocese:  usr.diocese  || null,
-            email:    usr.email    || null,
+            email:      usr.email      || null,
+            notifOptOut: usr.notifOptOut || [],
           };
         });
         // Fallback: also merge STAFF_ROLES secret if it exists (legacy support)
@@ -663,7 +974,7 @@ export default {
         const allUsers = getUsers();
         roleConfig = {};
         Object.values(allUsers).forEach(usr => {
-          roleConfig[usr.name] = { role: usr.role || 'staff', programs: usr.programs || [], features: usr.features || [], diocese: usr.diocese || null, email: usr.email || null };
+          roleConfig[usr.name] = { role: usr.role || 'staff', programs: usr.programs || [], features: usr.features || [], diocese: usr.diocese || null, email: usr.email || null, notifOptOut: usr.notifOptOut || [] };
         });
         if (env.STAFF_ROLES) {
           try { const lg = JSON.parse(env.STAFF_ROLES); Object.entries(lg).forEach(([n,c]) => { if (!roleConfig[n]) roleConfig[n]=c; }); } catch(e) {}
@@ -727,6 +1038,13 @@ export default {
         0   // Target Tasks — starts at 0, grows as tasks are added
       ];
       await appendToSheet(token, spreadsheetId, 'Main Programs', projRow);
+
+      // Fire notification — non-blocking
+      sendNotification(env, 'program_created', {
+        programId:   program.id,
+        programName: program.name,
+        createdBy:   body.username,
+      }).catch(() => {});
 
       return new Response(JSON.stringify({ ok: true, sheetName }), { status: 200, headers });
     }
@@ -797,6 +1115,17 @@ export default {
         console.warn('Target Tasks update failed:', e.message);
       }
 
+      // Fire notification — non-blocking
+      sendNotification(env, 'task_assigned', {
+        taskName:    task.name,
+        programId:   task.programId,
+        programName: task.programName || task.programId,
+        cw:          task.cw,
+        quarter:     task.quarter,
+        assignee:    task.owner,
+        assignedBy:  body.username,
+      }).catch(() => {});
+
       return new Response(JSON.stringify({ ok: true, taskId, sheetName, row }), { status: 200, headers });
     }
 
@@ -842,10 +1171,38 @@ export default {
         const err = await res.json().catch(() => ({}));
         return new Response(JSON.stringify({ error: err.error?.message || res.status }), { status: 500, headers });
       }
+      // Fire notification — non-blocking
+      sendNotification(env, 'task_updated', {
+        taskName:  taskName,
+        programId: programId,
+        status:    newStatus,
+        owner:     String(rows[rowIdx][7] || ''),
+        updatedBy: body.username,
+      }).catch(() => {});
+
       return new Response(JSON.stringify({ ok: true, taskName, programId, newStatus, row: rowIdx + 1 }), { status: 200, headers });
     }
 
     // ── Save role config (Admin only) ────────────
+    // ── Save notification opt-out prefs (any authenticated user) ──
+    if (action === 'save_notif_prefs') {
+      const u = validateUser(body.username, body.password);
+      if (!u) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+
+      const { optOut } = body;
+      if (!Array.isArray(optOut))
+        return new Response(JSON.stringify({ error: 'optOut must be an array' }), { status: 400, headers });
+
+      const users = getUsers();
+      const key   = u._key;
+      if (!users[key]) return new Response(JSON.stringify({ error: 'User not found' }), { status: 404, headers });
+
+      users[key].notifOptOut = optOut;
+      await saveUsers(users);
+
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+    }
+
     if (action === 'save_roles') {
       const { username, password, config } = body;
       if (!isAdminUser(username, password))
@@ -1185,6 +1542,14 @@ export default {
           gdocId = gdoc.id;
         }
 
+        // Fire notification — non-blocking
+        sendNotification(env, 'dcr_submitted', {
+          reportType:  report.reportType || body.reportType || 'Report',
+          submittedBy: user.name || body.username,
+          diocese:     report.diocese    || body.diocese    || null,
+          period:      report.period     || body.period     || null,
+        }).catch(() => {});
+
         return new Response(JSON.stringify({ ok: true, fileId: file.id, filename, status: report.status, gdocId }), { status: 200, headers });
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, error: 'Drive error: ' + e.message }), { status: 500, headers });
@@ -1476,6 +1841,19 @@ export default {
           } catch(_) {} // Budget update is best-effort; don't fail the approval
         }
 
+        // Fire notification — non-blocking
+        if (txRowIdx > 0) {
+          const txRow = txRows[txRowIdx];
+          sendNotification(env, 'expense_reviewed', {
+            txId:        txId,
+            description: txRow[6] || '',
+            amount:      txRow[5] || 0,
+            status:      newStatus,
+            reviewedBy:  user.name || body.username,
+            submittedBy: txRow[7] || '',
+          }).catch(() => {});
+        }
+
         return new Response(JSON.stringify({ ok: true, status: newStatus }), { status: 200, headers });
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
@@ -1619,6 +1997,15 @@ export default {
           [projectId, programId, projectName, description || '',
            startCW || '', endCW || '', quarter || '', status || 'Planning', responsible || '',
            user.name || user._key, now]);
+        // Fire notification — non-blocking
+        sendNotification(env, 'project_created', {
+          projectId:   projectId,
+          projectName: projectName,
+          programId:   programId,
+          programName: programId,
+          createdBy:   user.name || body.username,
+        }).catch(() => {});
+
         return new Response(JSON.stringify({ ok: true, projectId }), { status: 200, headers });
       } catch(e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
@@ -1792,6 +2179,16 @@ export default {
             body: JSON.stringify({ values: [['submitted']] })
           }
         );
+        // Fire notification — non-blocking
+        const submittedRow = rows[rowIdx];
+        sendNotification(env, 'proposal_submitted', {
+          proposalId:  proposalId,
+          programId:   submittedRow[1] || '',
+          category:    submittedRow[3] || '',
+          amount:      submittedRow[4] || 0,
+          proposedBy:  submittedRow[8] || user.name,
+        }).catch(() => {});
+
         return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
       } catch(e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers });
@@ -1850,6 +2247,16 @@ export default {
                              period || '', `Auto from proposal ${proposalId}. ${notes || ''}`.trim()];
           await appendToSheet(token, finSheetId, 'Budget', budgetRow);
         }
+
+        // Fire notification — non-blocking
+        sendNotification(env, 'proposal_reviewed', {
+          proposalId:  proposalId,
+          category:    row[3] || '',
+          status:      decision,
+          reviewedBy:  user.name || body.username,
+          reviewNotes: reviewNotes || '',
+          proposedBy:  row[8] || '',
+        }).catch(() => {});
 
         return new Response(JSON.stringify({ ok: true, decision, budgetCreated: decision === 'approved' }), { status: 200, headers });
       } catch(e) {

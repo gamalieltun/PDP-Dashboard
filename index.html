@@ -848,6 +848,7 @@
           margin-left:2px;"></span>
       </div>
       <button class="logout-btn" onclick="showChangePasswordModal()" style="background:transparent;border:1px solid var(--gray-200);" title="Change password">🔑</button>
+      <button class="logout-btn" onclick="showNotifPrefsModal()" style="background:transparent;border:1px solid var(--gray-200);" title="Notification preferences" id="notif-btn">🔔</button>
       <button class="logout-btn" onclick="doLogout()">Log out</button>
     </div>
   </div>
@@ -874,6 +875,113 @@
       <div style="display:flex;gap:10px;">
         <button onclick="closeChangePasswordModal()" style="flex:1;padding:10px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;">Cancel</button>
         <button onclick="submitChangePassword()" id="cpw-submit-btn" style="flex:2;padding:10px;border:none;border-radius:8px;background:var(--gray-900);color:#fff;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:700;">Update Password →</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- NOTIFICATION PREFERENCES MODAL -->
+  <div id="np-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:440px;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-height:90vh;overflow-y:auto;">
+      <div style="font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:4px;">🔔 Notification Preferences</div>
+      <div style="font-size:12px;color:var(--gray-400);margin-bottom:20px;">Choose which email notifications you receive. Your email must be set by your admin for these to work.</div>
+      <div id="np-email-hint" style="font-size:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:16px;color:#1d4ed8;display:none;"></div>
+      <div style="margin-bottom:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New task assigned to me</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
+              <input type="checkbox" id="np-task_assigned" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
+              <span onclick="document.getElementById('np-task_assigned').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-task_assigned"></span>
+              <span id="np-thumb-task_assigned" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">My task status changed</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
+              <input type="checkbox" id="np-task_updated" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
+              <span onclick="document.getElementById('np-task_updated').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-task_updated"></span>
+              <span id="np-thumb-task_updated" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New program created</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
+              <input type="checkbox" id="np-program_created" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
+              <span onclick="document.getElementById('np-program_created').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-program_created"></span>
+              <span id="np-thumb-program_created" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New project created</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
+              <input type="checkbox" id="np-project_created" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
+              <span onclick="document.getElementById('np-project_created').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-project_created"></span>
+              <span id="np-thumb-project_created" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Budget proposal submitted</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
+              <input type="checkbox" id="np-proposal_submitted" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
+              <span onclick="document.getElementById('np-proposal_submitted').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-proposal_submitted"></span>
+              <span id="np-thumb-proposal_submitted" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Budget proposal approved / rejected</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
+              <input type="checkbox" id="np-proposal_reviewed" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
+              <span onclick="document.getElementById('np-proposal_reviewed').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-proposal_reviewed"></span>
+              <span id="np-thumb-proposal_reviewed" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Expense approved / rejected</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
+              <input type="checkbox" id="np-expense_reviewed" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
+              <span onclick="document.getElementById('np-expense_reviewed').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-expense_reviewed"></span>
+              <span id="np-thumb-expense_reviewed" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">DCR report submitted</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
+              <input type="checkbox" id="np-dcr_submitted" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
+              <span onclick="document.getElementById('np-dcr_submitted').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-dcr_submitted"></span>
+              <span id="np-thumb-dcr_submitted" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Weekly check-in reminder (Monday)</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
+              <input type="checkbox" id="np-checkin_reminder" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
+              <span onclick="document.getElementById('np-checkin_reminder').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-checkin_reminder"></span>
+              <span id="np-thumb-checkin_reminder" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
+            </label>
+          </div>
+      </div>
+      <div id="np-msg" style="font-size:12px;margin-bottom:12px;display:none;padding:8px;border-radius:6px;"></div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="closeNotifPrefsModal()" style="flex:1;padding:10px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;">Cancel</button>
+        <button onclick="saveNotifPrefs()" id="np-save-btn" style="flex:2;padding:10px;border:none;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:700;">Save Preferences →</button>
       </div>
     </div>
   </div>
@@ -2002,7 +2110,7 @@ function completeLogin(data, username, password) {
       ? { role:'manager', programs: ALL_PROJECTS, features: ALL_FEATURES }
       : { role: data.role || 'staff', programs: data.programs || [], features: data.features || [] };
 
-  CURRENT_USER = { name: data.name || username, role: cfg.role, programs: cfg.programs, features: cfg.features, diocese: cfg.diocese || null, username };
+  CURRENT_USER = { name: data.name || username, role: cfg.role, programs: cfg.programs, features: cfg.features, diocese: cfg.diocese || null, email: cfg.email || null, notifOptOut: cfg.notifOptOut || [], username };
 
   if (data.roleConfig) {
     ROLE_CONFIG = data.roleConfig;
@@ -3615,6 +3723,109 @@ function showUM(elId, text, type) {
   el.style.borderRadius = '6px';
   el.textContent = text;
   if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+
+// ─── Notification Preferences ─────────────────────────────────────────────────
+const NOTIF_EVENTS = [
+  'task_assigned','task_updated','program_created','project_created',
+  'proposal_submitted','proposal_reviewed','expense_reviewed',
+  'dcr_submitted','checkin_reminder'
+];
+
+function showNotifPrefsModal() {
+  const modal = document.getElementById('np-modal');
+  modal.style.display = 'flex';
+
+  // Show email hint
+  const hintEl = document.getElementById('np-email-hint');
+  if (CURRENT_USER?.email) {
+    hintEl.textContent = `Notifications will be sent to: ${CURRENT_USER.email}`;
+    hintEl.style.display = '';
+  } else {
+    hintEl.textContent = 'No email set on your account — ask your admin to add one in Role Management.';
+    hintEl.style.background = '#fef3c7';
+    hintEl.style.borderColor = '#fcd34d';
+    hintEl.style.color = '#92400e';
+    hintEl.style.display = '';
+  }
+
+  // Load current prefs — default all ON (empty optOut = receive everything)
+  const optOut = CURRENT_USER?.notifOptOut || [];
+  NOTIF_EVENTS.forEach(key => {
+    const cb    = document.getElementById(`np-${key}`);
+    const track = document.getElementById(`np-track-${key}`);
+    const thumb = document.getElementById(`np-thumb-${key}`);
+    if (!cb) return;
+    const enabled = !optOut.includes(key);
+    cb.checked = enabled;
+    applyToggleStyle(track, thumb, enabled);
+  });
+
+  document.getElementById('np-msg').style.display = 'none';
+}
+
+function applyToggleStyle(track, thumb, on) {
+  if (!track || !thumb) return;
+  track.style.background = on ? 'var(--blue)' : 'var(--gray-200)';
+  thumb.style.transform   = on ? 'translateX(16px)' : 'translateX(0)';
+}
+
+function updateNotifPreview() {
+  NOTIF_EVENTS.forEach(key => {
+    const cb    = document.getElementById(`np-${key}`);
+    const track = document.getElementById(`np-track-${key}`);
+    const thumb = document.getElementById(`np-thumb-${key}`);
+    if (cb) applyToggleStyle(track, thumb, cb.checked);
+  });
+}
+
+function closeNotifPrefsModal() {
+  document.getElementById('np-modal').style.display = 'none';
+}
+
+async function saveNotifPrefs() {
+  const btn = document.getElementById('np-save-btn');
+  const msg = document.getElementById('np-msg');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  // Build optOut list — events where checkbox is OFF
+  const optOut = NOTIF_EVENTS.filter(key => {
+    const cb = document.getElementById(`np-${key}`);
+    return cb && !cb.checked;
+  });
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action:   'save_notif_prefs',
+        username: SESSION_USERNAME,
+        password: SESSION_PASSWORD,
+        optOut,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Save failed');
+
+    // Update local CURRENT_USER
+    CURRENT_USER.notifOptOut = optOut;
+
+    msg.style.display = '';
+    msg.style.background = '#f0fdf4';
+    msg.style.color = '#15803d';
+    msg.style.border = '1px solid #86efac';
+    msg.textContent = '✓ Preferences saved.';
+    setTimeout(() => closeNotifPrefsModal(), 1200);
+  } catch(e) {
+    msg.style.display = '';
+    msg.style.background = '#fef2f2';
+    msg.style.color = 'var(--red)';
+    msg.style.border = '1px solid #fecaca';
+    msg.textContent = '✗ ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Save Preferences →';
 }
 
 // ─── Change Password Modal ─────────────────────────────────────────────────
