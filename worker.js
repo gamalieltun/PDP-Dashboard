@@ -835,10 +835,13 @@ export default {
 
       return new Response(JSON.stringify({
         ok: true,
-        name: u.name,
-        role: u.role,
-        programs: u.programs || null,
-        features: u.features || null,
+        name:               u.name,
+        role:               u.role,
+        programs:           u.programs    || null,
+        features:           u.features    || null,
+        diocese:            u.diocese     || null,
+        email:              u.email       || null,
+        notifOptOut:        u.notifOptOut || [],
         mustChangePassword: !!u.mustChangePassword,
         roleConfig,
         users: usersList,
@@ -864,7 +867,7 @@ export default {
 
       return new Response(JSON.stringify({
         ok: true,
-        user: { name: u.name, role: u.role, programs: u.programs || null, features: u.features || null, diocese: u.diocese || null }
+        user: { name: u.name, role: u.role, programs: u.programs || null, features: u.features || null, diocese: u.diocese || null, email: u.email || null, notifOptOut: u.notifOptOut || [] }
       }), { status: 200, headers });
     }
 

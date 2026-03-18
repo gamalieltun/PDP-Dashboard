@@ -2110,7 +2110,7 @@ function completeLogin(data, username, password) {
       ? { role:'manager', programs: ALL_PROJECTS, features: ALL_FEATURES }
       : { role: data.role || 'staff', programs: data.programs || [], features: data.features || [] };
 
-  CURRENT_USER = { name: data.name || username, role: cfg.role, programs: cfg.programs, features: cfg.features, diocese: cfg.diocese || null, email: cfg.email || null, notifOptOut: cfg.notifOptOut || [], username };
+  CURRENT_USER = { name: data.name || username, role: cfg.role, programs: cfg.programs, features: cfg.features, diocese: data.diocese || null, email: data.email || null, notifOptOut: data.notifOptOut || [], username };
 
   if (data.roleConfig) {
     ROLE_CONFIG = data.roleConfig;
