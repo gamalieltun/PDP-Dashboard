@@ -647,6 +647,7 @@
   }
   .rm-toggle:hover { border-color:var(--blue); color:var(--blue); }
   .rm-toggle.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .rm-diocese-toggle.on { background:#0369a1; border-color:#0369a1; color:#fff; }
   .rm-save-btn {
     width:100%; margin-top:14px; padding:9px; border-radius:8px;
     background:var(--gray-900); border:none; color:#fff; font-family:var(--font);
@@ -841,6 +842,9 @@
       <div class="user-name-badge" id="user-name-badge" style="display:none;">
         <span id="user-name-label"></span>
         <span class="role-badge" id="user-role-badge"></span>
+        <span id="hdr-diocese" style="display:none;font-size:11px;font-weight:600;
+          background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:10px;
+          margin-left:2px;"></span>
       </div>
       <button class="logout-btn" onclick="showChangePasswordModal()" style="background:transparent;border:1px solid var(--gray-200);" title="Change password">🔑</button>
       <button class="logout-btn" onclick="doLogout()">Log out</button>
@@ -1739,6 +1743,19 @@ function getStaffColor(name) {
   return AUTO_COLORS[Math.abs(hash) % AUTO_COLORS.length];
 }
 let ALL_PROJECTS  = ['P1','P2','P3','P4','P5']; // updated dynamically after data loads
+
+// ── Diocese list (fixed — from PDD org chart) ──────────────────────────────
+const ALL_DIOCESES = [
+  'Myitkyina', 'Mandalay', 'Sittwe', 'Taungoo',
+  'Pathein', 'Homalin', 'Yangon', 'Pyay', 'Hpa-an'
+];
+const DIOCESE_SCOPE_ROLES = ['staff', 'finance_staff']; // roles that have diocese restriction
+function isProvinceWide() {
+  return !DIOCESE_SCOPE_ROLES.includes(CURRENT_USER?.role);
+}
+function getUserDiocese() {
+  return CURRENT_USER?.diocese || null;
+}
 const ALL_FEATURES  = ['digest','export','staff_perf','all_programs'];
 
 // Default roles — empty, populated from USERS_CONFIG via Worker or Role Management panel
@@ -1783,6 +1800,19 @@ function applyRBAC() {
     const roleClasses = { admin:'role-admin', manager:'role-manager', staff:'role-staff', finance:'role-finance', finance_staff:'role-finance', finance_manager:'role-finance' };
     roleBadge.textContent  = roleLabels[CURRENT_USER.role] || CURRENT_USER.role;
     roleBadge.className    = `role-badge ${roleClasses[CURRENT_USER.role] || 'role-staff'}`;
+    // Diocese / scope pill
+    const dioceseEl = document.getElementById('hdr-diocese');
+    if (dioceseEl) {
+      if (DIOCESE_SCOPE_ROLES.includes(CURRENT_USER.role) && CURRENT_USER.diocese) {
+        dioceseEl.textContent  = CURRENT_USER.diocese;
+        dioceseEl.style.display = '';
+      } else if (!DIOCESE_SCOPE_ROLES.includes(CURRENT_USER.role)) {
+        dioceseEl.textContent  = 'Province';
+        dioceseEl.style.display = '';
+      } else {
+        dioceseEl.style.display = 'none';
+      }
+    }
   }
 
   // If staff — default to My Tasks tab
@@ -1953,7 +1983,7 @@ function completeLogin(data, username, password) {
       ? { role:'manager', programs: ALL_PROJECTS, features: ALL_FEATURES }
       : { role: data.role || 'staff', programs: data.programs || [], features: data.features || [] };
 
-  CURRENT_USER = { name: data.name || username, role: cfg.role, programs: cfg.programs, features: cfg.features, username };
+  CURRENT_USER = { name: data.name || username, role: cfg.role, programs: cfg.programs, features: cfg.features, diocese: cfg.diocese || null, username };
 
   if (data.roleConfig) {
     ROLE_CONFIG = data.roleConfig;
@@ -2820,12 +2850,27 @@ function openCheckinModal() {
       staffNames.map(n => `<option value="${n}">${n}</option>`).join('');
   }
 
-  // Populate program dropdown dynamically from loaded programs
-  const projEl = document.getElementById('ci-program');
+  // Populate program dropdown — diocese staff get their diocese pre-selected
+  const projEl   = document.getElementById('ci-program');
+  const hintEl   = document.getElementById('ci-diocese-hint');
+  const labelEl  = document.getElementById('ci-program-label');
   if (projEl) {
-    projEl.innerHTML = '<option value="">— Select —</option>' +
-      DATA.programs.map(p => `<option value="${p.id} – ${p.name}">${p.id} – ${p.name}</option>`).join('') +
-      '<option value="Multiple programs">Multiple programs</option>';
+    const myDioc = getUserDiocese();
+    if (myDioc && !isProvinceWide()) {
+      // Diocese-scoped: pre-populate with their diocese
+      projEl.innerHTML = `<option value="${myDioc}">${myDioc}</option>` +
+        DATA.programs.map(p => `<option value="${p.id} – ${p.name}">${p.id} – ${p.name}</option>`).join('') +
+        '<option value="Multiple programs">Multiple programs</option>';
+      projEl.value = myDioc;
+      if (hintEl) { hintEl.textContent = `Diocese: ${myDioc}`; hintEl.style.display = ''; }
+      if (labelEl) labelEl.textContent = 'Primary Program / Diocese This Week';
+    } else {
+      projEl.innerHTML = '<option value="">— Select —</option>' +
+        ALL_DIOCESES.map(d => `<option value="${d}">${d} (Diocese)</option>`).join('') +
+        DATA.programs.map(p => `<option value="${p.id} – ${p.name}">${p.id} – ${p.name}</option>`).join('') +
+        '<option value="Multiple programs">Multiple programs</option>';
+      if (hintEl) hintEl.style.display = 'none';
+    }
   }
 
   // Pre-fill name — staff locked to own name, admin/manager can select any
@@ -3294,14 +3339,18 @@ function renderTeamFeed() {
   loadCheckins();
 
   const cw     = CURRENT_CW;
-  const myProj = CURRENT_USER?.programs || ALL_PROJECTS;
-  const allCI  = getAllCheckins();
+  const myProj   = CURRENT_USER?.programs || ALL_PROJECTS;
+  const myDiocese = getUserDiocese();
+  const allCI    = getAllCheckins();
 
-  // Filter check-ins: same program team, current CW, not self (unless admin)
+  // Filter check-ins: province-wide for admin/manager, diocese-scoped for staff
   const feed = allCI.filter(c => {
     if (c.cw !== cw) return false;
-    if (isAdmin() || isManager()) return true;
-    const projId = c.program?.split('–')[0]?.trim().replace(' ','') || '';
+    if (isProvinceWide()) return true;
+    // Diocese staff: only see check-ins from same diocese
+    if (myDiocese && c.program) {
+      return c.program === myDiocese || myProj.some(p => c.program?.startsWith(p));
+    }
     return myProj.some(p => c.program?.startsWith(p));
   });
 
@@ -4023,6 +4072,16 @@ function renderRoleManagement() {
             </select>
           </div>
           <div class="rm-divider"></div>
+          <div class="rm-field" id="rm-diocese-section-${name}" style="${DIOCESE_SCOPE_ROLES.includes(cfg.role)?'':'display:none'}">
+            <div class="rm-label">Diocese</div>
+            <div class="rm-toggle-row" id="rm-diocese-${name}">
+              ${ALL_DIOCESES.map(d => {
+                const on = cfg.diocese === d;
+                return `<span class="rm-toggle rm-diocese-toggle ${on?'on':''}"
+                  onclick="setDiocese('${name}','${d}',this)">${d}</span>`;
+              }).join('')}
+            </div>
+          </div>
           <div class="rm-field">
             <div class="rm-label">Assigned Programs</div>
             <div class="rm-toggle-row" id="rm-proj-${name}">${programToggles}</div>
@@ -4053,14 +4112,32 @@ function onRoleChange(name, selectEl) {
     badge.textContent = role;
     badge.className = `role-badge ${role==='admin'?'role-admin':role==='manager'?'role-manager':['finance','finance_staff','finance_manager'].includes(role)?'role-finance':'role-staff'}`;
   }
+  // Show/hide diocese section based on role
+  const diocSecEl = document.getElementById(`rm-diocese-section-${name}`);
+  if (diocSecEl) diocSecEl.style.display = DIOCESE_SCOPE_ROLES.includes(role) ? '' : 'none';
+
   // Admin/manager get all features automatically
   if (role === 'admin' || role === 'manager') {
     ROLE_CONFIG[name].features = [...ALL_FEATURES];
     ROLE_CONFIG[name].programs = [...ALL_PROJECTS]; // dynamic
+    ROLE_CONFIG[name].diocese  = null; // province-wide
     document.querySelectorAll(`#rm-proj-${name} .rm-toggle`).forEach(t => t.classList.add('on'));
     document.querySelectorAll(`#rm-feat-${name} .rm-toggle`).forEach(t => t.classList.add('on'));
   }
   updateConfigJSON();
+}
+
+function setDiocese(name, diocese, el) {
+  if (!ROLE_CONFIG[name]) ROLE_CONFIG[name] = { role:'staff', programs:[], features:[], diocese: null };
+  // Single-select — deselect all others first
+  document.querySelectorAll(`#rm-diocese-${name} .rm-diocese-toggle`).forEach(t => t.classList.remove('on'));
+  if (ROLE_CONFIG[name].diocese === diocese) {
+    // Toggle off — no diocese selected
+    ROLE_CONFIG[name].diocese = null;
+  } else {
+    el.classList.add('on');
+    ROLE_CONFIG[name].diocese = diocese;
+  }
 }
 
 function toggleProgram(name, pid, el) {

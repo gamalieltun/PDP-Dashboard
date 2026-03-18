@@ -504,6 +504,7 @@ export default {
             role:     usr.role     || 'staff',
             programs: usr.programs || [],
             features: usr.features || [],
+            diocese:  usr.diocese  || null,
           };
         });
         // Fallback: also merge STAFF_ROLES secret if it exists (legacy support)
@@ -551,7 +552,7 @@ export default {
 
       return new Response(JSON.stringify({
         ok: true,
-        user: { name: u.name, role: u.role, programs: u.programs || null, features: u.features || null }
+        user: { name: u.name, role: u.role, programs: u.programs || null, features: u.features || null, diocese: u.diocese || null }
       }), { status: 200, headers });
     }
 
@@ -659,7 +660,7 @@ export default {
         const allUsers = getUsers();
         roleConfig = {};
         Object.values(allUsers).forEach(usr => {
-          roleConfig[usr.name] = { role: usr.role || 'staff', programs: usr.programs || [], features: usr.features || [] };
+          roleConfig[usr.name] = { role: usr.role || 'staff', programs: usr.programs || [], features: usr.features || [], diocese: usr.diocese || null };
         });
         if (env.STAFF_ROLES) {
           try { const lg = JSON.parse(env.STAFF_ROLES); Object.entries(lg).forEach(([n,c]) => { if (!roleConfig[n]) roleConfig[n]=c; }); } catch(e) {}
@@ -864,6 +865,7 @@ export default {
         users[key].role     = cfg.role     || users[key].role;
         users[key].programs = cfg.programs || [];
         users[key].features = cfg.features || [];
+        if (cfg.diocese !== undefined) users[key].diocese = cfg.diocese || null;
         changed++;
       }
 
