@@ -1222,10 +1222,18 @@
             <div>
               <div class="rm-label">Role</div>
               <select class="rm-select" id="nu-role">
-                <option value="staff">Staff</option>
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
-              <option value="finance">Finance</option>
+                <optgroup label="Executive">
+                  <option value="admin">Admin — Director</option>
+                </optgroup>
+                <optgroup label="Operational">
+                  <option value="manager">Manager — Programme / HR / M&amp;E</option>
+                  <option value="finance_manager">Finance Manager</option>
+                  <option value="finance_staff">Finance Staff — Finance Officer</option>
+                </optgroup>
+                <optgroup label="Field &amp; Officers">
+                  <option value="staff" selected>Staff — Officers / DDOs</option>
+                  <option value="finance">Finance (legacy)</option>
+                </optgroup>
               </select>
             </div>
             <button class="pm-add-task-btn" onclick="addNewUser()" id="nu-btn" style="padding:8px 16px;white-space:nowrap;">Create User</button>
@@ -3922,12 +3930,18 @@ function renderRoleManagement() {
         <div class="rm-field">
           <div class="rm-label">Access Tier</div>
           <select class="rm-select" id="rm-role-${name}" onchange="onRoleChange('${name}',this)">
-            <option value="staff"   ${cfg.role==='staff'   ?'selected':''}>Staff</option>
-            <option value="manager" ${cfg.role==='manager' ?'selected':''}>Manager</option>
-            <option value="admin"   ${cfg.role==='admin'   ?'selected':''}>Admin</option>
-            <option value="finance" ${cfg.role==='finance'?'selected':''}>Finance</option>
-            <option value="finance_staff"   ${cfg.role==='finance_staff'  ?'selected':''}>Finance Staff</option>
-            <option value="finance_manager" ${cfg.role==='finance_manager'?'selected':''}>Finance Manager</option>
+            <optgroup label="Executive">
+              <option value="admin"          ${cfg.role==='admin'          ?'selected':''}>Admin — Director</option>
+            </optgroup>
+            <optgroup label="Operational">
+              <option value="manager"        ${cfg.role==='manager'        ?'selected':''}>Manager — Programme / HR / M&amp;E</option>
+              <option value="finance_manager"${cfg.role==='finance_manager'?'selected':''}>Finance Manager</option>
+              <option value="finance_staff"  ${cfg.role==='finance_staff'  ?'selected':''}>Finance Staff — Finance Officer</option>
+            </optgroup>
+            <optgroup label="Field &amp; Officers">
+              <option value="staff"          ${cfg.role==='staff'          ?'selected':''}>Staff — Officers / DDOs</option>
+              <option value="finance"        ${cfg.role==='finance'        ?'selected':''}>Finance (legacy)</option>
+            </optgroup>
           </select>
         </div>
         <div class="rm-field">
