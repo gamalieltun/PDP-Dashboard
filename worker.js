@@ -423,7 +423,7 @@ export default {
     function usersPublicList(users) {
       // Return user list without passwords
       return Object.entries(users).map(([username, u]) => ({
-        username, name: u.name, role: u.role,
+        username, name: u.name, role: u.role, email: u.email || null,
         mustChangePassword: !!u.mustChangePassword
       }));
     }
@@ -505,6 +505,7 @@ export default {
             programs: usr.programs || [],
             features: usr.features || [],
             diocese:  usr.diocese  || null,
+            email:    usr.email    || null,
           };
         });
         // Fallback: also merge STAFF_ROLES secret if it exists (legacy support)
@@ -570,10 +571,11 @@ export default {
       const tempPassword = generateTempPassword();
 
       users[newUser.username] = {
-        name: newUser.name,
-        password: tempPassword,
-        role: newUser.role || 'staff',
+        name:               newUser.name,
+        password:           tempPassword,
+        role:               newUser.role || 'staff',
         mustChangePassword: true,
+        ...(newUser.email   ? { email:   newUser.email.trim().toLowerCase() } : {}),
         ...(newUser.diocese ? { diocese: newUser.diocese } : {}),
       };
       await saveUsers(users);
@@ -661,7 +663,7 @@ export default {
         const allUsers = getUsers();
         roleConfig = {};
         Object.values(allUsers).forEach(usr => {
-          roleConfig[usr.name] = { role: usr.role || 'staff', programs: usr.programs || [], features: usr.features || [], diocese: usr.diocese || null };
+          roleConfig[usr.name] = { role: usr.role || 'staff', programs: usr.programs || [], features: usr.features || [], diocese: usr.diocese || null, email: usr.email || null };
         });
         if (env.STAFF_ROLES) {
           try { const lg = JSON.parse(env.STAFF_ROLES); Object.entries(lg).forEach(([n,c]) => { if (!roleConfig[n]) roleConfig[n]=c; }); } catch(e) {}
@@ -866,7 +868,8 @@ export default {
         users[key].role     = cfg.role     || users[key].role;
         users[key].programs = cfg.programs || [];
         users[key].features = cfg.features || [];
-        if (cfg.diocese !== undefined) users[key].diocese = cfg.diocese || null;
+        if (cfg.diocese !== undefined) users[key].diocese = cfg.diocese  || null;
+        if (cfg.email   !== undefined) users[key].email   = cfg.email?.trim().toLowerCase() || null;
         changed++;
       }
 

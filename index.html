@@ -656,6 +656,7 @@
   .rm-save-btn:hover { background:var(--blue); }
   .rm-saved-msg { font-size:11px; color:var(--green); text-align:center; margin-top:8px; display:none; }
   .rm-divider { height:1px; background:var(--gray-100); margin:10px 0; }
+  .rm-email-input { font-size:12px !important; padding:7px 10px !important; }
 
   /* ── User table ── */
   .um-table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -1298,7 +1299,7 @@
             <span style="width:20px;height:20px;background:var(--blue);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;">+</span>
             Add New User
           </div>
-          <div class="add-user-grid">
+          <div class="add-user-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;">
             <div>
               <div class="rm-label">Username</div>
               <input class="form-input" id="nu-username" placeholder="e.g. john.doe" style="font-family:var(--font);">
@@ -1306,6 +1307,10 @@
             <div>
               <div class="rm-label">Display Name</div>
               <input class="form-input" id="nu-name" placeholder="e.g. John Doe" style="font-family:var(--font);">
+            </div>
+            <div>
+              <div class="rm-label">Email Address</div>
+              <input class="form-input" id="nu-email" type="email" placeholder="e.g. john@pdd.org" style="font-family:var(--font);">
             </div>
             <div>
               <div class="rm-label">Role / Level</div>
@@ -2001,6 +2006,12 @@ function completeLogin(data, username, password) {
 
   if (data.roleConfig) {
     ROLE_CONFIG = data.roleConfig;
+    // Merge email into ROLE_CONFIG from USERS_LIST if available
+    if (data.users) {
+      data.users.forEach(u => {
+        if (ROLE_CONFIG[u.name]) ROLE_CONFIG[u.name].email = u.email || null;
+      });
+    }
     sessionStorage.setItem('pdp_role_config', JSON.stringify(ROLE_CONFIG));
   }
   if (data.users) {
@@ -3426,6 +3437,7 @@ function renderUserManagement() {
         <tr>
           <th>Username</th>
           <th>Name</th>
+          <th>Email</th>
           <th>Role</th>
           <th>Status</th>
           <th style="text-align:right;"></th>
@@ -3438,6 +3450,9 @@ function renderUserManagement() {
           return `<tr>
             <td style="font-family:monospace;font-size:12px;color:var(--gray-700);font-weight:600;">${u.username}</td>
             <td style="font-weight:500;color:var(--gray-900);">${u.name}</td>
+            <td style="font-size:12px;color:var(--gray-600);">${u.email
+              ? `<a href="mailto:${u.email}" style="color:var(--blue);text-decoration:none;">${u.email}</a>`
+              : '<span style="color:var(--gray-300);font-size:11px;">— not set —</span>'}</td>
             <td>
               <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${bg};color:${fg};">
                 ${u.role}
@@ -3480,6 +3495,7 @@ function toggleNewUserDiocese() {
 async function addNewUser() {
   const username = document.getElementById('nu-username').value.trim().toLowerCase().replace(/\s+/g,'_');
   const name     = document.getElementById('nu-name').value.trim();
+  const email    = (document.getElementById('nu-email')?.value || '').trim().toLowerCase();
   const role     = document.getElementById('nu-role').value;
   const diocese  = (DIOCESE_SCOPE_ROLES.includes(role) ? (window._nuDiocese || null) : null);
   const btn      = document.getElementById('nu-btn');
@@ -3504,7 +3520,7 @@ async function addNewUser() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'add_user', username: CURRENT_USER.username,
-        password: SESSION_PASSWORD, newUser: { username, name, role, diocese: diocese || null }
+        password: SESSION_PASSWORD, newUser: { username, name, email: email || null, role, diocese: diocese || null }
       })
     });
     const data = await res.json();
@@ -3516,7 +3532,7 @@ async function addNewUser() {
     showUM('nu-msg', `✓ User "${name}" created successfully.`, 'success');
 
     // Clear form
-    ['nu-username','nu-name'].forEach(id => document.getElementById(id).value = '');
+    ['nu-username','nu-name','nu-email'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('nu-role').value = 'staff';
 
     // Reload user list
@@ -4093,6 +4109,14 @@ function renderRoleManagement() {
           </span>
         </div>
         <div class="rm-card-body">
+          <div class="rm-field">
+            <div class="rm-label">Email Address</div>
+            <input class="form-input rm-email-input" id="rm-email-${name}"
+              type="email" placeholder="e.g. john@pdd.org"
+              value="${cfg.email || ''}"
+              style="font-family:var(--font);font-size:12px;"
+              onchange="if(!ROLE_CONFIG['${name}'])ROLE_CONFIG['${name}']={};ROLE_CONFIG['${name}'].email=this.value.trim().toLowerCase();">
+          </div>
           <div class="rm-field">
             <div class="rm-label">Role / Level</div>
             <select class="rm-select" id="rm-role-${name}" onchange="onRoleChange('${name}',this)">
