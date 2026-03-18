@@ -685,7 +685,7 @@
   @media(max-width:640px) { .add-user-grid { grid-template-columns:1fr; } .rm-grid { grid-template-columns:1fr; } }
 
   /* ── Access tier reference ── */
-  .tier-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+  .tier-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-bottom:20px; }
   .tier-card { border-radius:10px; padding:12px 14px; border-left:3px solid; }
 
   .admin-section-title { font-size:16px; font-weight:800; color:var(--gray-900); margin-bottom:4px; }
@@ -1276,6 +1276,10 @@
           <div style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Level 1 — Governance</div>
           <div style="font-size:12px;color:var(--gray-400);line-height:1.5;">No system access · Policy &amp; oversight only</div>
         </div>
+        <div class="tier-card" style="background:#fff7ed;border-color:#f97316;">
+          <div style="font-size:11px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">External — Contractor</div>
+          <div style="font-size:12px;color:var(--gray-600);line-height:1.5;">Assigned programs only · Own tasks · Check-in · DCR · No finance · No team feed · No KPI</div>
+        </div>
       </div>
 
       <!-- USER ACCOUNTS TABLE -->
@@ -1316,6 +1320,7 @@
                 </optgroup>
                 <optgroup label="Level 3–4 — Officers / Field">
                   <option value="staff" selected>Staff — Officers / DDOs</option>
+                  <option value="external">External — Contractor / Consultant</option>
                 </optgroup>
               </select>
             </div>
@@ -1763,6 +1768,7 @@ function isProvinceWide() {
 function getUserDiocese() {
   return CURRENT_USER?.diocese || null;
 }
+function isExternal() { return CURRENT_USER?.role === 'external'; }
 const ALL_FEATURES  = ['digest','export','staff_perf','all_programs'];
 
 // Default roles — empty, populated from USERS_CONFIG via Worker or Role Management panel
@@ -1784,17 +1790,18 @@ function applyRBAC() {
   if (!CURRENT_USER) return;
 
   // Show My Tasks for all, hide role management for non-admin
-  setTabVisible('mytasks', true);
-  setTabVisible('progress', isAdmin() || isManager() || userCan('all_programs'));
-  setTabVisible('staff',    isAdmin() || isManager() || userCan('staff_perf'));
-  setTabVisible('digest',   isAdmin() || isManager() || userCan('digest'));
+  const ext = isExternal();
+  setTabVisible('mytasks',  true);
+  setTabVisible('progress', isAdmin() || isManager() || userCan('all_programs') || ext);
+  setTabVisible('staff',    isAdmin() || isManager() || userCan('staff_perf'));   // external: NO
+  setTabVisible('digest',   isAdmin() || isManager() || userCan('digest'));        // external: NO
   setTabVisible('projmgmt', isAdmin());
   setTabVisible('roles',    isAdmin());
-  setTabVisible('kpi',      true);
+  setTabVisible('kpi',      isAdmin() || isManager() || isStaff());               // external: NO
   setTabVisible('checkin',  true);
   setTabVisible('setup',    isAdmin());
   const isFinance = () => ['finance','finance_staff','finance_manager'].includes(CURRENT_USER?.role);
-  setTabVisible('finance',  isAdmin() || isManager() || isFinance());
+  setTabVisible('finance',  isAdmin() || isManager() || isFinance());             // external: NO
 
   // Update header badge
   const nameBadge = document.getElementById('user-name-badge');
@@ -1803,8 +1810,8 @@ function applyRBAC() {
   if (nameBadge && CURRENT_USER.name) {
     nameBadge.style.display = 'flex';
     nameLabel.textContent   = CURRENT_USER.name;
-    const roleLabels = { admin:'Admin', manager:'Manager', staff:'Staff' };
-    const roleClasses = { admin:'role-admin', manager:'role-manager', staff:'role-staff', finance:'role-finance', finance_staff:'role-finance', finance_manager:'role-finance' };
+    const roleLabels  = { admin:'Admin', manager:'Manager', staff:'Staff', external:'External' };
+    const roleClasses = { admin:'role-admin', manager:'role-manager', staff:'role-staff', external:'role-staff', finance:'role-finance', finance_staff:'role-finance', finance_manager:'role-finance' };
     roleBadge.textContent  = roleLabels[CURRENT_USER.role] || CURRENT_USER.role;
     roleBadge.className    = `role-badge ${roleClasses[CURRENT_USER.role] || 'role-staff'}`;
     // Diocese / scope pill
@@ -1822,8 +1829,8 @@ function applyRBAC() {
     }
   }
 
-  // If staff — default to My Tasks tab
-  if (isStaff()) {
+  // If staff or external — default to My Tasks tab
+  if (isStaff() || isExternal()) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById('tab-mytasks').classList.add('active');
@@ -3315,6 +3322,7 @@ function renderMyTasks() {
     const myPrograms = DATA.programs.filter(p =>
       isAdmin() || isManager() ? true : CURRENT_USER.programs?.includes(p.id)
     );
+    // External: only assigned programs, read-only (no edit)
     if (myPrograms.length === 0) {
       projEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No programs assigned.</div>';
     } else {
@@ -3350,6 +3358,11 @@ function renderTeamFeed() {
   const myDiocese = getUserDiocese();
   const allCI    = getAllCheckins();
 
+  // External contractors: no team feed at all
+  if (isExternal()) {
+    feedEl.innerHTML = '<div class="feed-empty">Team feed not available for external accounts.</div>';
+    return;
+  }
   // Filter check-ins: province-wide for admin/manager, diocese-scoped for staff
   const feed = allCI.filter(c => {
     if (c.cw !== cw) return false;
@@ -4093,6 +4106,7 @@ function renderRoleManagement() {
               </optgroup>
               <optgroup label="Level 3–4 — Officers / Field">
                 <option value="staff"          ${cfg.role==='staff'          ?'selected':''}>Staff — Officers / DDOs</option>
+                <option value="external"       ${cfg.role==='external'       ?'selected':''}>External — Contractor / Consultant</option>
               </optgroup>
             </select>
           </div>
