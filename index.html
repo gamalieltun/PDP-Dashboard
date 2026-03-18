@@ -1305,7 +1305,7 @@
             </div>
             <div>
               <div class="rm-label">Role / Level</div>
-              <select class="rm-select" id="nu-role">
+              <select class="rm-select" id="nu-role" onchange="toggleNewUserDiocese()">
                 <optgroup label="Level 2 — Executive">
                   <option value="admin">Admin — Director</option>
                 </optgroup>
@@ -1318,6 +1318,13 @@
                   <option value="staff" selected>Staff — Officers / DDOs</option>
                 </optgroup>
               </select>
+            </div>
+          </div>
+          <!-- Diocese field — shown only for staff/field roles -->
+          <div id="nu-diocese-row" style="margin-top:12px;">
+            <div class="rm-label" style="margin-bottom:6px;">Diocese <span style="font-weight:400;color:var(--gray-400);text-transform:none;">(optional — assign now or later)</span></div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;" id="nu-diocese-pills">
+              <span style="font-size:12px;color:var(--gray-400);padding:4px 0;">— select diocese —</span>
             </div>
           </div>
           <div style="margin-top:12px;">
@@ -2596,7 +2603,7 @@ function renderAll() {
   renderCheckinTab();
   renderDigest();
   renderMyTasks();
-  if (isAdmin()) { renderRoleManagement(); renderProgramManagement(); renderUserManagement(); }
+  if (isAdmin()) { renderRoleManagement(); renderProgramManagement(); renderUserManagement(); toggleNewUserDiocese(); }
 }
 
 
@@ -3466,7 +3473,7 @@ async function addNewUser() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'add_user', username: CURRENT_USER.username,
-        password: SESSION_PASSWORD, newUser: { username, name, role }
+        password: SESSION_PASSWORD, newUser: { username, name, role, diocese: diocese || null }
       })
     });
     const data = await res.json();

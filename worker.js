@@ -574,6 +574,7 @@ export default {
         password: tempPassword,
         role: newUser.role || 'staff',
         mustChangePassword: true,
+        ...(newUser.diocese ? { diocese: newUser.diocese } : {}),
       };
       await saveUsers(users);
 
