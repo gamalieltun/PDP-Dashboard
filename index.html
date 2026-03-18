@@ -603,48 +603,92 @@
   .feed-empty { text-align:center; padding:32px; color:var(--gray-400); font-size:13px; }
 
   /* ── ROLE MANAGEMENT PANEL ── */
+  /* ── Role Management ── */
   .rm-grid {
-    display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px;
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px;
     margin-top:16px;
   }
   .rm-card {
-    background:#fff; border:1px solid var(--gray-200); border-radius:12px;
-    padding:18px; position:relative;
+    background:#fff; border:1px solid var(--gray-200); border-radius:14px;
+    padding:0; position:relative; overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.04);
+    transition:box-shadow .15s;
   }
+  .rm-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.08); }
+  .rm-card-top {
+    padding:16px 18px 14px;
+    border-bottom:1px solid var(--gray-100);
+    display:flex; align-items:center; gap:12px;
+  }
+  .rm-card-body { padding:14px 18px 16px; }
   .rm-card-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
   .rm-avatar {
-    width:38px; height:38px; border-radius:50%; display:flex; align-items:center;
-    justify-content:center; font-size:15px; font-weight:800; color:#fff; flex-shrink:0;
+    width:40px; height:40px; border-radius:10px; display:flex; align-items:center;
+    justify-content:center; font-size:16px; font-weight:800; color:#fff; flex-shrink:0;
   }
-  .rm-name  { font-size:14px; font-weight:700; color:var(--gray-900); }
-  .rm-field { margin-bottom:12px; }
-  .rm-label { font-size:11px; font-weight:700; color:var(--gray-400); margin-bottom:5px;
-    text-transform:uppercase; letter-spacing:0.05em; }
+  .rm-name  { font-size:14px; font-weight:700; color:var(--gray-900); line-height:1.2; }
+  .rm-username { font-size:11px; color:var(--gray-400); font-family:monospace; margin-top:1px; }
+  .rm-field { margin-bottom:14px; }
+  .rm-field:last-child { margin-bottom:0; }
+  .rm-label { font-size:10px; font-weight:700; color:var(--gray-400); margin-bottom:5px;
+    text-transform:uppercase; letter-spacing:.06em; }
   .rm-select {
-    width:100%; padding:7px 10px; border:1.5px solid var(--gray-200); border-radius:8px;
+    width:100%; padding:8px 10px; border:1.5px solid var(--gray-200); border-radius:8px;
     font-family:var(--font); font-size:12px; outline:none; background:#fff;
-    transition:border-color 0.15s; cursor:pointer;
+    transition:border-color .15s; cursor:pointer; color:var(--gray-800);
   }
-  .rm-select:focus { border-color:var(--blue); }
-  .rm-toggle-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .rm-select:focus { border-color:var(--blue); box-shadow:0 0 0 3px #dbeafe; }
+  .rm-toggle-row { display:flex; flex-wrap:wrap; gap:5px; }
   .rm-toggle {
-    display:inline-flex; align-items:center; gap:5px; padding:4px 10px;
-    border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;
-    border:1.5px solid var(--gray-200); color:var(--gray-600); background:#fff;
-    transition:all 0.13s; user-select:none;
+    display:inline-flex; align-items:center; padding:4px 10px;
+    border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
+    border:1.5px solid var(--gray-200); color:var(--gray-500); background:#fff;
+    transition:all .13s; user-select:none; line-height:1.4;
   }
+  .rm-toggle:hover { border-color:var(--blue); color:var(--blue); }
   .rm-toggle.on { background:var(--blue); border-color:var(--blue); color:#fff; }
   .rm-save-btn {
     width:100%; margin-top:14px; padding:9px; border-radius:8px;
     background:var(--gray-900); border:none; color:#fff; font-family:var(--font);
-    font-size:12px; font-weight:700; cursor:pointer; transition:background 0.13s;
+    font-size:12px; font-weight:700; cursor:pointer; transition:background .13s;
   }
-  .rm-save-btn:hover { background:var(--gray-700); }
-  .rm-saved-msg { font-size:11px; color:var(--green); text-align:center; margin-top:6px; display:none; }
-  .admin-section-title {
-    font-size:16px; font-weight:800; color:var(--gray-900); margin-bottom:4px;
+  .rm-save-btn:hover { background:var(--blue); }
+  .rm-saved-msg { font-size:11px; color:var(--green); text-align:center; margin-top:8px; display:none; }
+  .rm-divider { height:1px; background:var(--gray-100); margin:10px 0; }
+
+  /* ── User table ── */
+  .um-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .um-table th {
+    text-align:left; padding:9px 12px; font-size:10px; color:var(--gray-400);
+    font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    border-bottom:2px solid var(--gray-100); background:var(--gray-50);
   }
-  .admin-section-sub { font-size:13px; color:var(--gray-400); margin-bottom:16px; }
+  .um-table td { padding:11px 12px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
+  .um-table tr:last-child td { border-bottom:none; }
+  .um-table tr:hover td { background:var(--gray-50); }
+  .um-status-active { font-size:11px; color:var(--green); font-weight:600; display:flex; align-items:center; gap:4px; }
+  .um-status-temp   { font-size:11px; color:#d97706;     font-weight:600; display:flex; align-items:center; gap:4px; }
+  .um-btn { font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer; font-family:var(--font); transition:all .12s; }
+  .um-btn-reset  { border:1px solid var(--gray-200); background:#fff; color:var(--gray-600); }
+  .um-btn-reset:hover  { border-color:var(--blue); color:var(--blue); }
+  .um-btn-delete { border:1px solid #fecaca; background:#fff; color:var(--red); margin-left:4px; }
+  .um-btn-delete:hover { background:#fef2f2; }
+
+  /* ── Add user form ── */
+  .add-user-form {
+    background:var(--gray-50); border:1px solid var(--gray-200); border-radius:12px;
+    padding:18px; margin-top:16px;
+  }
+  .add-user-form-title { font-size:13px; font-weight:700; color:var(--gray-700); margin-bottom:14px; display:flex; align-items:center; gap:6px; }
+  .add-user-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:end; }
+  @media(max-width:640px) { .add-user-grid { grid-template-columns:1fr; } .rm-grid { grid-template-columns:1fr; } }
+
+  /* ── Access tier reference ── */
+  .tier-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+  .tier-card { border-radius:10px; padding:12px 14px; border-left:3px solid; }
+
+  .admin-section-title { font-size:16px; font-weight:800; color:var(--gray-900); margin-bottom:4px; }
+  .admin-section-sub   { font-size:13px; color:var(--gray-400); margin-bottom:16px; }
 
   /* ── PROJECT MANAGEMENT ── */
   .pm-proj-row {
@@ -1199,85 +1243,106 @@
 
     <!-- TAB: ROLE MANAGEMENT -->
     <div class="tab-pane" id="tab-roles">
-      <div class="admin-section-title">🔐 Role Management</div>
-      <div class="admin-section-sub">Manage user accounts and assign roles. Credentials are stored securely in Cloudflare — never in this file.</div>
+      <div class="admin-section-title">Role Management</div>
+      <div class="admin-section-sub">Manage user accounts, assign roles and program access. All credentials are stored securely in Cloudflare.</div>
 
-      <!-- USER MANAGEMENT -->
-      <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-title" style="margin-bottom:14px;">👥 User Accounts</div>
-        <div id="um-user-list" style="margin-bottom:16px;"></div>
+      <!-- ACCESS TIER REFERENCE -->
+      <div class="tier-grid">
+        <div class="tier-card" style="background:#f8fafc;border-color:#1e3a5f;">
+          <div style="font-size:11px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Admin · Level 2</div>
+          <div style="font-size:12px;color:var(--gray-600);line-height:1.5;">Full access · User &amp; role management · All programs · Finance approval · Export · Digest</div>
+        </div>
+        <div class="tier-card" style="background:#f0fdf4;border-color:var(--green);">
+          <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Manager · Level 3</div>
+          <div style="font-size:12px;color:var(--gray-600);line-height:1.5;">All programs view · KPI &amp; staff performance · Digest · Expense approval · No role management</div>
+        </div>
+        <div class="tier-card" style="background:#eff6ff;border-color:var(--blue);">
+          <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Staff · Level 3–4</div>
+          <div style="font-size:12px;color:var(--gray-600);line-height:1.5;">Own tasks only · Assigned programs · Weekly check-in · DCR reports</div>
+        </div>
+        <div class="tier-card" style="background:#fdf4ff;border-color:#7c3aed;">
+          <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Finance Manager · Level 3</div>
+          <div style="font-size:12px;color:var(--gray-600);line-height:1.5;">View all proposals · Submit proposals · Log expenses · Finance dashboard</div>
+        </div>
+        <div class="tier-card" style="background:#fdf4ff;border-color:#a855f7;">
+          <div style="font-size:11px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Finance Staff · Level 3</div>
+          <div style="font-size:12px;color:var(--gray-600);line-height:1.5;">Own proposals only · Log expenses · Finance dashboard</div>
+        </div>
+        <div class="tier-card" style="background:#f8fafc;border-color:var(--gray-300);">
+          <div style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Level 1 — Governance</div>
+          <div style="font-size:12px;color:var(--gray-400);line-height:1.5;">No system access · Policy &amp; oversight only</div>
+        </div>
+      </div>
 
-        <!-- Add new user -->
-        <div style="border-top:1px solid var(--gray-100);padding-top:16px;">
-          <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:12px;">➕ Add New User</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;">
+      <!-- USER ACCOUNTS TABLE -->
+      <div class="panel" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="panel-title" style="margin:0;">User Accounts</div>
+          <span id="um-count" style="font-size:12px;color:var(--gray-400);"></span>
+        </div>
+        <div style="overflow-x:auto;">
+          <div id="um-user-list"></div>
+        </div>
+
+        <!-- Add new user form -->
+        <div class="add-user-form">
+          <div class="add-user-form-title">
+            <span style="width:20px;height:20px;background:var(--blue);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;">+</span>
+            Add New User
+          </div>
+          <div class="add-user-grid">
             <div>
               <div class="rm-label">Username</div>
-              <input class="form-input" id="nu-username" placeholder="e.g. john_d" style="font-family:var(--font);">
+              <input class="form-input" id="nu-username" placeholder="e.g. john.doe" style="font-family:var(--font);">
             </div>
             <div>
               <div class="rm-label">Display Name</div>
-              <input class="form-input" id="nu-name" placeholder="e.g. John" style="font-family:var(--font);">
+              <input class="form-input" id="nu-name" placeholder="e.g. John Doe" style="font-family:var(--font);">
             </div>
             <div>
-              <div class="rm-label">Role</div>
+              <div class="rm-label">Role / Level</div>
               <select class="rm-select" id="nu-role">
-                <optgroup label="Executive">
+                <optgroup label="Level 2 — Executive">
                   <option value="admin">Admin — Director</option>
                 </optgroup>
-                <optgroup label="Operational">
+                <optgroup label="Level 3 — Operational">
                   <option value="manager">Manager — Programme / HR / M&amp;E</option>
                   <option value="finance_manager">Finance Manager</option>
                   <option value="finance_staff">Finance Staff — Finance Officer</option>
                 </optgroup>
-                <optgroup label="Field &amp; Officers">
+                <optgroup label="Level 3–4 — Officers / Field">
                   <option value="staff" selected>Staff — Officers / DDOs</option>
-                  <option value="finance">Finance (legacy)</option>
                 </optgroup>
               </select>
             </div>
-            <button class="pm-add-task-btn" onclick="addNewUser()" id="nu-btn" style="padding:8px 16px;white-space:nowrap;">Create User</button>
           </div>
-          <div style="font-size:11px;color:var(--gray-400);margin-top:8px;">A temporary password will be generated. The user will be forced to change it on first login.</div>
-          <div id="nu-msg" style="font-size:12px;margin-top:8px;display:none;padding:8px;border-radius:6px;"></div>
-          <!-- Show temp password after creation -->
-          <div id="nu-temp-pw-box" style="display:none;margin-top:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;">
-            <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:4px;">✓ User created! Share this temporary password securely:</div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <code id="nu-temp-pw-display" style="font-size:14px;font-weight:800;color:#15803d;background:#dcfce7;padding:6px 12px;border-radius:6px;letter-spacing:0.05em;"></code>
-              <button onclick="copyTempPw()" style="font-size:11px;padding:5px 10px;border:1px solid #86efac;border-radius:6px;background:#fff;cursor:pointer;font-family:var(--font);">Copy</button>
+          <div style="margin-top:12px;">
+            <button class="rm-save-btn" onclick="addNewUser()" id="nu-btn" style="max-width:200px;background:var(--blue);">Create User →</button>
+          </div>
+          <div style="font-size:11px;color:var(--gray-400);margin-top:8px;">A temporary password is generated automatically. The user must change it on first login.</div>
+          <div id="nu-msg" style="font-size:12px;margin-top:8px;display:none;padding:8px 12px;border-radius:8px;"></div>
+          <div id="nu-temp-pw-box" style="display:none;margin-top:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px;">
+            <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:8px;">User created — share this temporary password securely:</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <code id="nu-temp-pw-display" style="font-size:15px;font-weight:800;color:#15803d;background:#dcfce7;padding:8px 14px;border-radius:8px;letter-spacing:.08em;"></code>
+              <button onclick="copyTempPw()" style="font-size:11px;padding:6px 12px;border:1px solid #86efac;border-radius:6px;background:#fff;cursor:pointer;font-family:var(--font);color:#15803d;font-weight:600;">Copy</button>
             </div>
             <div style="font-size:11px;color:#15803d;margin-top:6px;">User will be required to change this on first login.</div>
           </div>
         </div>
       </div>
 
-      <div style="height:1px;background:var(--gray-100);margin-bottom:16px;"></div>
-      <div style="font-size:14px;font-weight:700;color:var(--gray-700);margin-bottom:14px;">🎭 Role & Program Assignment</div>
-      <div class="admin-section-sub" style="margin-bottom:14px;">Assign programs and feature access for each staff member. Changes take effect on their next login.</div>
-
-      <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-title" style="margin-bottom:4px;">Access Tiers</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;">
-          <div style="background:var(--gray-50);border-radius:8px;padding:14px;border-left:4px solid #1e3a5f;">
-            <div style="font-size:13px;font-weight:700;color:#1e3a5f;">Admin</div>
-            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Full access · Role management · All programs · Export · Digest</div>
-          </div>
-          <div style="background:var(--gray-50);border-radius:8px;padding:14px;border-left:4px solid var(--green);">
-            <div style="font-size:13px;font-weight:700;color:var(--green);">Manager</div>
-            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Read-only full view · All programs · Digest · No role management</div>
-          </div>
-          <div style="background:var(--gray-50);border-radius:8px;padding:14px;border-left:4px solid var(--blue);">
-            <div style="font-size:13px;font-weight:700;color:var(--blue);">Staff</div>
-            <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Own tasks · Assigned programs · Check-in · Team feed only</div>
-          </div>
-        </div>
+      <!-- ROLE & PROGRAM ASSIGNMENT -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:14px;font-weight:700;color:var(--gray-800);">Role &amp; Program Assignment</div>
+        <span style="font-size:12px;color:var(--gray-400);">Changes take effect on next login</span>
       </div>
+      <div class="admin-section-sub">Click program pills to toggle access. Save each card individually.</div>
 
       <div class="rm-grid" id="rm-cards"></div>
 
-      <div class="panel" style="margin-top:16px;">
-        <div class="panel-title" style="margin-bottom:12px;">💾 Save Configuration to Worker</div>
+      <div class="panel" style="margin-top:20px;">
+        <div class="panel-title" style="margin-bottom:10px;">Save Configuration</div>
         <div style="font-size:13px;color:var(--gray-600);margin-bottom:12px;">
           After adjusting roles below, save the configuration. Staff will see their updated access on next login.
         </div>
@@ -3269,51 +3334,59 @@ let USERS_LIST = []; // loaded from Worker on admin login
 function renderUserManagement() {
   const el = document.getElementById('um-user-list');
   if (!el) return;
+
+  const countEl = document.getElementById('um-count');
   if (!USERS_LIST.length) {
-    el.innerHTML = '<div style="font-size:13px;color:var(--gray-400);text-align:center;padding:16px;">Loading users…</div>';
+    el.innerHTML = '<div style="font-size:13px;color:var(--gray-400);text-align:center;padding:20px;">Loading users…</div>';
     return;
   }
+  if (countEl) countEl.textContent = `${USERS_LIST.length} account${USERS_LIST.length !== 1 ? 's' : ''}`;
+
+  const roleBg = {
+    admin:           ['#e0e7ff','#4338ca'],
+    manager:         ['#dcfce7','#15803d'],
+    finance_manager: ['#f5f3ff','#7c3aed'],
+    finance_staff:   ['#fdf4ff','#a855f7'],
+    finance:         ['#fdf4ff','#a855f7'],
+    staff:           ['#eff6ff','#1d4ed8'],
+  };
+
   el.innerHTML = `
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <table class="um-table">
       <thead>
-        <tr style="border-bottom:2px solid var(--gray-100);">
-          <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--gray-400);font-weight:700;text-transform:uppercase;">Username</th>
-          <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--gray-400);font-weight:700;text-transform:uppercase;">Display Name</th>
-          <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--gray-400);font-weight:700;text-transform:uppercase;">Role</th>
-          <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--gray-400);font-weight:700;text-transform:uppercase;">Status</th>
-          <th style="padding:8px 12px;"></th>
+        <tr>
+          <th>Username</th>
+          <th>Name</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th style="text-align:right;"></th>
         </tr>
       </thead>
       <tbody>
-        ${USERS_LIST.map(u => `
-          <tr style="border-bottom:1px solid var(--gray-100);">
-            <td style="padding:10px 12px;font-weight:600;color:var(--gray-900);font-family:monospace;">${u.username}</td>
-            <td style="padding:10px 12px;color:var(--gray-700);">${u.name}</td>
-            <td style="padding:10px 12px;">
-              <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
-                background:${u.role==='admin'?'#e0e7ff':u.role==='manager'?'#dcfce7':'#eff6ff'};
-                color:${u.role==='admin'?'#4338ca':u.role==='manager'?'#15803d':'#1d4ed8'}">
+        ${USERS_LIST.map(u => {
+          const [bg, fg] = roleBg[u.role] || ['#f1f5f9','#64748b'];
+          const isMe = u.username === CURRENT_USER?.username;
+          return `<tr>
+            <td style="font-family:monospace;font-size:12px;color:var(--gray-700);font-weight:600;">${u.username}</td>
+            <td style="font-weight:500;color:var(--gray-900);">${u.name}</td>
+            <td>
+              <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${bg};color:${fg};">
                 ${u.role}
               </span>
             </td>
-            <td style="padding:10px 12px;">
+            <td>
               ${u.mustChangePassword
-                ? '<span style="font-size:11px;color:#d97706;font-weight:600;">⚠ Temp password</span>'
-                : '<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Active</span>'}
+                ? '<span class="um-status-temp"><span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block;"></span>Temp password</span>'
+                : '<span class="um-status-active"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;"></span>Active</span>'}
             </td>
-            <td style="padding:10px 12px;text-align:right;">
-              ${u.username !== CURRENT_USER?.username ? `
-                <button onclick="resetUserPassword('${u.username}','${u.name}')"
-                  style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-200);border-radius:6px;background:#fff;cursor:pointer;font-family:var(--font);margin-right:4px;">
-                  Reset PW
-                </button>
-                <button onclick="deleteUser('${u.username}','${u.name}')"
-                  style="font-size:11px;padding:4px 10px;border:1px solid #fecaca;border-radius:6px;background:#fff;color:var(--red);cursor:pointer;font-family:var(--font);">
-                  Delete
-                </button>
-              ` : '<span style="font-size:11px;color:var(--gray-400);">You</span>'}
+            <td style="text-align:right;white-space:nowrap;">
+              ${isMe
+                ? '<span style="font-size:11px;color:var(--gray-400);padding:4px 10px;">You</span>'
+                : `<button class="um-btn um-btn-reset" onclick="resetUserPassword('${u.username}','${u.name}')">Reset PW</button>
+                   <button class="um-btn um-btn-delete" onclick="deleteUser('${u.username}','${u.name}')">Delete</button>`}
             </td>
-          </tr>`).join('')}
+          </tr>`;
+        }).join('')}
       </tbody>
     </table>`;
 }
@@ -3916,43 +3989,52 @@ function renderRoleManagement() {
       return `<span class="rm-toggle ${on?'on':''}" onclick="toggleFeature('${name}','${f}',this)">${FEATURE_LABELS[f]}</span>`;
     }).join('');
 
+    // username from USERS_LIST if available
+    const userEntry = (typeof USERS_LIST !== 'undefined' ? USERS_LIST : []).find(u => u.name === name);
+    const usernameLabel = userEntry ? `<div class="rm-username">${userEntry.username}</div>` : '';
+
     return `
       <div class="rm-card" id="rm-card-${name}">
-        <div class="rm-card-header">
-          <div class="rm-avatar" style="background:${color}">${name[0]}</div>
-          <div>
+        <div class="rm-card-top">
+          <div class="rm-avatar" style="background:${color}">${name[0].toUpperCase()}</div>
+          <div style="flex:1;min-width:0;">
             <div class="rm-name">${name}</div>
-            <span class="role-badge ${cfg.role==='admin'?'role-admin':cfg.role==='manager'?'role-manager':['finance','finance_staff','finance_manager'].includes(cfg.role)?'role-finance':'role-staff'}" id="rm-badge-${name}">
-              ${cfg.role}
-            </span>
+            ${usernameLabel}
           </div>
+          <span class="role-badge ${cfg.role==='admin'?'role-admin':cfg.role==='manager'?'role-manager':['finance','finance_staff','finance_manager'].includes(cfg.role)?'role-finance':'role-staff'}" id="rm-badge-${name}">
+            ${cfg.role}
+          </span>
         </div>
-        <div class="rm-field">
-          <div class="rm-label">Access Tier</div>
-          <select class="rm-select" id="rm-role-${name}" onchange="onRoleChange('${name}',this)">
-            <optgroup label="Executive">
-              <option value="admin"          ${cfg.role==='admin'          ?'selected':''}>Admin — Director</option>
-            </optgroup>
-            <optgroup label="Operational">
-              <option value="manager"        ${cfg.role==='manager'        ?'selected':''}>Manager — Programme / HR / M&amp;E</option>
-              <option value="finance_manager"${cfg.role==='finance_manager'?'selected':''}>Finance Manager</option>
-              <option value="finance_staff"  ${cfg.role==='finance_staff'  ?'selected':''}>Finance Staff — Finance Officer</option>
-            </optgroup>
-            <optgroup label="Field &amp; Officers">
-              <option value="staff"          ${cfg.role==='staff'          ?'selected':''}>Staff — Officers / DDOs</option>
-              <option value="finance"        ${cfg.role==='finance'        ?'selected':''}>Finance (legacy)</option>
-            </optgroup>
-          </select>
+        <div class="rm-card-body">
+          <div class="rm-field">
+            <div class="rm-label">Role / Level</div>
+            <select class="rm-select" id="rm-role-${name}" onchange="onRoleChange('${name}',this)">
+              <optgroup label="Level 2 — Executive">
+                <option value="admin"          ${cfg.role==='admin'          ?'selected':''}>Admin — Director</option>
+              </optgroup>
+              <optgroup label="Level 3 — Operational">
+                <option value="manager"        ${cfg.role==='manager'        ?'selected':''}>Manager — Programme / HR / M&amp;E</option>
+                <option value="finance_manager"${cfg.role==='finance_manager'?'selected':''}>Finance Manager</option>
+                <option value="finance_staff"  ${cfg.role==='finance_staff'  ?'selected':''}>Finance Staff — Finance Officer</option>
+              </optgroup>
+              <optgroup label="Level 3–4 — Officers / Field">
+                <option value="staff"          ${cfg.role==='staff'          ?'selected':''}>Staff — Officers / DDOs</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="rm-divider"></div>
+          <div class="rm-field">
+            <div class="rm-label">Assigned Programs</div>
+            <div class="rm-toggle-row" id="rm-proj-${name}">${programToggles}</div>
+          </div>
+          <div class="rm-field" id="rm-feat-section-${name}">
+            <div class="rm-label">Extra Features</div>
+            <div class="rm-toggle-row" id="rm-feat-${name}">${featureToggles}</div>
+          </div>
+          <div class="rm-divider"></div>
+          <button class="rm-save-btn" onclick="saveIndividualRole('${name}')">Save changes</button>
+          <div class="rm-saved-msg" id="rm-saved-${name}">✓ Saved successfully</div>
         </div>
-        <div class="rm-field">
-          <div class="rm-label">Assigned Programs</div>
-          <div class="rm-toggle-row" id="rm-proj-${name}">${programToggles}</div>
-        </div>
-        <div class="rm-field" id="rm-feat-section-${name}">
-          <div class="rm-label">Extra Feature Access</div>
-          <div class="rm-toggle-row" id="rm-feat-${name}">${featureToggles}</div>
-        </div>
-        <div class="rm-saved-msg" id="rm-saved-${name}">✓ Saved</div>
       </div>`;
   }).join('');
 
