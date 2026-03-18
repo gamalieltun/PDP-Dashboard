@@ -3447,10 +3447,28 @@ function renderUserManagement() {
     </table>`;
 }
 
+function toggleNewUserDiocese() {
+  const role    = document.getElementById('nu-role')?.value || 'staff';
+  const row     = document.getElementById('nu-diocese-row');
+  const pillsEl = document.getElementById('nu-diocese-pills');
+  if (!row || !pillsEl) return;
+  const isField = DIOCESE_SCOPE_ROLES.includes(role);
+  row.style.display = isField ? '' : 'none';
+  if (isField) {
+    pillsEl.innerHTML = ALL_DIOCESES.map(d =>
+      `<span class="rm-toggle rm-diocese-toggle"
+        onclick="this.parentNode.querySelectorAll('.rm-diocese-toggle').forEach(x=>x.classList.remove('on'));this.classList.add('on');window._nuDiocese='${d}';"
+      >${d}</span>`
+    ).join('');
+    window._nuDiocese = null;
+  }
+}
+
 async function addNewUser() {
   const username = document.getElementById('nu-username').value.trim().toLowerCase().replace(/\s+/g,'_');
   const name     = document.getElementById('nu-name').value.trim();
   const role     = document.getElementById('nu-role').value;
+  const diocese  = (DIOCESE_SCOPE_ROLES.includes(role) ? (window._nuDiocese || null) : null);
   const btn      = document.getElementById('nu-btn');
   const msg      = document.getElementById('nu-msg');
   const tempBox  = document.getElementById('nu-temp-pw-box');
