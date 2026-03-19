@@ -887,7 +887,7 @@
       <div style="font-size:12px;color:var(--gray-400);margin-bottom:20px;">Choose which email notifications you receive. Your email must be set by your admin for these to work.</div>
       <div id="np-email-hint" style="font-size:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:16px;color:#1d4ed8;display:none;"></div>
       <div style="margin-bottom:20px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div data-notif-row="task_assigned" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
             <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New task assigned to me</div>
             <div id="np-toggle-task_assigned"
               onclick="npToggle('task_assigned')"
@@ -897,7 +897,7 @@
               <div id="np-thumb-task_assigned" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div data-notif-row="task_updated" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
             <div style="font-size:13px;font-weight:500;color:var(--gray-800);">My task status changed</div>
             <div id="np-toggle-task_updated"
               onclick="npToggle('task_updated')"
@@ -907,7 +907,7 @@
               <div id="np-thumb-task_updated" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div data-notif-row="program_created" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
             <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New program created</div>
             <div id="np-toggle-program_created"
               onclick="npToggle('program_created')"
@@ -917,7 +917,7 @@
               <div id="np-thumb-program_created" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div data-notif-row="project_created" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
             <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New project created</div>
             <div id="np-toggle-project_created"
               onclick="npToggle('project_created')"
@@ -927,7 +927,7 @@
               <div id="np-thumb-project_created" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div data-notif-row="proposal_submitted" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
             <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Budget proposal submitted</div>
             <div id="np-toggle-proposal_submitted"
               onclick="npToggle('proposal_submitted')"
@@ -937,7 +937,7 @@
               <div id="np-thumb-proposal_submitted" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div data-notif-row="proposal_reviewed" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
             <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Budget proposal approved / rejected</div>
             <div id="np-toggle-proposal_reviewed"
               onclick="npToggle('proposal_reviewed')"
@@ -947,7 +947,7 @@
               <div id="np-thumb-proposal_reviewed" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div data-notif-row="expense_reviewed" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
             <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Expense approved / rejected</div>
             <div id="np-toggle-expense_reviewed"
               onclick="npToggle('expense_reviewed')"
@@ -957,7 +957,7 @@
               <div id="np-thumb-expense_reviewed" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div data-notif-row="dcr_submitted" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
             <div style="font-size:13px;font-weight:500;color:var(--gray-800);">DCR report submitted</div>
             <div id="np-toggle-dcr_submitted"
               onclick="npToggle('dcr_submitted')"
@@ -967,7 +967,7 @@
               <div id="np-thumb-dcr_submitted" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div data-notif-row="checkin_reminder" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
             <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Weekly check-in reminder (Monday)</div>
             <div id="np-toggle-checkin_reminder"
               onclick="npToggle('checkin_reminder')"
@@ -3753,8 +3753,23 @@ function showUM(elId, text, type) {
 const NOTIF_EVENTS = [
   'task_assigned','task_updated','program_created','project_created',
   'proposal_submitted','proposal_reviewed','expense_reviewed',
-  'dcr_submitted','checkin_reminder'
+  'dcr_submitted','checkin_reminder','checkin_submitted'
 ];
+
+const ROLE_NOTIF_EVENTS = {
+  'admin':           ['task_assigned','task_updated','program_created','project_created','proposal_submitted','proposal_reviewed','expense_reviewed','dcr_submitted','checkin_reminder','checkin_submitted'],
+  'manager':         ['task_updated','program_created','project_created','checkin_submitted','dcr_submitted','expense_reviewed','proposal_submitted'],
+  'staff':           ['task_assigned','task_updated','checkin_reminder'],
+  'external':        ['task_assigned','task_updated','checkin_reminder'],
+  'finance_manager': ['proposal_submitted','proposal_reviewed','expense_reviewed'],
+  'finance_staff':   ['proposal_reviewed','expense_reviewed'],
+  'finance':         ['proposal_reviewed','expense_reviewed'],
+};
+
+function getRoleEvents() {
+  const role = CURRENT_USER?.role || 'staff';
+  return ROLE_NOTIF_EVENTS[role] || ROLE_NOTIF_EVENTS['staff'];
+}
 
 function npToggle(key) {
   const wrap  = document.getElementById(`np-toggle-${key}`);
@@ -3798,9 +3813,20 @@ function showNotifPrefsModal() {
     hintEl.style.display = '';
   }
 
-  // Load current prefs — default all ON
-  const optOut = CURRENT_USER?.notifOptOut || [];
-  NOTIF_EVENTS.forEach(key => applyToggleStyle(key, !optOut.includes(key)));
+  // Show only role-relevant toggles
+  const roleEvents = getRoleEvents();
+  const optOut     = CURRENT_USER?.notifOptOut || [];
+
+  NOTIF_EVENTS.forEach(key => {
+    const wrap = document.getElementById(`np-toggle-${key}`);
+    const row  = document.querySelector(`[data-notif-row="${key}"]`);
+    if (!wrap) return;
+    const relevant = roleEvents.includes(key);
+    // Show/hide the entire row
+    if (row) row.style.display = relevant ? '' : 'none';
+    // Set toggle state — ON if relevant and not opted out
+    if (relevant) applyToggleStyle(key, !optOut.includes(key));
+  });
 
   document.getElementById('np-msg').style.display = 'none';
 }
@@ -3816,8 +3842,9 @@ async function saveNotifPrefs() {
   const msg = document.getElementById('np-msg');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  // Build optOut list — events where toggle is OFF
-  const optOut = NOTIF_EVENTS.filter(key => {
+  // Build optOut list — only from role-relevant events where toggle is OFF
+  const roleEvents = getRoleEvents();
+  const optOut = roleEvents.filter(key => {
     const wrap = document.getElementById(`np-toggle-${key}`);
     return wrap && wrap.dataset.on !== 'true';
   });
