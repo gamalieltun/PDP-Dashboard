@@ -1216,12 +1216,16 @@
           </div>
           <div class="form-row" style="gap:10px;">
             <div class="rm-field" style="flex:1">
-              <div class="rm-label">Start CW</div>
-              <input class="form-input" id="np-start" type="number" min="1" max="52" placeholder="e.g. 15" style="font-family:var(--font);">
+              <div class="rm-label">Start Date</div>
+              <input class="form-input" id="np-start-date" type="date" style="font-family:var(--font);" onchange="syncCW('np-start-date','np-start','np-start-cw-hint')">
+              <div id="np-start-cw-hint" style="font-size:11px;color:var(--gray-400);margin-top:3px;"></div>
+              <input type="hidden" id="np-start">
             </div>
             <div class="rm-field" style="flex:1">
-              <div class="rm-label">End CW</div>
-              <input class="form-input" id="np-end" type="number" min="1" max="52" placeholder="e.g. 40" style="font-family:var(--font);">
+              <div class="rm-label">End Date</div>
+              <input class="form-input" id="np-end-date" type="date" style="font-family:var(--font);" onchange="syncCW('np-end-date','np-end','np-end-cw-hint')">
+              <div id="np-end-cw-hint" style="font-size:11px;color:var(--gray-400);margin-top:3px;"></div>
+              <input type="hidden" id="np-end">
             </div>
           </div>
           <div class="form-row" style="gap:10px;">
@@ -1267,8 +1271,10 @@
               </select>
             </div>
             <div class="rm-field" style="flex:1">
-              <div class="rm-label">Due CW</div>
-              <input class="form-input" id="nt-cw" type="number" min="1" max="52" placeholder="e.g. 14" style="font-family:var(--font);">
+              <div class="rm-label">Due Date</div>
+              <input class="form-input" id="nt-cw-date" type="date" style="font-family:var(--font);" onchange="syncCW('nt-cw-date','nt-cw','nt-cw-hint')">
+              <div id="nt-cw-hint" style="font-size:11px;color:var(--gray-400);margin-top:3px;"></div>
+              <input type="hidden" id="nt-cw">
             </div>
           </div>
           <div class="form-row" style="gap:10px;">
@@ -1310,28 +1316,22 @@
         </div>
         <div class="form-row" style="gap:10px;">
           <div class="rm-field" style="flex:1">
-            <div class="rm-label">Start CW</div>
-            <input class="form-input" id="pm-prog-start" type="number" min="1" max="52" placeholder="e.g. 1" style="font-family:var(--font);">
+            <div class="rm-label">Start Date</div>
+            <input class="form-input" id="pm-prog-start-date" type="date" style="font-family:var(--font);" onchange="syncCW('pm-prog-start-date','pm-prog-start','pm-prog-start-hint')">
+            <div id="pm-prog-start-hint" style="font-size:11px;color:var(--gray-400);margin-top:3px;"></div>
+            <input type="hidden" id="pm-prog-start">
           </div>
           <div class="rm-field" style="flex:1">
-            <div class="rm-label">End CW</div>
-            <input class="form-input" id="pm-prog-end" type="number" min="1" max="52" placeholder="e.g. 26" style="font-family:var(--font);">
+            <div class="rm-label">End Date</div>
+            <input class="form-input" id="pm-prog-end-date" type="date" style="font-family:var(--font);" onchange="syncCW('pm-prog-end-date','pm-prog-end','pm-prog-end-hint')">
+            <div id="pm-prog-end-hint" style="font-size:11px;color:var(--gray-400);margin-top:3px;"></div>
+            <input type="hidden" id="pm-prog-end">
           </div>
         </div>
         <div class="form-row" style="gap:10px;">
           <div class="rm-field" style="flex:1">
             <div class="rm-label">Quarter</div>
-            <select class="rm-select" id="pm-prog-quarter">
-              <option value="">— Select —</option>
-              <option value="26Q1">2026 Q1</option>
-              <option value="26Q2">2026 Q2</option>
-              <option value="26Q3">2026 Q3</option>
-              <option value="26Q4">2026 Q4</option>
-              <option value="27Q1">2027 Q1</option>
-              <option value="27Q2">2027 Q2</option>
-              <option value="27Q3">2027 Q3</option>
-              <option value="27Q4">2027 Q4</option>
-            </select>
+            <select class="rm-select" id="pm-prog-quarter"><option value="">— Select —</option></select>
           </div>
           <div class="rm-field" style="flex:1">
             <div class="rm-label">Status</div>
@@ -1722,6 +1722,30 @@ const TOTAL_CW   = 52;
 Object.defineProperty(window, 'CURRENT_CW', { get: () => window.CURRENT_CW_DYNAMIC || 10 });
 
 // ─── Filter state (per-tab) ───────────────────────
+
+// ── Date → CW helper ──────────────────────────────────────────────────────────
+function dateToCW(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return '';
+  // ISO week number
+  const jan4 = new Date(d.getFullYear(), 0, 4);
+  const startOfWeek1 = new Date(jan4);
+  startOfWeek1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+  const diff = d - startOfWeek1;
+  const cw = Math.floor(diff / (7 * 24 * 3600 * 1000)) + 1;
+  return cw > 0 ? cw : 1;
+}
+
+function cwToDateRange(cw, year) {
+  // Returns the Monday of that CW as a date string for display
+  const jan4 = new Date(year || new Date().getFullYear(), 0, 4);
+  const startOfWeek1 = new Date(jan4);
+  startOfWeek1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+  const monday = new Date(startOfWeek1);
+  monday.setDate(startOfWeek1.getDate() + (cw - 1) * 7);
+  return monday.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
 // activeQ: 'Q1'|'Q2'|'Q3'|'Q4'|null
 // activeCWs: Set of CW numbers (empty = all)
 const FS = {
@@ -2196,11 +2220,30 @@ async function loadFromWorker() {
 function currentYearShort() {
   return String(new Date().getFullYear()).slice(-2);
 }
+
+function syncCW(dateInputId, cwHiddenId, hintId) {
+  const dateEl = document.getElementById(dateInputId);
+  const cwEl   = document.getElementById(cwHiddenId);
+  const hintEl = document.getElementById(hintId);
+  if (!dateEl || !cwEl) return;
+  const cw = dateToCW(dateEl.value);
+  cwEl.value = cw || '';
+  if (hintEl) {
+    hintEl.textContent = cw ? `CW ${cw}` : '';
+  }
+}
 function quarterOptions(selected='') {
-  const y = currentYearShort();
-  return ['Q1','Q2','Q3','Q4'].map(q =>
-    `<option value="${y}${q}" ${selected===y+q?'selected':''}>${y}${q}</option>`
-  ).join('');
+  const curYear = new Date().getFullYear();
+  const opts = [];
+  for (let yr = curYear - 2; yr <= curYear + 3; yr++) {
+    const yShort = String(yr).slice(-2);
+    ['Q1','Q2','Q3','Q4'].forEach(q => {
+      const val = `${yShort}${q}`;
+      const lbl = `${yr} ${q}`;
+      opts.push(`<option value="${val}" ${selected===val?'selected':''}>${lbl}</option>`);
+    });
+  }
+  return opts.join('');
 }
 
 function parseSheetData(sheets) {
@@ -2457,7 +2500,7 @@ function renderProgress() {
     const wp = ((p.end-p.start+1)/TOTAL_CW)*100;
     const fp = p.total>0?(p.delivered/p.total)*wp:0;
     return `<div class="gantt-row">
-      <div class="gantt-label"><div class="gantt-name">${p.name}</div><div class="gantt-sub">${p.id} · CW${p.start}–${p.end}</div></div>
+      <div class="gantt-label"><div class="gantt-name">${p.name}</div><div class="gantt-sub">${p.id} · ${cwToDateRange(p.start)} – ${cwToDateRange(p.end)}</div></div>
       <div class="gantt-track">
         <div class="gantt-bar"  style="left:${sp}%;width:${wp}%;background:${p.color}18;border:1px solid ${p.color}44;"></div>
         <div class="gantt-fill" style="left:${sp}%;width:${fp}%;background:${p.color};"></div>
@@ -2532,7 +2575,7 @@ function renderProgress() {
 
         </div>
       </div>
-      <div class="proj-meta">${p.id} · ${p.total} tasks · ${p.delivered} delivered · CW${p.start}–CW${p.end}</div>
+      <div class="proj-meta">${p.id} · ${p.total} tasks · ${p.delivered} delivered · ${cwToDateRange(p.start)} – ${cwToDateRange(p.end)}</div>
       <div class="bar"><div class="bar-fill" style="width:${pp}%;background:${p.color}"></div></div>
     </div>
     <div id="ptasks-${p.id}" style="display:block;border:1px solid var(--gray-200);border-top:none;border-radius:0 0 10px 10px;overflow:hidden;margin-top:-1px;margin-bottom:16px;">
@@ -3108,7 +3151,7 @@ function loadTasksForName(name) {
         <div style="flex:1">
           <div class="ci-task-name">${t['Task Name'] || 'Unnamed'}</div>
           <div class="ci-task-detail">
-            ${t.programName} · CW ${taskCW}
+            ${t.programName} · CW ${taskCW} (${taskCW ? cwToDateRange(taskCW) : ""})
             ${overdue ? '<span class="ci-task-overdue"> · ⚠ Overdue</span>' : ''}
           </div>
         </div>
@@ -3450,7 +3493,10 @@ function renderMyTasks() {
             </div>
             <div class="task-meta">${t.programName}${t['Project Name'] ? ' · ' + t['Project Name'] : ''} · <span id="ts-${taskKey}-${projId}">${status}</span>${overdue ? ' · ⚠ Overdue' : ''}</div>
           </div>
-          <span class="${cwClass}" style="margin-right:8px">CW ${taskCW}</span>
+          <div style="text-align:center;margin-right:8px;">
+            <span class="${cwClass}">CW ${taskCW}</span>
+            <div style="font-size:10px;color:var(--gray-400);margin-top:2px;white-space:nowrap;">${taskCW ? cwToDateRange(taskCW) : ''}</div>
+          </div>
           <button style="${btnStyle}" onclick="quickUpdateTask('${t['Task Name']?.replace(/'/g,"\\'")}','${t.programId}','${newStat}',this)">
             ${btnLabel}
           </button>
@@ -3962,9 +4008,12 @@ function showModalMsg(elId, text, type) {
 
 function renderProgramManagement() {
   // Populate quarter selects dynamically
-  ['np-sq','np-eq','nt-quarter'].forEach(id => {
+  ['np-sq','np-eq','nt-quarter','pm-prog-quarter'].forEach(id => {
     const el = document.getElementById(id);
-    if (el && !el.options.length) el.innerHTML = quarterOptions();
+    if (el) {
+      const cur = el.value;
+      el.innerHTML = (id === 'pm-prog-quarter' ? '<option value="">— Select —</option>' : '') + quarterOptions(cur);
+    }
   });
 
   // Populate program dropdowns for task add + project add
@@ -4022,7 +4071,7 @@ function renderProgramManagement() {
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="flex:1">
             <div class="pm-proj-name">${p.id} — ${p.name}</div>
-            <div class="pm-proj-meta">CW ${p.start}–${p.end} · ${p.total} tasks · ${p.delivered} delivered · ${pct}% complete</div>
+            <div class="pm-proj-meta">${cwToDateRange(p.start)} – ${cwToDateRange(p.end)} · CW${p.start}–${p.end} · ${p.total} tasks · ${p.delivered} delivered · ${pct}% complete</div>
           </div>
           <span class="pm-task-count">${p.total} tasks</span>
           <button class="pm-add-task-btn" onclick="quickAddTask('${p.id}')">+ Add Task</button>
@@ -4164,7 +4213,7 @@ async function addProjectFromDashboard() {
     msgEl.textContent = `✓ Project "${projectName}" added (${data.projectId})`;
 
     // Clear form
-    ['pm-prog-name','pm-prog-desc','pm-prog-start','pm-prog-end','pm-prog-responsible'].forEach(id => {
+    ['pm-prog-name','pm-prog-desc','pm-prog-start','pm-prog-end','pm-prog-responsible','pm-prog-start-date','pm-prog-end-date'].forEach(id => {
       const el = document.getElementById(id); if (el) el.value = '';
     });
 
@@ -4250,7 +4299,8 @@ async function addNewProgram() {
 
     showPMMsg('np-msg', `✓ Program ${id} created with sheet "${id} Task_List"!`, 'success');
     // Clear form
-    ['np-name','np-start','np-end'].forEach(i => document.getElementById(i).value = '');
+    ['np-name','np-start','np-end','np-start-date','np-end-date'].forEach(i => { const el = document.getElementById(i); if(el) el.value=''; });
+    ['np-start-cw-hint','np-end-cw-hint'].forEach(i => { const el = document.getElementById(i); if(el) el.textContent=''; });
     // Reload data
     setTimeout(() => { loadFromWorker().then(() => { renderAll(); renderProgramManagement(); }); }, 1500);
   } catch(e) {
@@ -4297,7 +4347,8 @@ async function addNewTask() {
 
     showPMMsg('nt-msg', `✓ Task "${name}" added to ${programId} and assigned to ${owner}!`, 'success');
     // Clear task form
-    ['nt-name','nt-cw'].forEach(i => document.getElementById(i).value = '');
+    ['nt-name','nt-cw','nt-cw-date'].forEach(i => { const el = document.getElementById(i); if(el) el.value=''; });
+    const cwHintEl = document.getElementById('nt-cw-hint'); if(cwHintEl) cwHintEl.textContent='';
     document.getElementById('nt-owner').value = '';
     document.getElementById('nt-status').value = 'Planned';
     if (document.getElementById('nt-project')) document.getElementById('nt-project').value = '';
