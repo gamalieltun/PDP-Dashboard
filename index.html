@@ -1249,6 +1249,12 @@
               <option value="">— Select program —</option>
             </select>
           </div>
+          <div class="rm-field" id="nt-project-field">
+            <div class="rm-label">Project <span style="font-weight:400;color:var(--gray-400);text-transform:none;">(optional)</span></div>
+            <select class="rm-select" id="nt-project">
+              <option value="">— Select a program first —</option>
+            </select>
+          </div>
           <div class="rm-field">
             <div class="rm-label">Task Name</div>
             <input class="form-input" id="nt-name" placeholder="e.g. Community needs assessment" style="font-family:var(--font);">
@@ -2230,7 +2236,7 @@ function parseSheetData(sheets) {
     const hasData = rows.some(r => r['Task Name'] && String(r['Task Name']).trim());
     if (!hasData && slicedRows.length > 1) {
       // Offset structure: data is in columns J-Q (indices 9-16), re-map manually
-      const TASK_COLS = ['Task ID','Program ID','Program Name','Task Name','Quarter','CW','Status','Owner'];
+      const TASK_COLS = ['Task ID','Program ID','Program Name','Task Name','Quarter','CW','Status','Owner','Project Name'];
       rows = slicedRows.slice(1)
         .filter(r => r[9] !== undefined && r[9] !== null && r[9] !== '')
         .map(r => Object.fromEntries(TASK_COLS.map((k,i) => [k, r[9+i] ?? ''])));
@@ -2486,7 +2492,7 @@ function renderProgress() {
         <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${isDel?'var(--green)':overdue?'var(--amber)':'var(--gray-300)'}"></div>
         <div style="flex:1;${isDel?'text-decoration:line-through;color:var(--gray-400)':''}">
           ${t['Task Name']||'—'}
-          <span style="color:var(--gray-400);font-size:11px;margin-left:6px;">${t['Owner']||''} · CW${taskCW}</span>
+          <span style="color:var(--gray-400);font-size:11px;margin-left:6px;">${t['Owner']||''} · CW${taskCW}${t['Project Name'] ? ' · ' + t['Project Name'] : ''}</span>
         </div>
         <span style="font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;
           background:${isDel?'#dcfce7':overdue?'#fef3c7':'var(--gray-100)'};
@@ -4136,7 +4142,30 @@ function quickAddTask(programId) {
 }
 
 function onTaskProgramChange(programId) {
-  // Could pre-fill quarter based on program dates in future
+  const projSel = document.getElementById('nt-project');
+  if (!projSel) return;
+
+  // Reset
+  projSel.innerHTML = '<option value="">— None / Program-level task —</option>';
+
+  if (!programId) return;
+
+  // Filter projects belonging to this program
+  const programProjects = (DATA.projects || []).filter(p => p['Program ID'] === programId);
+
+  if (programProjects.length === 0) {
+    projSel.innerHTML += '<option value="" disabled>No projects for this program</option>';
+    return;
+  }
+
+  programProjects.forEach(p => {
+    const id   = p['Project ID'] || '';
+    const name = p['Project Name'] || id;
+    const opt  = document.createElement('option');
+    opt.value       = name;
+    opt.textContent = name + (id ? ' (' + id + ')' : '');
+    projSel.appendChild(opt);
+  });
 }
 
 async function addNewProgram() {
@@ -4184,6 +4213,7 @@ async function addNewProgram() {
 
 async function addNewTask() {
   const programId = document.getElementById('nt-program').value;
+  const projectName = document.getElementById('nt-project')?.value || '';
   const name      = document.getElementById('nt-name').value.trim();
   const owner     = document.getElementById('nt-owner').value;
   const cw        = parseInt(document.getElementById('nt-cw').value) || 0;
@@ -4206,7 +4236,7 @@ async function addNewTask() {
   const taskNum = existingTasks.length + 1;
   const taskId  = `T${taskNum}`;
 
-  const task = { taskId, programId, programName: projName, name, quarter, cw, status, owner };
+  const task = { taskId, programId, programName: projName, projectName: projectName || '', name, quarter, cw, status, owner };
 
   try {
     const res = await fetch(WORKER_URL, {
@@ -4222,6 +4252,7 @@ async function addNewTask() {
     ['nt-name','nt-cw'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('nt-owner').value = '';
     document.getElementById('nt-status').value = 'Planned';
+    if (document.getElementById('nt-project')) document.getElementById('nt-project').value = '';
     // Reload
     setTimeout(() => { loadFromWorker().then(() => { renderAll(); renderProgramManagement(); }); }, 1500);
   } catch(e) {

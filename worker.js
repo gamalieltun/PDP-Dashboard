@@ -82,7 +82,8 @@ function corsHeaders() {
 
 // ─── Read sheet ───────────────────────────────────
 async function fetchSheet(apiKey, sheetId, sheetName) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}?key=${apiKey}&valueRenderOption=FORMATTED_VALUE`;
+  const quotedName = `'${sheetName.replace(/'/g, "''")}'`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(quotedName)}?key=${apiKey}&valueRenderOption=FORMATTED_VALUE`;
   const res = await fetch(url);
   if (res.status === 404 || res.status === 400) return []; // 400 = sheet doesn't exist yet
   if (!res.ok) {
@@ -94,7 +95,8 @@ async function fetchSheet(apiKey, sheetId, sheetName) {
 
 // ─── Append row to sheet (requires OAuth) ─────────
 async function appendToSheet(accessToken, sheetId, sheetName, row) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const quotedName = `'${sheetName.replace(/'/g, "''")}'`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(quotedName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -279,10 +281,13 @@ async function driveTrashFile(token, fileId) {
 }
 
 // ─── Send email via Gmail API ─────────────────────
-async function sendEmail(accessToken, to, subject, body) {
+async function sendEmail(accessToken, to, subject, body, fromName) {
+  const from = fromName ? `${fromName} <me>` : 'PDD Dashboard <me>';
   const message = [
     `To: ${to}`,
+    `From: PDD Dashboard`,
     `Subject: ${subject}`,
+    'MIME-Version: 1.0',
     'Content-Type: text/html; charset=utf-8',
     '',
     body,
@@ -342,7 +347,8 @@ function buildAlertEmail(cw, rate, threshold, weeklyData) {
 
 // ─── Check & send performance alert ──────────────
 async function checkAndSendAlert(env, weeklyRows) {
-  if (!env.GMAIL_CLIENT_ID || !env.GMAIL_REFRESH_TOKEN || !env.ALERT_EMAIL_TO) return;
+  const alertRefreshToken = env.GMAIL_REFRESH_TOKEN || env.DRIVE_REFRESH_TOKEN;
+  if (!env.GMAIL_CLIENT_ID || !alertRefreshToken || !env.ALERT_EMAIL_TO) return;
 
   const threshold = parseFloat(env.ALERT_THRESHOLD || '0.70');
 
@@ -397,40 +403,59 @@ async function checkAndSendAlert(env, weeklyRows) {
 // All sends are fire-and-forget (errors logged, never thrown).
 
 async function sendNotification(env, event, data) {
-  // Require Gmail secrets — skip silently if not configured
-  if (!env.GMAIL_CLIENT_ID || !env.GMAIL_CLIENT_SECRET || !env.GMAIL_REFRESH_TOKEN) return;
+  // Use GMAIL_REFRESH_TOKEN if available, fall back to DRIVE_REFRESH_TOKEN
+  // (DRIVE_REFRESH_TOKEN has gmail.send scope so it works for both)
+  const gmailRefreshToken = env.GMAIL_REFRESH_TOKEN || env.DRIVE_REFRESH_TOKEN;
+  if (!env.GMAIL_CLIENT_ID || !env.GMAIL_CLIENT_SECRET || !gmailRefreshToken) return;
 
   try {
     // Build recipient list and email content for this event
     const { to, subject, html } = buildNotificationEmail(event, data, env);
-    if (!to || to.length === 0) return; // no recipients with email set — skip
+    console.log(`[Notify] ${event} → recipients:`, JSON.stringify(to));
+    if (!to || to.length === 0) {
+      console.warn(`[Notify] ${event} skipped — no recipients resolved`);
+      return;
+    }
 
-    const token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, env.GMAIL_REFRESH_TOKEN);
+    console.log(`[Notify] fetching token for ${event}...`);
+    const token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, gmailRefreshToken);
+    console.log(`[Notify] token OK, sending to ${to.length} recipient(s)`);
 
-    // Send to each recipient (fire individually so one failure doesn't block others)
-    await Promise.allSettled(
+    // Send to each recipient individually
+    const results = await Promise.allSettled(
       to.map(addr => sendEmail(token, addr, subject, html))
     );
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') console.error(`[Notify] ${event} → ${to[i]} FAILED:`, r.reason?.message);
+      else console.log(`[Notify] ${event} → ${to[i]} sent OK`);
+    });
   } catch(e) {
-    console.error(`[Notify] ${event} failed:`, e.message);
+    console.error(`[Notify] ${event} error:`, e.message, e.stack);
   }
 }
 
 function buildNotificationEmail(event, data, env) {
   // Shared helpers
   const FROM_NAME = 'PDD Dashboard';
-  const BASE_URL  = env.DASHBOARD_URL || 'https://gamalieltun.com';
+  const BASE_URL  = env.DASHBOARD_URL || 'https://www.gamalieltun.com/PDP-Dashboard/';
 
   // Resolve recipients — respects each user's notifOptOut preferences
   function emailOf(name, eventType) {
     if (!name) return null;
     try {
       const users = JSON.parse(env.USERS_CONFIG || '{}');
-      const match = Object.values(users).find(u => u.name === name);
+      // Match by display name OR by username key (case-insensitive)
+      const match = Object.entries(users).find(([key, u]) =>
+        u.name === name || key.toLowerCase() === name.toLowerCase()
+      )?.[1];
+      console.log(`[emailOf] looking for "${name}" → found: ${!!match}, email: ${match?.email || 'none'}`);
       if (!match?.email) return null;
       if (eventType && (match.notifOptOut || []).includes(eventType)) return null;
       return match.email;
-    } catch { return null; }
+    } catch(e) {
+      console.error('[emailOf] error:', e.message);
+      return null;
+    }
   }
 
   function emailsOfRole(eventType, ...roles) {
@@ -482,7 +507,7 @@ function buildNotificationEmail(event, data, env) {
     const ownerEmail = emailOf(assignee, 'task_assigned');
     return {
       to:      [ownerEmail].filter(Boolean),
-      subject: `New task assigned to you — ${taskName}`,
+      subject: `[PDD] New task assigned to you: ${taskName}`,
       html:    wrap(`
         <h2 style="margin:0 0 6px;font-size:18px;">You have a new task</h2>
         <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Assigned by ${assignedBy || 'admin'}</p>
@@ -504,7 +529,7 @@ function buildNotificationEmail(event, data, env) {
     const statusColor   = status === 'Delivered' ? '#16a34a' : '#2563eb';
     return {
       to:      [...new Set([ownerEmail, ...managerEmails].filter(Boolean))],
-      subject: `Task status updated — ${taskName}`,
+      subject: `[PDD] Task status updated: ${taskName}`,
       html:    wrap(`
         <h2 style="margin:0 0 6px;font-size:18px;">Task status changed</h2>
         <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Updated by ${updatedBy || 'system'}</p>
@@ -524,7 +549,7 @@ function buildNotificationEmail(event, data, env) {
     const managerEmails  = emailsOfRole('program_created', 'manager');
     return {
       to:      [...new Set([...directorEmails, ...managerEmails])],
-      subject: `New program created — ${programId}: ${programName}`,
+      subject: `[PDD] New program: ${programId} - ${programName}`,
       html:    wrap(`
         <h2 style="margin:0 0 6px;font-size:18px;">New program added</h2>
         <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Created by ${createdBy || 'admin'}</p>
@@ -543,7 +568,7 @@ function buildNotificationEmail(event, data, env) {
     const managerEmails  = emailsOfRole('project_created', 'manager');
     return {
       to:      [...new Set([...directorEmails, ...managerEmails])],
-      subject: `New project created — ${projectName}`,
+      subject: `[PDD] New project: ${projectName}`,
       html:    wrap(`
         <h2 style="margin:0 0 6px;font-size:18px;">New project added</h2>
         <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Created by ${createdBy || 'admin'}</p>
@@ -562,7 +587,7 @@ function buildNotificationEmail(event, data, env) {
     const directorEmails = emailsOfRole('proposal_submitted', 'admin');
     return {
       to:      directorEmails,
-      subject: `Budget proposal submitted — ${category} (${programId})`,
+      subject: `[PDD] Budget proposal submitted: ${category} (${programId})`,
       html:    wrap(`
         <h2 style="margin:0 0 6px;font-size:18px;">New budget proposal</h2>
         <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Requires your review</p>
@@ -584,9 +609,9 @@ function buildNotificationEmail(event, data, env) {
     const isApproved    = status === 'approved';
     return {
       to:      [proposerEmail].filter(Boolean),
-      subject: `Your budget proposal has been ${status} — ${category}`,
+      subject: `[PDD] Budget proposal ${status === 'approved' ? 'approved' : 'rejected'}: ${category}`,
       html:    wrap(`
-        <h2 style="margin:0 0 6px;font-size:18px;">Budget proposal ${status}</h2>
+        <h2 style="margin:0 0 6px;font-size:18px;">Budget proposal ${status === 'approved' ? 'approved' : 'rejected'}</h2>
         <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Reviewed by ${reviewedBy}</p>
         ${table(
           row('Proposal ID',  proposalId),
@@ -606,9 +631,9 @@ function buildNotificationEmail(event, data, env) {
     const isApproved     = status === 'approved';
     return {
       to:      [...new Set([submitterEmail, ...directorEmails].filter(Boolean))],
-      subject: `Expense ${status} — ${description}`,
+      subject: `[PDD] Expense ${status === 'approved' ? 'approved' : 'rejected'}: ${description}`,
       html:    wrap(`
-        <h2 style="margin:0 0 6px;font-size:18px;">Expense ${status}</h2>
+        <h2 style="margin:0 0 6px;font-size:18px;">Expense ${status === 'approved' ? 'approved' : 'rejected'}</h2>
         <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Reviewed by ${reviewedBy}</p>
         ${table(
           row('Transaction', txId),
@@ -621,12 +646,32 @@ function buildNotificationEmail(event, data, env) {
     };
   }
 
+  if (event === 'checkin_submitted') {
+    const { name, program, cw, done, missed } = data;
+    const managerEmails = emailsOfRole('checkin_submitted', 'manager', 'admin');
+    return {
+      to:      managerEmails,
+      subject: `[PDD] Check-in submitted: ${name} (CW ${cw})`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">Check-in submitted</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">CW ${cw}</p>
+        ${table(
+          row('Staff',    name),
+          row('Program',  program || '—'),
+          row('CW',       `CW ${cw}`),
+          row('Delivered', `${done} task${done !== 1 ? 's' : ''}`),
+          row('Missed',   `${missed} task${missed !== 1 ? 's' : ''}`),
+        )}
+      `),
+    };
+  }
+
   if (event === 'dcr_submitted') {
     const { reportType, submittedBy, diocese, period } = data;
     const managerEmails  = emailsOfRole('dcr_submitted', 'manager', 'admin');
     return {
       to:      managerEmails,
-      subject: `DCR report submitted — ${reportType} (${diocese || 'Province'})`,
+      subject: `[PDD] DCR report submitted: ${reportType} - ${diocese || 'Province'}`,
       html:    wrap(`
         <h2 style="margin:0 0 6px;font-size:18px;">DCR report submitted</h2>
         <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Submitted by ${submittedBy}</p>
@@ -645,7 +690,7 @@ function buildNotificationEmail(event, data, env) {
     const allStaffEmails = emailsOfRole('checkin_reminder', 'staff', 'external', 'manager', 'finance_staff', 'finance_manager');
     return {
       to:      allStaffEmails,
-      subject: `Reminder — submit your weekly check-in for CW ${cw}`,
+      subject: `[PDD] Weekly check-in reminder: CW ${cw}`,
       html:    wrap(`
         <h2 style="margin:0 0 6px;font-size:18px;">Weekly check-in reminder</h2>
         <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Calendar Week ${cw}</p>
@@ -998,11 +1043,12 @@ export default {
       if (!program?.id || !program?.name)
         return new Response(JSON.stringify({ error: 'Missing program data' }), { status: 400, headers });
 
-      if (!env.GMAIL_REFRESH_TOKEN)
+      const sheetsRefreshToken = env.GMAIL_REFRESH_TOKEN || env.DRIVE_REFRESH_TOKEN;
+      if (!sheetsRefreshToken)
         return new Response(JSON.stringify({ error: 'OAuth not configured' }), { status: 501, headers });
 
       let token;
-      try { token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, env.GMAIL_REFRESH_TOKEN); }
+      try { token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, sheetsRefreshToken); }
       catch(e) { return new Response(JSON.stringify({ error: 'OAuth failed: ' + e.message }), { status: 500, headers }); }
 
       const sheetName = `${program.id} Task_List`;
@@ -1043,7 +1089,7 @@ export default {
       await appendToSheet(token, spreadsheetId, 'Main Programs', projRow);
 
       // Fire notification — non-blocking
-      sendNotification(env, 'program_created', {
+      await sendNotification(env, 'program_created', {
         programId:   program.id,
         programName: program.name,
         createdBy:   body.username,
@@ -1062,11 +1108,12 @@ export default {
       if (!task?.programId || !task?.name)
         return new Response(JSON.stringify({ error: 'Missing task data' }), { status: 400, headers });
 
-      if (!env.GMAIL_REFRESH_TOKEN)
+      const sheetsRefreshToken = env.GMAIL_REFRESH_TOKEN || env.DRIVE_REFRESH_TOKEN;
+      if (!sheetsRefreshToken)
         return new Response(JSON.stringify({ error: 'OAuth not configured' }), { status: 501, headers });
 
       let token;
-      try { token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, env.GMAIL_REFRESH_TOKEN); }
+      try { token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, sheetsRefreshToken); }
       catch(e) { return new Response(JSON.stringify({ error: 'OAuth failed: ' + e.message }), { status: 500, headers }); }
 
       const sheetName = `${task.programId} Task_List`;
@@ -1119,7 +1166,7 @@ export default {
       }
 
       // Fire notification — non-blocking
-      sendNotification(env, 'task_assigned', {
+      await sendNotification(env, 'task_assigned', {
         taskName:    task.name,
         programId:   task.programId,
         programName: task.programName || task.programId,
@@ -1127,7 +1174,7 @@ export default {
         quarter:     task.quarter,
         assignee:    task.owner,
         assignedBy:  body.username,
-      }).catch(() => {});
+      }).catch(e => console.error('[Notify add_task]', e.message));
 
       return new Response(JSON.stringify({ ok: true, taskId, sheetName, row }), { status: 200, headers });
     }
@@ -1142,11 +1189,12 @@ export default {
       if (!['Planned','Delivered','In Progress','Cancelled'].includes(newStatus))
         return new Response(JSON.stringify({ error: 'Invalid status' }), { status: 400, headers });
 
-      if (!env.GMAIL_REFRESH_TOKEN)
+      const sheetsRefreshToken = env.GMAIL_REFRESH_TOKEN || env.DRIVE_REFRESH_TOKEN;
+      if (!sheetsRefreshToken)
         return new Response(JSON.stringify({ error: 'OAuth not configured' }), { status: 501, headers });
 
       let token;
-      try { token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, env.GMAIL_REFRESH_TOKEN); }
+      try { token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, sheetsRefreshToken); }
       catch(e) { return new Response(JSON.stringify({ error: 'OAuth failed: ' + e.message }), { status: 500, headers }); }
 
       const sheetName = `${programId} Task_List`;
@@ -1163,7 +1211,8 @@ export default {
         return new Response(JSON.stringify({ error: `Task "${taskName}" not found in ${sheetName}` }), { status: 404, headers });
 
       const colLetter = String.fromCharCode(65 + statusCol);
-      const range     = `${encodeURIComponent(sheetName)}!${colLetter}${rowIdx + 1}`;
+      const _sq = "'" + sheetName.replace(/'/g, "''") + "'";
+      const range = encodeURIComponent(_sq) + '!' + colLetter + (rowIdx + 1);
       const url       = `https://sheets.googleapis.com/v4/spreadsheets/${env.SPREADSHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
       const res = await fetch(url, {
         method: 'PUT',
@@ -1175,7 +1224,7 @@ export default {
         return new Response(JSON.stringify({ error: err.error?.message || res.status }), { status: 500, headers });
       }
       // Fire notification — non-blocking
-      sendNotification(env, 'task_updated', {
+      await sendNotification(env, 'task_updated', {
         taskName:  taskName,
         programId: programId,
         status:    newStatus,
@@ -1187,6 +1236,54 @@ export default {
     }
 
     // ── Save role config (Admin only) ────────────
+    // ── Test notification (debug — admin only) ──────────
+    if (action === 'test_notification') {
+      const u = validateUser(body.username, body.password);
+      if (!u || u.role !== 'admin')
+        return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers });
+
+      const gmailRefreshToken = env.GMAIL_REFRESH_TOKEN || env.DRIVE_REFRESH_TOKEN;
+      const diagnostics = {
+        GMAIL_CLIENT_ID:     !!env.GMAIL_CLIENT_ID,
+        GMAIL_CLIENT_SECRET: !!env.GMAIL_CLIENT_SECRET,
+        GMAIL_REFRESH_TOKEN: !!env.GMAIL_REFRESH_TOKEN,
+        DRIVE_REFRESH_TOKEN: !!env.DRIVE_REFRESH_TOKEN,
+        resolvedToken:       !!gmailRefreshToken,
+        targetEmail:         body.email || null,
+      };
+
+      if (!env.GMAIL_CLIENT_ID || !env.GMAIL_CLIENT_SECRET || !gmailRefreshToken)
+        return new Response(JSON.stringify({ ok: false, error: 'Missing OAuth secrets', diagnostics }), { status: 200, headers });
+
+      try {
+        const token = await getAccessToken(env.GMAIL_CLIENT_ID, env.GMAIL_CLIENT_SECRET, gmailRefreshToken);
+        diagnostics.tokenFetched = true;
+
+        const to = body.email || u.email;
+        if (!to)
+          return new Response(JSON.stringify({ ok: false, error: 'No email address — pass email in request body', diagnostics }), { status: 200, headers });
+
+        await sendEmail(token, to,
+          '[PDD] Notification test',
+          `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+            <div style="background:#0f172a;padding:20px;border-radius:10px 10px 0 0;">
+              <span style="color:#fff;font-size:16px;font-weight:700;">PDD Dashboard</span>
+            </div>
+            <div style="background:#f8fafc;padding:24px;border-radius:0 0 10px 10px;border:1px solid #e2e8f0;border-top:none;">
+              <h2 style="color:#16a34a;margin:0 0 12px;">✅ Notification test successful</h2>
+              <p style="color:#475569;font-size:14px;">Your email notifications are configured correctly. This confirms that the Gmail OAuth connection is working and emails will be delivered.</p>
+              <p style="color:#94a3b8;font-size:12px;margin-top:20px;">Sent from PDD Dashboard · Provincial Development Department</p>
+            </div>
+          </body></html>`
+        );
+        diagnostics.emailSent = true;
+        return new Response(JSON.stringify({ ok: true, message: `Test email sent to ${to}`, diagnostics }), { status: 200, headers });
+      } catch(e) {
+        diagnostics.error = e.message;
+        return new Response(JSON.stringify({ ok: false, error: e.message, diagnostics }), { status: 200, headers });
+      }
+    }
+
     // ── Save notification opt-out prefs (any authenticated user) ──
     if (action === 'save_notif_prefs') {
       const u = validateUser(body.username, body.password);
@@ -1340,6 +1437,17 @@ export default {
         await appendToSheet(token, env.SPREADSHEET_ID, 'Weekly Reports', row);
       } catch(e) {
         console.error('Check-in append failed:', e.message);
+      }
+
+      // Notify managers when staff submit check-in
+      if (!['admin', 'manager'].includes(checkinUser.role)) {
+        await sendNotification(env, 'checkin_submitted', {
+          name:    checkinUser.name || body.username,
+          program: entry.program || '',
+          cw:      entry.cw || '',
+          done:    entry.done || 0,
+          missed:  entry.missed || 0,
+        }).catch(e => console.error('[Notify checkin]', e.message));
       }
 
       return new Response(JSON.stringify({ ok: true, taskErrors }), { status: 200, headers });
@@ -1546,7 +1654,7 @@ export default {
         }
 
         // Fire notification — non-blocking
-        sendNotification(env, 'dcr_submitted', {
+        await sendNotification(env, 'dcr_submitted', {
           reportType:  report.reportType || body.reportType || 'Report',
           submittedBy: user.name || body.username,
           diocese:     report.diocese    || body.diocese    || null,
@@ -1847,7 +1955,7 @@ export default {
         // Fire notification — non-blocking
         if (txRowIdx > 0) {
           const txRow = txRows[txRowIdx];
-          sendNotification(env, 'expense_reviewed', {
+          await sendNotification(env, 'expense_reviewed', {
             txId:        txId,
             description: txRow[6] || '',
             amount:      txRow[5] || 0,
@@ -2001,7 +2109,7 @@ export default {
            startCW || '', endCW || '', quarter || '', status || 'Planning', responsible || '',
            user.name || user._key, now]);
         // Fire notification — non-blocking
-        sendNotification(env, 'project_created', {
+        await sendNotification(env, 'project_created', {
           projectId:   projectId,
           projectName: projectName,
           programId:   programId,
@@ -2184,7 +2292,7 @@ export default {
         );
         // Fire notification — non-blocking
         const submittedRow = rows[rowIdx];
-        sendNotification(env, 'proposal_submitted', {
+        await sendNotification(env, 'proposal_submitted', {
           proposalId:  proposalId,
           programId:   submittedRow[1] || '',
           category:    submittedRow[3] || '',
@@ -2252,14 +2360,14 @@ export default {
         }
 
         // Fire notification — non-blocking
-        sendNotification(env, 'proposal_reviewed', {
+        await sendNotification(env, 'proposal_reviewed', {
           proposalId:  proposalId,
           category:    row[3] || '',
           status:      decision,
           reviewedBy:  user.name || body.username,
           reviewNotes: reviewNotes || '',
           proposedBy:  row[8] || '',
-        }).catch(() => {});
+        }).catch(e => console.error('[Notify review_proposal]', e.message));
 
         return new Response(JSON.stringify({ ok: true, decision, budgetCreated: decision === 'approved' }), { status: 200, headers });
       } catch(e) {
