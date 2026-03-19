@@ -888,94 +888,94 @@
       <div id="np-email-hint" style="font-size:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:16px;color:#1d4ed8;display:none;"></div>
       <div style="margin-bottom:20px;">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New task assigned to me</div>
+            <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New task assigned to me</div>
+            <div id="np-toggle-task_assigned"
+              onclick="npToggle('task_assigned')"
+              style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;"
+              data-on="true">
+              <div id="np-track-task_assigned" style="position:absolute;inset:0;border-radius:12px;background:var(--blue);transition:background .2s;"></div>
+              <div id="np-thumb-task_assigned" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
-              <input type="checkbox" id="np-task_assigned" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
-              <span onclick="document.getElementById('np-task_assigned').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-task_assigned"></span>
-              <span id="np-thumb-task_assigned" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
-            </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">My task status changed</div>
+            <div style="font-size:13px;font-weight:500;color:var(--gray-800);">My task status changed</div>
+            <div id="np-toggle-task_updated"
+              onclick="npToggle('task_updated')"
+              style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;"
+              data-on="true">
+              <div id="np-track-task_updated" style="position:absolute;inset:0;border-radius:12px;background:var(--blue);transition:background .2s;"></div>
+              <div id="np-thumb-task_updated" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
-              <input type="checkbox" id="np-task_updated" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
-              <span onclick="document.getElementById('np-task_updated').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-task_updated"></span>
-              <span id="np-thumb-task_updated" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
-            </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New program created</div>
+            <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New program created</div>
+            <div id="np-toggle-program_created"
+              onclick="npToggle('program_created')"
+              style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;"
+              data-on="true">
+              <div id="np-track-program_created" style="position:absolute;inset:0;border-radius:12px;background:var(--blue);transition:background .2s;"></div>
+              <div id="np-thumb-program_created" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
-              <input type="checkbox" id="np-program_created" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
-              <span onclick="document.getElementById('np-program_created').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-program_created"></span>
-              <span id="np-thumb-program_created" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
-            </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New project created</div>
+            <div style="font-size:13px;font-weight:500;color:var(--gray-800);">New project created</div>
+            <div id="np-toggle-project_created"
+              onclick="npToggle('project_created')"
+              style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;"
+              data-on="true">
+              <div id="np-track-project_created" style="position:absolute;inset:0;border-radius:12px;background:var(--blue);transition:background .2s;"></div>
+              <div id="np-thumb-project_created" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
-              <input type="checkbox" id="np-project_created" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
-              <span onclick="document.getElementById('np-project_created').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-project_created"></span>
-              <span id="np-thumb-project_created" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
-            </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Budget proposal submitted</div>
+            <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Budget proposal submitted</div>
+            <div id="np-toggle-proposal_submitted"
+              onclick="npToggle('proposal_submitted')"
+              style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;"
+              data-on="true">
+              <div id="np-track-proposal_submitted" style="position:absolute;inset:0;border-radius:12px;background:var(--blue);transition:background .2s;"></div>
+              <div id="np-thumb-proposal_submitted" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
-              <input type="checkbox" id="np-proposal_submitted" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
-              <span onclick="document.getElementById('np-proposal_submitted').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-proposal_submitted"></span>
-              <span id="np-thumb-proposal_submitted" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
-            </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Budget proposal approved / rejected</div>
+            <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Budget proposal approved / rejected</div>
+            <div id="np-toggle-proposal_reviewed"
+              onclick="npToggle('proposal_reviewed')"
+              style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;"
+              data-on="true">
+              <div id="np-track-proposal_reviewed" style="position:absolute;inset:0;border-radius:12px;background:var(--blue);transition:background .2s;"></div>
+              <div id="np-thumb-proposal_reviewed" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
-              <input type="checkbox" id="np-proposal_reviewed" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
-              <span onclick="document.getElementById('np-proposal_reviewed').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-proposal_reviewed"></span>
-              <span id="np-thumb-proposal_reviewed" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
-            </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Expense approved / rejected</div>
+            <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Expense approved / rejected</div>
+            <div id="np-toggle-expense_reviewed"
+              onclick="npToggle('expense_reviewed')"
+              style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;"
+              data-on="true">
+              <div id="np-track-expense_reviewed" style="position:absolute;inset:0;border-radius:12px;background:var(--blue);transition:background .2s;"></div>
+              <div id="np-thumb-expense_reviewed" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
-              <input type="checkbox" id="np-expense_reviewed" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
-              <span onclick="document.getElementById('np-expense_reviewed').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-expense_reviewed"></span>
-              <span id="np-thumb-expense_reviewed" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
-            </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">DCR report submitted</div>
+            <div style="font-size:13px;font-weight:500;color:var(--gray-800);">DCR report submitted</div>
+            <div id="np-toggle-dcr_submitted"
+              onclick="npToggle('dcr_submitted')"
+              style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;"
+              data-on="true">
+              <div id="np-track-dcr_submitted" style="position:absolute;inset:0;border-radius:12px;background:var(--blue);transition:background .2s;"></div>
+              <div id="np-thumb-dcr_submitted" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
-              <input type="checkbox" id="np-dcr_submitted" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
-              <span onclick="document.getElementById('np-dcr_submitted').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-dcr_submitted"></span>
-              <span id="np-thumb-dcr_submitted" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
-            </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Weekly check-in reminder (Monday)</div>
+            <div style="font-size:13px;font-weight:500;color:var(--gray-800);">Weekly check-in reminder (Monday)</div>
+            <div id="np-toggle-checkin_reminder"
+              onclick="npToggle('checkin_reminder')"
+              style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;"
+              data-on="true">
+              <div id="np-track-checkin_reminder" style="position:absolute;inset:0;border-radius:12px;background:var(--blue);transition:background .2s;"></div>
+              <div id="np-thumb-checkin_reminder" style="position:absolute;top:3px;left:23px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
             </div>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;margin-left:12px;">
-              <input type="checkbox" id="np-checkin_reminder" style="opacity:0;width:0;height:0;" onchange="updateNotifPreview()">
-              <span onclick="document.getElementById('np-checkin_reminder').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--gray-200);border-radius:20px;transition:.2s;" id="np-track-checkin_reminder"></span>
-              <span id="np-thumb-checkin_reminder" style="position:absolute;content:'';height:14px;width:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>
-            </label>
           </div>
       </div>
       <div id="np-msg" style="font-size:12px;margin-bottom:12px;display:none;padding:8px;border-radius:6px;"></div>
@@ -3756,6 +3756,28 @@ const NOTIF_EVENTS = [
   'dcr_submitted','checkin_reminder'
 ];
 
+function npToggle(key) {
+  const wrap  = document.getElementById(`np-toggle-${key}`);
+  const track = document.getElementById(`np-track-${key}`);
+  const thumb = document.getElementById(`np-thumb-${key}`);
+  if (!wrap) return;
+  const isOn = wrap.dataset.on === 'true';
+  const nowOn = !isOn;
+  wrap.dataset.on          = nowOn ? 'true' : 'false';
+  track.style.background   = nowOn ? 'var(--blue)' : 'var(--gray-200)';
+  thumb.style.left         = nowOn ? '23px' : '3px';
+}
+
+function applyToggleStyle(key, on) {
+  const wrap  = document.getElementById(`np-toggle-${key}`);
+  const track = document.getElementById(`np-track-${key}`);
+  const thumb = document.getElementById(`np-thumb-${key}`);
+  if (!wrap) return;
+  wrap.dataset.on        = on ? 'true' : 'false';
+  track.style.background = on ? 'var(--blue)' : 'var(--gray-200)';
+  thumb.style.left       = on ? '23px' : '3px';
+}
+
 function showNotifPrefsModal() {
   const modal = document.getElementById('np-modal');
   modal.style.display = 'flex';
@@ -3764,6 +3786,9 @@ function showNotifPrefsModal() {
   const hintEl = document.getElementById('np-email-hint');
   if (CURRENT_USER?.email) {
     hintEl.textContent = `Notifications will be sent to: ${CURRENT_USER.email}`;
+    hintEl.style.background = '#eff6ff';
+    hintEl.style.borderColor = '#bfdbfe';
+    hintEl.style.color = '#1d4ed8';
     hintEl.style.display = '';
   } else {
     hintEl.textContent = 'No email set on your account — ask your admin to add one in Role Management.';
@@ -3773,35 +3798,14 @@ function showNotifPrefsModal() {
     hintEl.style.display = '';
   }
 
-  // Load current prefs — default all ON (empty optOut = receive everything)
+  // Load current prefs — default all ON
   const optOut = CURRENT_USER?.notifOptOut || [];
-  NOTIF_EVENTS.forEach(key => {
-    const cb    = document.getElementById(`np-${key}`);
-    const track = document.getElementById(`np-track-${key}`);
-    const thumb = document.getElementById(`np-thumb-${key}`);
-    if (!cb) return;
-    const enabled = !optOut.includes(key);
-    cb.checked = enabled;
-    applyToggleStyle(track, thumb, enabled);
-  });
+  NOTIF_EVENTS.forEach(key => applyToggleStyle(key, !optOut.includes(key)));
 
   document.getElementById('np-msg').style.display = 'none';
 }
 
-function applyToggleStyle(track, thumb, on) {
-  if (!track || !thumb) return;
-  track.style.background = on ? 'var(--blue)' : 'var(--gray-200)';
-  thumb.style.transform   = on ? 'translateX(16px)' : 'translateX(0)';
-}
-
-function updateNotifPreview() {
-  NOTIF_EVENTS.forEach(key => {
-    const cb    = document.getElementById(`np-${key}`);
-    const track = document.getElementById(`np-track-${key}`);
-    const thumb = document.getElementById(`np-thumb-${key}`);
-    if (cb) applyToggleStyle(track, thumb, cb.checked);
-  });
-}
+function updateNotifPreview() {} // no-op — toggles are self-contained
 
 function closeNotifPrefsModal() {
   document.getElementById('np-modal').style.display = 'none';
@@ -3812,10 +3816,10 @@ async function saveNotifPrefs() {
   const msg = document.getElementById('np-msg');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  // Build optOut list — events where checkbox is OFF
+  // Build optOut list — events where toggle is OFF
   const optOut = NOTIF_EVENTS.filter(key => {
-    const cb = document.getElementById(`np-${key}`);
-    return cb && !cb.checked;
+    const wrap = document.getElementById(`np-toggle-${key}`);
+    return wrap && wrap.dataset.on !== 'true';
   });
 
   try {
