@@ -2512,13 +2512,14 @@ function renderProgress() {
         <div class="proj-name"><div class="proj-dot" style="background:${p.color}"></div>${p.name}</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <div class="proj-pct" style="color:${p.color}">${pp}%</div>
-          <span style="font-size:11px;color:var(--gray-400);user-select:none" id="ptoggle-${p.id}">▼ Tasks</span>
+          ${isAdmin() || isManager() ? `<button onclick="event.stopPropagation();quickAddTask('${p.id}')" style="font-size:11px;padding:3px 9px;border:1px solid var(--blue);border-radius:6px;background:#eff6ff;color:var(--blue);cursor:pointer;font-family:var(--font);font-weight:600;">+ Task</button>` : ''}
+          <span style="font-size:11px;color:var(--gray-400);user-select:none;cursor:pointer;" id="ptoggle-${p.id}">▲ Tasks</span>
         </div>
       </div>
       <div class="proj-meta">${p.id} · ${p.total} tasks · ${p.delivered} delivered · CW${p.start}–CW${p.end}</div>
       <div class="bar"><div class="bar-fill" style="width:${pp}%;background:${p.color}"></div></div>
     </div>
-    <div id="ptasks-${p.id}" style="display:none;border:1px solid var(--gray-200);border-top:none;border-radius:0 0 8px 8px;overflow:hidden;margin-top:-1px;margin-bottom:12px;">
+    <div id="ptasks-${p.id}" style="display:block;border:1px solid var(--gray-200);border-top:none;border-radius:0 0 8px 8px;overflow:hidden;margin-top:-1px;margin-bottom:12px;">
       ${taskRows || '<div style="padding:12px;text-align:center;color:var(--gray-400);font-size:12px;">No tasks yet.</div>'}
     </div>`;
   }).join('');
@@ -3431,7 +3432,7 @@ function renderMyTasks() {
             <div class="task-name" style="${isDel?'text-decoration:line-through;color:var(--gray-400)':''}">
               ${t['Task Name']||'Unnamed task'}
             </div>
-            <div class="task-meta">${t.programName} · <span id="ts-${taskKey}-${projId}">${status}</span>${overdue ? ' · ⚠ Overdue' : ''}</div>
+            <div class="task-meta">${t.programName}${t['Project Name'] ? ' · ' + t['Project Name'] : ''} · <span id="ts-${taskKey}-${projId}">${status}</span>${overdue ? ' · ⚠ Overdue' : ''}</div>
           </div>
           <span class="${cwClass}" style="margin-right:8px">CW ${taskCW}</span>
           <button style="${btnStyle}" onclick="quickUpdateTask('${t['Task Name']?.replace(/'/g,"\\'")}','${t.programId}','${newStat}',this)">
