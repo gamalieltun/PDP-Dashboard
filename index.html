@@ -1013,7 +1013,57 @@
       </div>
       <div class="grid-2 mb16">
         <div>
-          <div class="panel-title" style="margin-bottom:12px;">📋 My Assigned Tasks</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div class="panel-title" style="margin:0;">📋 My Assigned Tasks</div>
+            <button onclick="toggleMyTaskForm()" id="my-add-task-btn"
+              style="font-size:12px;padding:5px 12px;border:1px solid var(--blue);border-radius:6px;background:#eff6ff;color:var(--blue);cursor:pointer;font-family:var(--font);font-weight:600;">
+              + Add Task
+            </button>
+          </div>
+
+          <!-- Inline bulk Add Task form — hidden by default -->
+          <div id="my-task-form" style="display:none;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:14px;">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-700);margin-bottom:10px;">Add Tasks</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+              <div>
+                <div class="rm-label">Program</div>
+                <select class="rm-select" id="mt-program" onchange="onMyTaskProgramChange(this.value)">
+                  <option value="">— Select program —</option>
+                </select>
+              </div>
+              <div>
+                <div class="rm-label">Project <span style="font-weight:400;color:var(--gray-400);text-transform:none;">(optional)</span></div>
+                <select class="rm-select" id="mt-project">
+                  <option value="">— Select a program first —</option>
+                </select>
+              </div>
+            </div>
+            <!-- Column headers -->
+            <div style="display:grid;grid-template-columns:1fr 140px 100px 28px;gap:6px;margin-bottom:4px;padding:0 2px;">
+              <div class="rm-label">Task Name</div>
+              <div class="rm-label">Due Date</div>
+              <div class="rm-label">Quarter</div>
+              <div></div>
+            </div>
+            <!-- Task rows -->
+            <div id="mt-rows"></div>
+            <button onclick="mtAddRow()"
+              style="margin-top:8px;font-size:12px;padding:5px 12px;border:1px dashed var(--gray-300);border-radius:6px;background:#fff;color:var(--gray-500);cursor:pointer;font-family:var(--font);width:100%;">
+              + Add another task
+            </button>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <button onclick="submitMyTasks()" id="mt-btn"
+                style="flex:1;padding:8px;border:none;border-radius:8px;background:var(--blue);color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;">
+                Save All Tasks →
+              </button>
+              <button onclick="toggleMyTaskForm()"
+                style="padding:8px 14px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;font-family:var(--font);font-size:12px;cursor:pointer;">
+                Cancel
+              </button>
+            </div>
+            <div id="mt-msg" style="font-size:12px;margin-top:8px;display:none;"></div>
+          </div>
+
           <div id="mytasks-list"></div>
         </div>
         <div>
@@ -1245,52 +1295,39 @@
 
         <!-- ADD TASK TO PROJECT -->
         <div class="panel">
-          <div class="panel-title" style="margin-bottom:16px;">📌 Add Task to Program</div>
+          <div class="panel-title" style="margin-bottom:16px;">📌 Add Tasks to Program</div>
 
-          <div class="rm-field">
-            <div class="rm-label">Program</div>
-            <select class="rm-select" id="nt-program" onchange="onTaskProgramChange(this.value)">
-              <option value="">— Select program —</option>
-            </select>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+            <div>
+              <div class="rm-label">Program</div>
+              <select class="rm-select" id="nt-program" onchange="onTaskProgramChange(this.value)">
+                <option value="">— Select program —</option>
+              </select>
+            </div>
+            <div id="nt-project-field">
+              <div class="rm-label">Project <span style="font-weight:400;color:var(--gray-400);text-transform:none;">(optional)</span></div>
+              <select class="rm-select" id="nt-project">
+                <option value="">— Select a program first —</option>
+              </select>
+            </div>
           </div>
-          <div class="rm-field" id="nt-project-field">
-            <div class="rm-label">Project <span style="font-weight:400;color:var(--gray-400);text-transform:none;">(optional)</span></div>
-            <select class="rm-select" id="nt-project">
-              <option value="">— Select a program first —</option>
-            </select>
-          </div>
-          <div class="rm-field">
+          <!-- Column headers -->
+          <div style="display:grid;grid-template-columns:1fr 130px 100px 120px 90px 28px;gap:6px;margin-bottom:4px;padding:0 2px;">
             <div class="rm-label">Task Name</div>
-            <input class="form-input" id="nt-name" placeholder="e.g. Community needs assessment" style="font-family:var(--font);">
+            <div class="rm-label">Due Date</div>
+            <div class="rm-label">Quarter</div>
+            <div class="rm-label">Assign To</div>
+            <div class="rm-label">Status</div>
+            <div></div>
           </div>
-          <div class="form-row" style="gap:10px;">
-            <div class="rm-field" style="flex:1">
-              <div class="rm-label">Assign To</div>
-              <select class="rm-select" id="nt-owner">
-                <option value="">— Select staff —</option>
-              </select>
-            </div>
-            <div class="rm-field" style="flex:1">
-              <div class="rm-label">Due Date</div>
-              <input class="form-input" id="nt-cw-date" type="date" style="font-family:var(--font);" onchange="syncCW('nt-cw-date','nt-cw','nt-cw-hint')">
-              <div id="nt-cw-hint" style="font-size:11px;color:var(--gray-400);margin-top:3px;"></div>
-              <input type="hidden" id="nt-cw">
-            </div>
-          </div>
-          <div class="form-row" style="gap:10px;">
-            <div class="rm-field" style="flex:1">
-              <div class="rm-label">Quarter</div>
-              <select class="rm-select" id="nt-quarter"></select>
-            </div>
-            <div class="rm-field" style="flex:1">
-              <div class="rm-label">Status</div>
-              <select class="rm-select" id="nt-status">
-                <option>Planned</option><option>Delivered</option>
-              </select>
-            </div>
-          </div>
+          <!-- Task rows -->
+          <div id="nt-rows"></div>
+          <button onclick="ntAddRow()"
+            style="margin-top:8px;font-size:12px;padding:5px 12px;border:1px dashed var(--gray-300);border-radius:6px;background:#fff;color:var(--gray-500);cursor:pointer;font-family:var(--font);width:100%;">
+            + Add another task
+          </button>
 
-          <button class="rm-save-btn" onclick="addNewTask()" id="nt-btn" style="background:var(--blue);">Add Task to Sheet →</button>
+          <button class="rm-save-btn" onclick="addNewTasks()" id="nt-btn" style="background:var(--blue);margin-top:10px;">Save All Tasks →</button>
           <div id="nt-msg" style="font-size:12px;margin-top:8px;text-align:center;display:none;"></div>
         </div>
 
@@ -2785,6 +2822,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
+  if (name === 'projmgmt') setTimeout(initTaskRows, 80);
 }
 
 function renderAll() {
@@ -2796,6 +2834,7 @@ function renderAll() {
   renderDigest();
   renderMyTasks();
   if (isAdmin()) { renderRoleManagement(); renderProgramManagement(); renderUserManagement(); toggleNewUserDiocese(); }
+  initTaskRows();
 }
 
 
@@ -3431,6 +3470,142 @@ function printDigest() {
 // ═══════════════════════════════════════════════════
 //  MY TASKS WIDGET
 // ═══════════════════════════════════════════════════
+
+// ─── My Tasks — bulk personal task add form ────────────────────────────────────
+let mtRowCount = 0;
+
+function toggleMyTaskForm() {
+  const form = document.getElementById('my-task-form');
+  const btn  = document.getElementById('my-add-task-btn');
+  if (!form) return;
+  const opening = form.style.display === 'none';
+  form.style.display = opening ? '' : 'none';
+  btn.textContent = opening ? '✕ Cancel' : '+ Add Task';
+  if (opening) {
+    // Populate program dropdown with user's assigned programs only
+    const progSel = document.getElementById('mt-program');
+    progSel.innerHTML = '<option value="">— Select program —</option>';
+    const myProgs = DATA.programs.filter(p =>
+      isAdmin() || isManager() ? true : CURRENT_USER.programs?.includes(p.id)
+    );
+    myProgs.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = `${p.id} — ${p.name}`;
+      progSel.appendChild(opt);
+    });
+    // Reset rows and add first row
+    mtRowCount = 0;
+    document.getElementById('mt-rows').innerHTML = '';
+    mtAddRow();
+  }
+}
+
+function onMyTaskProgramChange(programId) {
+  const projSel = document.getElementById('mt-project');
+  if (!projSel) return;
+  projSel.innerHTML = '<option value="">— None / Program-level task —</option>';
+  if (!programId) return;
+  const programProjects = (DATA.projects || []).filter(p => p['Program ID'] === programId);
+  programProjects.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value       = p['Project Name'] || '';
+    opt.textContent = p['Project Name'] || p['Project ID'];
+    projSel.appendChild(opt);
+  });
+}
+
+function mtAddRow() {
+  const i = mtRowCount++;
+  const qOpts = quarterOptions();
+  const row = document.createElement('div');
+  row.id = `mt-row-${i}`;
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 140px 100px 28px;gap:6px;margin-bottom:6px;align-items:center;';
+  row.innerHTML = `
+    <input class="form-input" id="mt-name-${i}" placeholder="Task name" style="font-family:var(--font);font-size:12px;padding:6px 8px;">
+    <div>
+      <input class="form-input" id="mt-date-${i}" type="date" style="font-family:var(--font);font-size:12px;padding:6px 8px;"
+        onchange="syncCW('mt-date-${i}','mt-cw-${i}','');mtAutoQuarter('mt-date-${i}','mt-q-${i}')">
+      <input type="hidden" id="mt-cw-${i}">
+    </div>
+    <select class="rm-select" id="mt-q-${i}" style="font-size:12px;padding:5px 6px;">${qOpts}</select>
+    <button onclick="document.getElementById('mt-row-${i}').remove()" style="width:24px;height:24px;border:1px solid #fecaca;border-radius:5px;background:#fff;color:var(--red);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
+  `;
+  document.getElementById('mt-rows').appendChild(row);
+}
+
+function mtAutoQuarter(dateId, qSelId) {
+  // Auto-select quarter based on chosen date
+  const dateEl = document.getElementById(dateId);
+  const qSel   = document.getElementById(qSelId);
+  if (!dateEl?.value || !qSel) return;
+  const cw = dateToCW(dateEl.value);
+  const yr = new Date(dateEl.value).getFullYear();
+  const yShort = String(yr).slice(-2);
+  const q = cw <= 13 ? 'Q1' : cw <= 26 ? 'Q2' : cw <= 39 ? 'Q3' : 'Q4';
+  qSel.value = `${yShort}${q}`;
+}
+
+async function submitMyTasks() {
+  const programId   = document.getElementById('mt-program').value;
+  const projectName = document.getElementById('mt-project')?.value || '';
+  const msg         = document.getElementById('mt-msg');
+  const btn         = document.getElementById('mt-btn');
+
+  if (!programId) {
+    msg.style.display=''; msg.style.color='var(--red)'; msg.textContent='⚠ Please select a program.'; return;
+  }
+
+  // Collect all rows
+  const rows = document.querySelectorAll('#mt-rows > div[id^="mt-row-"]');
+  const tasks = [];
+  rows.forEach(row => {
+    const i    = row.id.replace('mt-row-','');
+    const name = document.getElementById(`mt-name-${i}`)?.value.trim();
+    const cw   = parseInt(document.getElementById(`mt-cw-${i}`)?.value) || 0;
+    const q    = document.getElementById(`mt-q-${i}`)?.value || '';
+    if (name && cw) tasks.push({ name, cw, quarter: q });
+  });
+
+  if (!tasks.length) {
+    msg.style.display=''; msg.style.color='var(--red)'; msg.textContent='⚠ Add at least one task with a name and due date.'; return;
+  }
+
+  btn.disabled = true; btn.textContent = `Saving ${tasks.length} task${tasks.length>1?'s':''}…`;
+  msg.style.display = 'none';
+
+  const prog     = DATA.programs.find(p => p.id === programId);
+  const progName = prog?.name || programId;
+  let saved = 0, errors = [];
+
+  for (const t of tasks) {
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_task', username: SESSION_USERNAME, password: SESSION_PASSWORD,
+          task: { programId, programName: progName, projectName: projectName || '', name: t.name,
+                  quarter: t.quarter, cw: t.cw, status: 'Planned', owner: CURRENT_USER.name } }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      saved++;
+    } catch(e) { errors.push(`"${t.name}": ${e.message}`); }
+  }
+
+  msg.style.display = '';
+  if (errors.length === 0) {
+    msg.style.color = 'var(--green)';
+    msg.textContent = `✓ ${saved} task${saved>1?'s':''} added to ${programId}!`;
+    document.getElementById('mt-rows').innerHTML = '';
+    mtRowCount = 0; mtAddRow();
+    setTimeout(() => { loadFromWorker().then(() => { renderAll(); }); }, 1200);
+  } else {
+    msg.style.color = 'var(--red)';
+    msg.textContent = `${saved} saved, ${errors.length} failed: ${errors.join(', ')}`;
+  }
+  btn.disabled = false; btn.textContent = 'Save All Tasks →';
+}
+
 function renderMyTasks() {
   if (!CURRENT_USER) return;
   const name = CURRENT_USER.name;
@@ -4006,9 +4181,126 @@ function showModalMsg(elId, text, type) {
 //  PROJECT MANAGEMENT
 // ═══════════════════════════════════════════════════
 
+
+// ─── Program Management — bulk add tasks (admin/manager) ─────────────────────
+let ntRowCount = 0;
+
+function ntAddRow() {
+  const rowId = `nt-${++ntRowCount}`;
+  const row   = document.createElement('div');
+  row.id = `task-row-${rowId}`;
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 140px 100px 130px 90px 28px;gap:6px;margin-bottom:6px;align-items:start;';
+
+  const staffOpts = getStaffNames().map(n => `<option value="${n}">${n}</option>`).join('');
+
+  row.innerHTML = `
+    <input class="form-input" placeholder="Task name…" style="font-family:var(--font);font-size:12px;" data-field="name">
+    <div>
+      <input class="form-input" type="date" style="font-family:var(--font);font-size:12px;" data-field="date">
+      <div style="font-size:10px;color:var(--gray-400);margin-top:2px;"></div>
+      <input type="hidden" data-field="cw">
+    </div>
+    <select class="rm-select" style="font-size:12px;" data-field="quarter">${quarterOptions()}</select>
+    <select class="rm-select" style="font-size:12px;" data-field="owner">
+      <option value="">— Staff —</option>${staffOpts}
+    </select>
+    <select class="rm-select" style="font-size:12px;" data-field="status">
+      <option value="Planned">Planned</option>
+      <option value="Delivered">Delivered</option>
+    </select>
+    <button onclick="this.closest('[id^=task-row]').remove()"
+      style="width:24px;height:24px;border:1px solid #fecaca;border-radius:6px;background:#fff;color:var(--red);cursor:pointer;font-size:14px;line-height:1;padding:0;margin-top:4px;">✕</button>
+  `;
+
+  const dateInput = row.querySelector('[data-field=date]');
+  const cwInput   = row.querySelector('[data-field=cw]');
+  const hintEl    = row.querySelector('div[style*="gray-400"]');
+  const qSel      = row.querySelector('[data-field=quarter]');
+  dateInput?.addEventListener('change', () => {
+    const cw = dateToCW(dateInput.value);
+    cwInput.value = cw || '';
+    if (hintEl) hintEl.textContent = cw ? `CW ${cw}` : '';
+    // Auto-select quarter from date
+    if (qSel && dateInput.value) {
+      const yr     = new Date(dateInput.value).getFullYear();
+      const yShort = String(yr).slice(-2);
+      const q      = cw <= 13 ? 'Q1' : cw <= 26 ? 'Q2' : cw <= 39 ? 'Q3' : 'Q4';
+      qSel.value   = `${yShort}${q}`;
+    }
+  });
+
+  document.getElementById('nt-rows')?.appendChild(row);
+}
+
+async function addNewTasks() {
+  const programId   = document.getElementById('nt-program').value;
+  const projectName = document.getElementById('nt-project')?.value || '';
+  const btn         = document.getElementById('nt-btn');
+
+  if (!programId) { showPMMsg('nt-msg', '⚠ Select a program first.', 'error'); return; }
+
+  const rows  = [...document.querySelectorAll('#nt-rows > div[id^=task-row]')];
+  const tasks = rows.map(row => ({
+    name:    row.querySelector('[data-field=name]')?.value.trim() || '',
+    cw:      parseInt(row.querySelector('[data-field=cw]')?.value) || 0,
+    quarter: row.querySelector('[data-field=quarter]')?.value || '',
+    owner:   row.querySelector('[data-field=owner]')?.value || '',
+    status:  row.querySelector('[data-field=status]')?.value || 'Planned',
+  })).filter(t => t.name && t.cw);
+
+  if (!tasks.length) { showPMMsg('nt-msg', '⚠ Add at least one task with a name and due date.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = `Saving ${tasks.length} task${tasks.length > 1 ? 's' : ''}…`;
+
+  const prog     = DATA.programs.find(p => p.id === programId);
+  const progName = prog?.name || programId;
+  let saved = 0, errors = [];
+
+  for (const t of tasks) {
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_task', username: SESSION_USERNAME, password: SESSION_PASSWORD,
+          task: { programId, programName: progName, projectName: projectName || '', name: t.name, quarter: t.quarter, cw: t.cw, status: t.status, owner: t.owner }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      saved++;
+    } catch(e) { errors.push(`"${t.name}": ${e.message}`); }
+  }
+
+  if (errors.length) {
+    showPMMsg('nt-msg', `⚠ ${saved} saved, ${errors.length} failed: ${errors.join(', ')}`, 'error');
+  } else {
+    showPMMsg('nt-msg', `✓ ${saved} task${saved > 1 ? 's' : ''} added to ${programId}!`, 'success');
+    document.getElementById('nt-rows').innerHTML = '';
+    ntRowCount = 0; ntAddRow();
+    document.getElementById('nt-program').value = '';
+    if (document.getElementById('nt-project')) document.getElementById('nt-project').innerHTML = '<option value="">— Select a program first —</option>';
+    setTimeout(() => { loadFromWorker().then(() => { renderAll(); renderProgramManagement(); }); }, 1200);
+  }
+  btn.disabled = false; btn.textContent = 'Save All Tasks →';
+}
+
+function initTaskRows() {
+  if (document.getElementById('nt-rows') && !document.getElementById('nt-rows').children.length) {
+    ntRowCount = 0; ntAddRow();
+  }
+  if (document.getElementById('mt-rows') && !document.getElementById('mt-rows').children.length) {
+    mtRowCount = 0; mtAddRow();
+  }
+}
+
 function renderProgramManagement() {
+  // Init bulk task rows if not yet done
+  if (document.getElementById('nt-rows') && !document.getElementById('nt-rows').children.length) {
+    ntRowCount = 0; ntAddRow();
+  }
   // Populate quarter selects dynamically
-  ['np-sq','np-eq','nt-quarter','pm-prog-quarter'].forEach(id => {
+  ['np-sq','np-eq','nt-quarter','pm-prog-quarter','mt-quarter'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       const cur = el.value;
