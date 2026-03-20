@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- *  PDP Dashboard — Cloudflare Worker v2.6.0
+ *  PDP Dashboard — Cloudflare Worker v3.0.0  (Finance v2 — MMK donor-aware budgets)
  *  Handles: auth, user management, data fetch, check-in writes,
  *           email alerts, audit logging, DCR Google Drive storage
  * ═══════════════════════════════════════════════════════════════
@@ -503,7 +503,7 @@ function buildNotificationEmail(event, data, env) {
   // ── Event templates ────────────────────────────────────────────────────────
 
   if (event === 'task_assigned') {
-    const { taskName, programId, programName, cw, quarter, assignee, assignedBy } = data;
+    const { taskName, programId, programName, projectName, cw, quarter, assignee, assignedBy } = data;
     const ownerEmail = emailOf(assignee, 'task_assigned');
     return {
       to:      [ownerEmail].filter(Boolean),
@@ -514,6 +514,7 @@ function buildNotificationEmail(event, data, env) {
         ${table(
           row('Task',    `<strong>${taskName}</strong>`),
           row('Program', `${programId} — ${programName || ''}`),
+          ...(projectName ? [row('Project', projectName)] : []),
           row('CW',      `CW ${cw}`),
           row('Quarter', quarter || '—'),
           row('Owner',   assignee),
@@ -1075,7 +1076,7 @@ export default {
       }
 
       // 2. Add headers to new sheet — 8 clean data columns, no formulas
-      const sheetHeaders = ['Task ID','Program ID','Program Name','Task Name','Quarter','CW','Status','Owner'];
+      const sheetHeaders = ['Task ID','Program ID','Program Name','Task Name','Quarter','CW','Status','Owner','Project Name'];
       await appendToSheet(token, spreadsheetId, sheetName, sheetHeaders);
 
       // 3. Add program row to Main Programs sheet
@@ -1101,8 +1102,19 @@ export default {
     // ── Add task to program ───────────────────────
     if (action === 'add_task') {
       const { username, password } = body;
-      if (!isAdminUser(username, password))
-        return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers });
+      const taskUser = validateUser(username, password);
+      if (!taskUser)
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+      // Staff/external can only add tasks to their assigned programs
+      const allowedRoles = ['admin','manager','staff','external','finance_staff','finance_manager','finance'];
+      if (!allowedRoles.includes(taskUser.role))
+        return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
+      // Staff/external: verify program is assigned to them
+      if (['staff','external'].includes(taskUser.role) && taskUser.programs?.length) {
+        const programId = body.task?.programId;
+        if (programId && !taskUser.programs.includes(programId))
+          return new Response(JSON.stringify({ error: 'Program not assigned to you' }), { status: 403, headers });
+      }
 
       const { task } = body;
       if (!task?.programId || !task?.name)
@@ -1128,14 +1140,15 @@ export default {
 
       // 8 clean data columns — all KPI computed by dashboard from these
       const row = [
-        taskId,               // col A — Task ID
-        task.programId,       // col B — Program ID
-        task.programName,     // col C — Program Name
-        task.name,            // col D — Task Name
-        task.quarter,         // col E — Quarter
-        cwNum,                // col F — CW (number)
-        task.status || 'Planned', // col G — Status
-        task.owner,           // col H — Owner
+        taskId,                    // col A — Task ID
+        task.programId,            // col B — Program ID
+        task.programName,          // col C — Program Name
+        task.name,                 // col D — Task Name
+        task.quarter,              // col E — Quarter
+        cwNum,                     // col F — CW (number)
+        task.status || 'Planned',  // col G — Status
+        task.owner,                // col H — Owner
+        task.projectName || '',    // col I — Project Name      // col H — Owner
       ];
 
       await appendToSheet(token, env.SPREADSHEET_ID, sheetName, row);
@@ -1170,6 +1183,7 @@ export default {
         taskName:    task.name,
         programId:   task.programId,
         programName: task.programName || task.programId,
+        projectName: task.projectName || '',
         cw:          task.cw,
         quarter:     task.quarter,
         assignee:    task.owner,
@@ -2375,7 +2389,1285 @@ export default {
       }
     }
 
-      return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers });
+      // ═══════════════════════════════════════════════════════════════
+    //  FINANCE v2 — MMK-only donor-aware budget system
+    //  Sheets: Donors | Budgets | Budget_Donors | Line_Items | Expenditures
+    // ═══════════════════════════════════════════════════════════════
+
+    // ── Helper: get finance sheet ID ─────────────────────────────
+    function getFinSheetId() {
+      if (!env.FINANCE_SPREADSHEET_ID) throw new Error('FINANCE_SPREADSHEET_ID secret not set');
+      return env.FINANCE_SPREADSHEET_ID;
+    }
+
+    // ── Helper: read finance sheet with OAuth ─────────────────────
+    async function readFinSheet(token, sheetName) {
+      const res = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${getFinSheetId()}/values/${encodeURIComponent(sheetName)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const d = await res.json();
+      if (d.error) return [];
+      const rows = d.values || [];
+      if (rows.length < 2) return [];
+      const [hdrs, ...data] = rows;
+      return data.map(r => Object.fromEntries(hdrs.map((h, i) => [h.trim(), r[i] ?? ''])));
+    }
+
+    // ── Helper: append to finance sheet ──────────────────────────
+    async function appendFin(token, sheetName, row) {
+      return appendToSheet(token, getFinSheetId(), sheetName, row);
+    }
+
+    // ── Helper: update a single cell range in finance sheet ───────
+    async function updateFinRange(token, range, values) {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${getFinSheetId()}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error('Sheet update failed: ' + (e.error?.message || res.status));
+      }
+      return res.json();
+    }
+
+    // ── Helper: generate short ID ─────────────────────────────────
+    function genId(prefix) {
+      return `${prefix}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+    }
+
+    // ── Roles allowed in finance v2 ───────────────────────────────
+    const FIN_ROLES = ['admin', 'manager', 'finance_manager', 'finance_staff', 'finance'];
+    const FIN_MANAGER_ROLES = ['admin', 'manager', 'finance_manager'];
+
+    // ════════════════════════════════════════════════════════════════
+    //  setup_finance_sheets
+    //  Creates the 5 finance sheets with correct headers.
+    //  Safe to run multiple times — skips sheets that already exist.
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'setup_finance_sheets') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_MANAGER_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Finance Manager or Admin only' }), { status: 403, headers });
+
+      const driveToken = await getDriveToken(env);
+      const finId = getFinSheetId();
+      const created = [], skipped = [];
+
+      const SHEETS = [
+        {
+          name: 'Donors',
+          headers: ['Donor ID', 'Name', 'Currency', 'Report Format', 'Notes', 'Created By', 'Created At'],
+        },
+        {
+          name: 'Budgets',
+          headers: ['Budget ID', 'Programme ID', 'Name', 'Fiscal Year', 'Period Start', 'Period End', 'Diocese', 'Status', 'Created By', 'Created At'],
+        },
+        {
+          name: 'Budget_Donors',
+          headers: ['BD ID', 'Budget ID', 'Donor ID', 'Donor Name', 'Allocated MMK', 'Notes'],
+        },
+        {
+          name: 'Line_Items',
+          headers: ['LI ID', 'Budget ID', 'Section No', 'Section Name', 'Description', 'Unit Cost MMK', 'Num Units', 'Total MMK', 'Donor Splits JSON', 'Notes'],
+        },
+        {
+          name: 'Expenditures',
+          headers: ['Exp ID', 'Line Item ID', 'BD ID', 'Budget ID', 'Donor ID', 'Quarter', 'Amount MMK', 'Description', 'Submitted By', 'Submitted At', 'Approved By', 'Approved At', 'Status'],
+        },
+      ];
+
+      for (const sheet of SHEETS) {
+        // Check if sheet already has correct header
+        const existing = await fetchSheet(env.GOOGLE_API_KEY, finId, sheet.name).catch(() => []);
+        const hasHeader = existing.some(row => row && row[0] === sheet.headers[0]);
+
+        if (hasHeader) {
+          skipped.push(sheet.name);
+          continue;
+        }
+
+        // Create the sheet tab (ignore "already exists" error)
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${finId}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${driveToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requests: [{ addSheet: { properties: { title: sheet.name } } }] }),
+          }
+        ).catch(() => {});
+
+        // Write headers to row 1
+        await appendFin(driveToken, sheet.name, sheet.headers);
+        created.push(sheet.name);
+      }
+
+      return new Response(JSON.stringify({ ok: true, created, skipped }), { status: 200, headers });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  get_finance_v2
+    //  Returns all 5 tables in one call — the main data load for finance.html
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'get_finance_v2') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
+
+      const token = await getDriveToken(env);
+      const [donors, budgets, budgetDonors, lineItems, expenditures] = await Promise.all([
+        readFinSheet(token, 'Donors'),
+        readFinSheet(token, 'Budgets'),
+        readFinSheet(token, 'Budget_Donors'),
+        readFinSheet(token, 'Line_Items'),
+        readFinSheet(token, 'Expenditures'),
+      ]);
+
+      // Diocese staff: filter budgets to their diocese only
+      let filteredBudgets = budgets;
+      if (u.role === 'finance_staff' && u.diocese) {
+        filteredBudgets = budgets.filter(b => !b['Diocese'] || b['Diocese'] === u.diocese);
+      }
+      const allowedBudgetIds = new Set(filteredBudgets.map(b => b['Budget ID']));
+
+      // Filter downstream tables to match allowed budgets
+      const filteredBDs    = budgetDonors.filter(bd => allowedBudgetIds.has(bd['Budget ID']));
+      const allowedBDIds   = new Set(filteredBDs.map(bd => bd['BD ID']));
+      const filteredLIs    = lineItems.filter(li => allowedBudgetIds.has(li['Budget ID']));
+      const allowedLIIds   = new Set(filteredLIs.map(li => li['LI ID']));
+      const filteredExps   = expenditures.filter(e =>
+        allowedLIIds.has(e['Line Item ID']) ||
+        allowedBDIds.has(e['BD ID']) ||
+        (u.role === 'finance_staff' && e['Submitted By'] === u.name)
+      );
+
+      // Also return programmes list from main sheet for dropdowns
+      let programmes = [];
+      try {
+        const mainRows = await fetchSheet(env.GOOGLE_API_KEY, env.SPREADSHEET_ID, 'Main Programs');
+        const hIdx = mainRows.findIndex(r => r && r.some(c => String(c).trim() === 'Program ID'));
+        if (hIdx >= 0) {
+          const [hdrs, ...data] = mainRows.slice(hIdx);
+          programmes = data
+            .map(r => Object.fromEntries(hdrs.map((h, i) => [h.trim(), r[i] || ''])))
+            .filter(r => r['Program ID'] && !String(r['Program ID']).startsWith('#') && !String(r['Program ID']).startsWith('='))
+            .map(r => ({ id: r['Program ID'].trim(), name: (r['Program Name '] || r['Program Name'] || r['Program ID']).trim() }));
+        }
+      } catch (_) {}
+
+      return new Response(JSON.stringify({
+        ok: true,
+        donors,
+        budgets: filteredBudgets,
+        budgetDonors: filteredBDs,
+        lineItems: filteredLIs,
+        expenditures: filteredExps,
+        programmes,
+        userRole: u.role,
+        userDiocese: u.diocese || null,
+      }), { status: 200, headers });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  save_donor
+    //  Create or update a donor record
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'save_donor') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_MANAGER_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Finance Manager or Admin only' }), { status: 403, headers });
+
+      const { donorId, name, currency, reportFormat, notes } = body;
+      if (!name)
+        return new Response(JSON.stringify({ error: 'Name and currency are required' }), { status: 400, headers });
+
+      const token = await getDriveToken(env);
+
+      if (donorId) {
+        // Update existing — find row by Donor ID
+        const rows = await fetchSheet(env.GOOGLE_API_KEY, env.FINANCE_SPREADSHEET_ID, 'Donors');
+        const hIdx = rows.findIndex(r => r && r[0] === 'Donor ID');
+        const rowIdx = rows.findIndex((r, i) => i > hIdx && r[0] === donorId);
+        if (rowIdx < 0) return new Response(JSON.stringify({ error: 'Donor not found' }), { status: 404, headers });
+        const sheetRow = rowIdx + 1;
+        await updateFinRange(token, `Donors!A${sheetRow}:G${sheetRow}`, [[donorId, name, currency || 'MMK', reportFormat || '', notes || '', u.name, rows[rowIdx][6] || new Date().toISOString()]]);
+        return new Response(JSON.stringify({ ok: true, donorId }), { status: 200, headers });
+      } else {
+        // Create new
+        const id = genId('D');
+        await appendFin(token, 'Donors', [id, name, currency || 'MMK', reportFormat || '', notes || '', u.name, new Date().toISOString()]);
+        return new Response(JSON.stringify({ ok: true, donorId: id }), { status: 200, headers });
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  save_budget
+    //  Create or update a budget header record
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'save_budget') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_MANAGER_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Finance Manager or Admin only' }), { status: 403, headers });
+
+      const { budgetId, programmeId, name, fiscalYear, periodStart, periodEnd, diocese } = body;
+      if (!name || !programmeId || !fiscalYear)
+        return new Response(JSON.stringify({ error: 'Name, programme and fiscal year are required' }), { status: 400, headers });
+
+      const token = await getDriveToken(env);
+      const now = new Date().toISOString();
+
+      if (budgetId) {
+        // Update existing
+        const rows = await fetchSheet(env.GOOGLE_API_KEY, env.FINANCE_SPREADSHEET_ID, 'Budgets');
+        const hIdx = rows.findIndex(r => r && r[0] === 'Budget ID');
+        const rowIdx = rows.findIndex((r, i) => i > hIdx && r[0] === budgetId);
+        if (rowIdx < 0) return new Response(JSON.stringify({ error: 'Budget not found' }), { status: 404, headers });
+        const sheetRow = rowIdx + 1;
+        await updateFinRange(token, `Budgets!A${sheetRow}:J${sheetRow}`, [[budgetId, programmeId, name, fiscalYear, periodStart || '', periodEnd || '', diocese || '', rows[rowIdx][7] || 'draft', u.name, rows[rowIdx][9] || now]]);
+        return new Response(JSON.stringify({ ok: true, budgetId }), { status: 200, headers });
+      } else {
+        const id = genId('B');
+        await appendFin(token, 'Budgets', [id, programmeId, name, fiscalYear, periodStart || '', periodEnd || '', diocese || '', 'draft', u.name, now]);
+        return new Response(JSON.stringify({ ok: true, budgetId: id }), { status: 200, headers });
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  save_budget_donor
+    //  Attach a donor to a budget with their MMK allocation
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'save_budget_donor') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_MANAGER_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Finance Manager or Admin only' }), { status: 403, headers });
+
+      const { bdId, budgetId, donorId, donorName, allocatedMmk, notes } = body;
+      if (!budgetId || !donorId || !allocatedMmk)
+        return new Response(JSON.stringify({ error: 'Budget ID, donor ID and allocated MMK are required' }), { status: 400, headers });
+
+      const token = await getDriveToken(env);
+
+      if (bdId) {
+        // Update existing
+        const rows = await fetchSheet(env.GOOGLE_API_KEY, env.FINANCE_SPREADSHEET_ID, 'Budget_Donors');
+        const hIdx = rows.findIndex(r => r && r[0] === 'BD ID');
+        const rowIdx = rows.findIndex((r, i) => i > hIdx && r[0] === bdId);
+        if (rowIdx < 0) return new Response(JSON.stringify({ error: 'Budget donor not found' }), { status: 404, headers });
+        const sheetRow = rowIdx + 1;
+        await updateFinRange(token, `Budget_Donors!A${sheetRow}:F${sheetRow}`, [[bdId, budgetId, donorId, donorName || '', allocatedMmk, notes || '']]);
+        return new Response(JSON.stringify({ ok: true, bdId }), { status: 200, headers });
+      } else {
+        const id = genId('BD');
+        await appendFin(token, 'Budget_Donors', [id, budgetId, donorId, donorName || '', allocatedMmk, notes || '']);
+        return new Response(JSON.stringify({ ok: true, bdId: id }), { status: 200, headers });
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  save_line_item
+    //  Add or update a budget line item with donor splits
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'save_line_item') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_MANAGER_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Finance Manager or Admin only' }), { status: 403, headers });
+
+      const { liId, budgetId, sectionNo, sectionName, description, unitCostMmk, numUnits, donorSplits, notes } = body;
+      if (!budgetId || !description || !unitCostMmk || !numUnits)
+        return new Response(JSON.stringify({ error: 'Budget ID, description, unit cost and units are required' }), { status: 400, headers });
+
+      const totalMmk = Math.round(parseFloat(unitCostMmk) * parseFloat(numUnits));
+      const splitsJson = JSON.stringify(donorSplits || {});
+      const token = await getDriveToken(env);
+
+      if (liId) {
+        // Update existing
+        const rows = await fetchSheet(env.GOOGLE_API_KEY, env.FINANCE_SPREADSHEET_ID, 'Line_Items');
+        const hIdx = rows.findIndex(r => r && r[0] === 'LI ID');
+        const rowIdx = rows.findIndex((r, i) => i > hIdx && r[0] === liId);
+        if (rowIdx < 0) return new Response(JSON.stringify({ error: 'Line item not found' }), { status: 404, headers });
+        const sheetRow = rowIdx + 1;
+        await updateFinRange(token, `Line_Items!A${sheetRow}:J${sheetRow}`, [[liId, budgetId, sectionNo || '', sectionName || '', description, unitCostMmk, numUnits, totalMmk, splitsJson, notes || '']]);
+        return new Response(JSON.stringify({ ok: true, liId, totalMmk }), { status: 200, headers });
+      } else {
+        const id = genId('LI');
+        await appendFin(token, 'Line_Items', [id, budgetId, sectionNo || '', sectionName || '', description, unitCostMmk, numUnits, totalMmk, splitsJson, notes || '']);
+        return new Response(JSON.stringify({ ok: true, liId: id, totalMmk }), { status: 200, headers });
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  delete_line_item
+    //  Soft-delete: marks the row's description with [DELETED] prefix
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'delete_line_item') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_MANAGER_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Finance Manager or Admin only' }), { status: 403, headers });
+
+      const { liId } = body;
+      if (!liId) return new Response(JSON.stringify({ error: 'Missing liId' }), { status: 400, headers });
+
+      const token = await getDriveToken(env);
+      const rows = await fetchSheet(env.GOOGLE_API_KEY, env.FINANCE_SPREADSHEET_ID, 'Line_Items');
+      const hIdx = rows.findIndex(r => r && r[0] === 'LI ID');
+      const rowIdx = rows.findIndex((r, i) => i > hIdx && r[0] === liId);
+      if (rowIdx < 0) return new Response(JSON.stringify({ error: 'Line item not found' }), { status: 404, headers });
+      const sheetRow = rowIdx + 1;
+      const existing = rows[rowIdx];
+      // Prefix description with [DELETED] so it filters out on read
+      await updateFinRange(token, `Line_Items!E${sheetRow}`, [['[DELETED] ' + (existing[4] || '')]]);
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  log_expenditure_v2
+    //  Finance staff submits actual quarterly spending
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'log_expenditure_v2') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
+
+      const { lineItemId, bdId, budgetId, donorId, quarter, amountMmk, description } = body;
+      if (!lineItemId || !bdId || !quarter || !amountMmk)
+        return new Response(JSON.stringify({ error: 'Line item, BD ID, quarter and amount are required' }), { status: 400, headers });
+
+      if (!['Q1', 'Q2', 'Q3', 'Q4'].includes(quarter))
+        return new Response(JSON.stringify({ error: 'Quarter must be Q1, Q2, Q3 or Q4' }), { status: 400, headers });
+
+      const token = await getDriveToken(env);
+      const id = genId('E');
+      const now = new Date().toISOString();
+
+      await appendFin(token, 'Expenditures', [
+        id, lineItemId, bdId, budgetId || '', donorId || '',
+        quarter, amountMmk, description || '',
+        u.name, now, '', '', 'pending'
+      ]);
+
+      // Notify finance managers — non-blocking
+      await sendNotification(env, 'expense_reviewed', {
+        txId: id, description: description || lineItemId,
+        amount: amountMmk, status: 'pending',
+        reviewedBy: '', submittedBy: u.name,
+      }).catch(() => {});
+
+      return new Response(JSON.stringify({ ok: true, expId: id }), { status: 200, headers });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  approve_expenditure_v2 / reject_expenditure_v2
+    //  Finance Manager or Admin approves/rejects an expenditure record
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'approve_expenditure_v2' || action === 'reject_expenditure_v2') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_MANAGER_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Finance Manager or Admin only' }), { status: 403, headers });
+
+      const { expId, notes } = body;
+      if (!expId) return new Response(JSON.stringify({ error: 'Missing expId' }), { status: 400, headers });
+
+      const token = await getDriveToken(env);
+      const rows = await fetchSheet(env.GOOGLE_API_KEY, env.FINANCE_SPREADSHEET_ID, 'Expenditures');
+      const hIdx = rows.findIndex(r => r && r[0] === 'Exp ID');
+      const rowIdx = rows.findIndex((r, i) => i > hIdx && r[0] === expId);
+      if (rowIdx < 0) return new Response(JSON.stringify({ error: 'Expenditure not found' }), { status: 404, headers });
+
+      const newStatus = action === 'approve_expenditure_v2' ? 'approved' : 'rejected';
+      const sheetRow = rowIdx + 1;
+      const now = new Date().toISOString();
+
+      // Update columns K (Approved By), L (Approved At), M (Status)
+      await updateFinRange(token, `Expenditures!K${sheetRow}:M${sheetRow}`, [[u.name, now, newStatus]]);
+
+      return new Response(JSON.stringify({ ok: true, expId, status: newStatus }), { status: 200, headers });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  get_budget_detail
+    //  Returns full detail for one budget: donors, line items, expenditures, summary
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'get_budget_detail') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
+
+      const { budgetId } = body;
+      if (!budgetId) return new Response(JSON.stringify({ error: 'Missing budgetId' }), { status: 400, headers });
+
+      const token = await getDriveToken(env);
+      const [budgetDonors, lineItems, expenditures] = await Promise.all([
+        readFinSheet(token, 'Budget_Donors'),
+        readFinSheet(token, 'Line_Items'),
+        readFinSheet(token, 'Expenditures'),
+      ]);
+
+      const bds  = budgetDonors.filter(bd => bd['Budget ID'] === budgetId);
+      const bdIds = new Set(bds.map(bd => bd['BD ID']));
+      const lis  = lineItems.filter(li => li['Budget ID'] === budgetId && !String(li['Description'] || '').startsWith('[DELETED]'));
+      const liIds = new Set(lis.map(li => li['LI ID']));
+      const exps = expenditures.filter(e => e['Budget ID'] === budgetId || liIds.has(e['Line Item ID']));
+
+      // Compute summary per donor
+      const summary = bds.map(bd => {
+        const allocated = parseFloat(bd['Allocated MMK'] || 0);
+        const approved  = exps.filter(e => e['BD ID'] === bd['BD ID'] && e['Status'] === 'approved')
+                              .reduce((s, e) => s + parseFloat(e['Amount MMK'] || 0), 0);
+        const pending   = exps.filter(e => e['BD ID'] === bd['BD ID'] && e['Status'] === 'pending')
+                              .reduce((s, e) => s + parseFloat(e['Amount MMK'] || 0), 0);
+        return { ...bd, allocated, approved, pending, balance: allocated - approved };
+      });
+
+      // Compute per-quarter totals
+      const quarterTotals = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+      exps.filter(e => e['Status'] === 'approved').forEach(e => {
+        if (quarterTotals[e['Quarter']] !== undefined)
+          quarterTotals[e['Quarter']] += parseFloat(e['Amount MMK'] || 0);
+      });
+
+      return new Response(JSON.stringify({
+        ok: true, budgetDonors: bds, lineItems: lis,
+        expenditures: exps, donorSummary: summary, quarterTotals,
+      }), { status: 200, headers });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  get_finance_summary
+    //  Province-level consolidated view across all budgets
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'get_finance_summary') {
+      const u = validateUser(body.username, body.password);
+      if (!u || !FIN_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
+
+      const token = await getDriveToken(env);
+      const [budgets, budgetDonors, expenditures] = await Promise.all([
+        readFinSheet(token, 'Budgets'),
+        readFinSheet(token, 'Budget_Donors'),
+        readFinSheet(token, 'Expenditures'),
+      ]);
+
+      // Total allocated across all budgets
+      const totalAllocated = budgetDonors.reduce((s, bd) => s + parseFloat(bd['Allocated MMK'] || 0), 0);
+      const totalApproved  = expenditures.filter(e => e['Status'] === 'approved')
+                                         .reduce((s, e) => s + parseFloat(e['Amount MMK'] || 0), 0);
+      const totalPending   = expenditures.filter(e => e['Status'] === 'pending')
+                                         .reduce((s, e) => s + parseFloat(e['Amount MMK'] || 0), 0);
+
+      // Per-diocese breakdown
+      const dioceseSummary = {};
+      budgets.forEach(b => {
+        const diocese = b['Diocese'] || 'Province';
+        if (!dioceseSummary[diocese]) dioceseSummary[diocese] = { allocated: 0, approved: 0, pending: 0, budgetCount: 0 };
+        dioceseSummary[diocese].budgetCount++;
+        // Sum BDs for this budget
+        budgetDonors.filter(bd => bd['Budget ID'] === b['Budget ID']).forEach(bd => {
+          dioceseSummary[diocese].allocated += parseFloat(bd['Allocated MMK'] || 0);
+        });
+        // Sum expenditures for this budget
+        expenditures.filter(e => e['Budget ID'] === b['Budget ID']).forEach(e => {
+          if (e['Status'] === 'approved') dioceseSummary[diocese].approved += parseFloat(e['Amount MMK'] || 0);
+          if (e['Status'] === 'pending')  dioceseSummary[diocese].pending  += parseFloat(e['Amount MMK'] || 0);
+        });
+      });
+
+      // Per-programme breakdown
+      const programmeSummary = {};
+      budgets.forEach(b => {
+        const prog = b['Programme ID'] || 'Unknown';
+        if (!programmeSummary[prog]) programmeSummary[prog] = { allocated: 0, approved: 0, budgetCount: 0 };
+        programmeSummary[prog].budgetCount++;
+        budgetDonors.filter(bd => bd['Budget ID'] === b['Budget ID']).forEach(bd => {
+          programmeSummary[prog].allocated += parseFloat(bd['Allocated MMK'] || 0);
+        });
+        expenditures.filter(e => e['Budget ID'] === b['Budget ID'] && e['Status'] === 'approved').forEach(e => {
+          programmeSummary[prog].approved += parseFloat(e['Amount MMK'] || 0);
+        });
+      });
+
+      // Pending approvals list
+      const pendingList = expenditures
+        .filter(e => e['Status'] === 'pending')
+        .sort((a, b) => (b['Submitted At'] || '').localeCompare(a['Submitted At'] || ''));
+
+      return new Response(JSON.stringify({
+        ok: true,
+        totals: { allocated: totalAllocated, approved: totalApproved, pending: totalPending, balance: totalAllocated - totalApproved },
+        dioceseSummary,
+        programmeSummary,
+        pendingList,
+        budgetCount: budgets.length,
+      }), { status: 200, headers });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  generate_report
+    //  Builds a Google Sheet report in the Finance Reports Drive folder.
+    //  reportType: 'budget' | 'donor' | 'consolidated' | 'diocese'
+    //  Role gates:
+    //    - 'consolidated'  → admin, finance_manager only
+    //    - 'donor'         → admin, finance_manager only
+    //    - 'budget'        → admin, finance_manager; staff only if budget is in their diocese
+    //    - 'diocese'       → all finance roles (staff sees own diocese only)
+    // ════════════════════════════════════════════════════════════════
+    if (action === 'generate_report') {
+      let u = validateUser(body.username, body.password);
+      if (!u || !FIN_ROLES.includes(u.role))
+        return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers });
+
+      let { reportType, budgetId, donorId, diocese } = body;
+      let IS_MGR = FIN_MANAGER_ROLES.includes(u.role);
+
+      // Role gate per report type
+      if ((reportType === 'consolidated' || reportType === 'donor') && !IS_MGR)
+        return new Response(JSON.stringify({ error: 'Finance Manager or Admin only' }), { status: 403, headers });
+
+      if (!env.FINANCE_REPORTS_FOLDER_ID)
+        return new Response(JSON.stringify({ error: 'FINANCE_REPORTS_FOLDER_ID secret not set. Create a "Finance Reports" folder in Drive and add its ID.' }), { status: 500, headers });
+
+      let token = await getDriveToken(env);
+
+      // ── Load all finance data ─────────────────────────────────────
+      let [donors, budgets, budgetDonors, lineItems, expenditures] = await Promise.all([
+        readFinSheet(token, 'Donors'),
+        readFinSheet(token, 'Budgets'),
+        readFinSheet(token, 'Budget_Donors'),
+        readFinSheet(token, 'Line_Items'),
+        readFinSheet(token, 'Expenditures'),
+      ]);
+
+      // ── Helper: format number ─────────────────────────────────────
+      let n = v => Math.round(parseFloat(v || 0));
+      let pct = (a, b) => b > 0 ? Math.round(a / b * 100) + '%' : '0%';
+      let now = new Date();
+      let dateStr = now.toISOString().slice(0, 10);
+      let quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+      // ── Helper: compute budget summary row ────────────────────────
+      function budgetSummary(bId) {
+        let bds  = budgetDonors.filter(bd => bd['Budget ID'] === bId);
+        let exps = expenditures.filter(e  => e['Budget ID']  === bId);
+        let allocated = bds.reduce((s, bd) => s + n(bd['Allocated MMK']), 0);
+        let approved  = exps.filter(e => e['Status'] === 'approved').reduce((s, e) => s + n(e['Amount MMK']), 0);
+        let pending   = exps.filter(e => e['Status'] === 'pending').reduce((s, e) => s + n(e['Amount MMK']), 0);
+        let qTotals   = Object.fromEntries(quarters.map(q => [q,
+          exps.filter(e => e['Quarter'] === q && e['Status'] === 'approved').reduce((s, e) => s + n(e['Amount MMK']), 0)
+        ]));
+        return { allocated, approved, pending, balance: allocated - approved, qTotals };
+      }
+
+      // ── Helper: build line-item detail rows for a budget ──────────
+      function buildDetailRows(bId) {
+        let bds = budgetDonors.filter(bd => bd['Budget ID'] === bId);
+        let lis = lineItems.filter(li => li['Budget ID'] === bId && !String(li['Description'] || '').startsWith('[DELETED]'));
+        let exps = expenditures.filter(e => e['Budget ID'] === bId);
+
+        let rows = [];
+        let sections = [...new Set(lis.map(li => li['Section No'] || '?'))].sort();
+        let SECTION_NAMES = {
+          '1': 'Training & Community Mobilization',
+          '2': 'Program Inputs & Activities',
+          '3': 'Monitoring & Evaluation',
+          '4': 'Other Travel / Networking',
+          '5': 'Office & Administrative',
+          '6': 'Equipment & Maintenance',
+          '7': 'Personnel',
+        };
+
+        for (let sec of sections) {
+          let secLIs = lis.filter(li => (li['Section No'] || '?') === sec);
+          rows.push([`${sec}. ${SECTION_NAMES[sec] || 'Section ' + sec}`, '', '', '', '', '', '', '', '']);
+          let secTotal = 0;
+          for (let li of secLIs) {
+            let liExps = exps.filter(e => e['Line Item ID'] === li['LI ID']);
+            let qAmts  = quarters.map(q =>
+              liExps.filter(e => e['Quarter'] === q && e['Status'] === 'approved').reduce((s, e) => s + n(e['Amount MMK']), 0)
+            );
+            let totalSpent = qAmts.reduce((s, v) => s + v, 0);
+            let budgeted   = n(li['Total MMK']);
+            secTotal += budgeted;
+            rows.push([
+              '  ' + li['Description'],
+              n(li['Unit Cost MMK']),
+              n(li['Num Units']),
+              budgeted,
+              ...qAmts,
+              totalSpent,
+              budgeted - totalSpent,
+              pct(totalSpent, budgeted),
+            ]);
+          }
+          let secSpent = secLIs.reduce((s, li) => {
+            return s + exps.filter(e => e['Line Item ID'] === li['LI ID'] && e['Status'] === 'approved').reduce((ss, e) => ss + n(e['Amount MMK']), 0);
+          }, 0);
+          rows.push([`Section ${sec} total`, '', '', secTotal, '', '', '', secSpent, secTotal - secSpent, pct(secSpent, secTotal)]);
+          rows.push([]);
+        }
+        return rows;
+      }
+
+      // ── Helper: build expenditure log rows ────────────────────────
+      function buildExpLog(filteredExps, budgetsMap, lineItemsMap, budgetDonorsMap) {
+        return [
+          ['Exp ID', 'Budget', 'Line Item', 'Donor', 'Quarter', 'Amount MMK', 'Submitted By', 'Submitted At', 'Approved By', 'Approved At', 'Status'],
+          ...filteredExps.map(e => [
+            e['Exp ID'],
+            budgetsMap[e['Budget ID']]?.['Name'] || e['Budget ID'],
+            lineItemsMap[e['Line Item ID']]?.['Description'] || e['Line Item ID'],
+            budgetDonorsMap[e['BD ID']]?.['Donor Name'] || e['Donor ID'],
+            e['Quarter'],
+            n(e['Amount MMK']),
+            e['Submitted By'],
+            e['Submitted At']?.slice(0, 10) || '',
+            e['Approved By'] || '',
+            e['Approved At']?.slice(0, 10) || '',
+            e['Status'],
+          ])
+        ];
+      }
+
+      // Build lookup maps
+      let budgetsMap      = Object.fromEntries(budgets.map(b  => [b['Budget ID'],   b]));
+      let lineItemsMap    = Object.fromEntries(lineItems.map(l => [l['LI ID'],       l]));
+      let budgetDonorsMap = Object.fromEntries(budgetDonors.map(bd => [bd['BD ID'],  bd]));
+      let donorsMap       = Object.fromEntries(donors.map(d  => [d['Donor ID'],      d]));
+
+      // ── Helper: create a Google Sheet in Finance Reports folder ───
+      // ── Formatting helpers ──────────────────────────────────────
+      const FMT = {
+        NUM:    { numberFormat: { type: 'NUMBER', pattern: '#,##0' } },
+        PCT:    { numberFormat: { type: 'NUMBER', pattern: '0%' } },
+        BOLD:   { textFormat: { bold: true } },
+        CENTER: { horizontalAlignment: 'CENTER' },
+        RIGHT:  { horizontalAlignment: 'RIGHT' },
+        WRAP:   { wrapStrategy: 'WRAP' },
+        // Fill colors matching ABM Excel exactly
+        FILL_TITLE:    { backgroundColor: { red: 1,    green: 1,    blue: 0 } },      // yellow #FFFF00
+        FILL_HEADER:   { backgroundColor: { red: 0.565,green: 0.663,blue: 0.855 } }, // steel blue #90A9DA
+        FILL_SUBHDR:   { backgroundColor: { red: 0.792,green: 0.851,blue: 0.937 } }, // light blue #CACDEF  
+        FILL_SECTION:  { backgroundColor: { red: 0.855,green: 0.902,blue: 0.984 } }, // pale blue #DAE6FB
+        FILL_TOTAL:    { backgroundColor: { red: 1,    green: 0.831,blue: 0 } },      // amber #FFD400
+        FILL_GRAND:    { backgroundColor: { red: 1,    green: 0.6,  blue: 0 } },      // orange #FF9900
+        FILL_DONOR1:   { backgroundColor: { red: 0.969,green: 0.890,blue: 0.769 } }, // peach Diocese
+        FILL_DONOR2:   { backgroundColor: { red: 0.851,green: 0.918,blue: 0.827 } }, // mint ABM
+        FILL_WHITE:    { backgroundColor: { red: 1,    green: 1,    blue: 1 } },
+      };
+
+      function cell(v, ...fmts) {
+        let val = typeof v === 'number'
+          ? { numberValue: v }
+          : (v === null || v === undefined || v === '')
+            ? { stringValue: '' }
+            : { stringValue: String(v) };
+        let fmt = Object.assign({}, ...fmts);
+        return { userEnteredValue: val, userEnteredFormat: fmt };
+      }
+      function numCell(v, ...fmts) {
+        return cell(typeof v === 'string' ? (parseFloat(v) || 0) : (v || 0), FMT.NUM, FMT.RIGHT, ...fmts);
+      }
+      function pctCell(v, ...fmts) {
+        let raw = typeof v === 'string' ? parseFloat(v)/100 : (v||0)/100;
+        return { userEnteredValue: { numberValue: raw }, userEnteredFormat: Object.assign({}, FMT.PCT, FMT.RIGHT, ...fmts) };
+      }
+      function emptyRow(n=18) { return Array(n).fill(cell('')); }
+
+      // ── Build ABM-format Joint Budget sheet ──────────────────────
+      function buildABMSheet(budget, bds, lis, exps, donorsMap) {
+        let rows = [];
+        let n = v => Math.round(parseFloat(v || 0));
+        let quarters = ['Q1','Q2','Q3','Q4'];
+        let SECTION_NAMES = {
+          '1':'Training Costs and Community Mobilization Activities',
+          '2':'Program Inputs and Activities',
+          '3':'Baseline, Monitoring and Evaluation (include travel for M&E)',
+          '4':"Other Travel (Networking, Stakeholder's Meetings, etc)",
+          '5':'Office Running / Administrative Expenses',
+          '6':'Equipment Purchases and Maintenance',
+          '7':'Personnel',
+        };
+
+        // Row 1: blank
+        rows.push(emptyRow());
+        // Row 2: title
+        rows.push([cell('Joint Financial Budget & Reporting Template', FMT.BOLD, FMT.CENTER, FMT.FILL_TITLE), ...Array(17).fill(cell(''))]);
+        // Row 3: project name
+        rows.push([cell(budget['Name'] || '', FMT.BOLD, FMT.CENTER, FMT.FILL_TITLE), ...Array(17).fill(cell('', FMT.FILL_TITLE))]);
+        // Row 4: blank
+        rows.push(emptyRow());
+        // Row 5: fiscal year
+        rows.push([cell('Fiscal Year: ' + (budget['Fiscal Year'] || ''), FMT.BOLD), cell('Diocese: ' + (budget['Diocese'] || 'Province-wide'), FMT.BOLD), ...Array(16).fill(cell(''))]);
+        // Row 6: generated date
+        rows.push([cell('Generated: ' + new Date().toISOString().slice(0,10), FMT.BOLD), ...Array(17).fill(cell(''))]);
+        // Row 7: blank
+        rows.push(emptyRow());
+
+        // Header row 1 — main column groups
+        // Cols: A=LINE ITEM, B=Unit cost, C=Nº of, D=Total MMK, E-F=PARTNERS budget, G-N=Q1-Q4 actuals (per donor), O=TOTAL EXPENSE, P=BALANCE, Q=%
+        let donorNames = bds.map(bd => bd['Donor Name'] || donorsMap[bd['Donor ID']]?.['Name'] || bd['Donor ID']);
+        let numDonors  = Math.min(bds.length, 2); // show up to 2 donors in columns
+
+        rows.push([
+          cell('LINE ITEM CATEGORIES', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+          cell('Unit Cost MMK', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+          cell('Nº of Units', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+          cell('TOTAL BUDGET MMK', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+          ...bds.slice(0,2).flatMap((bd, i) => [
+            cell((donorNames[i]||'Donor '+(i+1))+' Budget', FMT.BOLD, FMT.CENTER, i===0?FMT.FILL_DONOR1:FMT.FILL_DONOR2),
+          ]),
+          ...quarters.flatMap(q => bds.slice(0,2).map((bd, i) =>
+            cell(q+' '+(donorNames[i]||'D'+(i+1)), FMT.BOLD, FMT.CENTER, i===0?FMT.FILL_DONOR1:FMT.FILL_DONOR2)
+          )),
+          cell('TOTAL EXPENSE', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+          cell('BALANCE', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+          cell('%', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+        ].slice(0,18));
+
+        // Sections
+        let sections = [...new Set(lis.map(li => li['Section No'] || '?'))].sort();
+        let grandTotalBudget = 0, grandTotalSpent = 0;
+
+        for (let sec of sections) {
+          let secName = SECTION_NAMES[sec] || 'Section ' + sec;
+          let secLIs  = lis.filter(li => (li['Section No']||'?') === sec);
+
+          // Section header row
+          rows.push([
+            cell(`${sec}. ${secName}`, FMT.BOLD, FMT.FILL_SECTION),
+            ...Array(17).fill(cell('', FMT.FILL_SECTION)),
+          ].slice(0,18));
+
+          let secBudget = 0, secSpent = 0;
+
+          for (let li of secLIs) {
+            let liExps = exps.filter(e => e['Line Item ID'] === li['LI ID']);
+            let splits = {};
+            try { splits = JSON.parse(li['Donor Splits JSON'] || '{}'); } catch(_){}
+
+            let budgeted = n(li['Total MMK']);
+            secBudget += budgeted;
+            grandTotalBudget += budgeted;
+
+            // Per-donor budget splits
+            let donorBudgets = bds.slice(0,2).map(bd => splits[bd['BD ID']] || 0);
+
+            // Per-quarter per-donor actuals
+            let qDonorAmts = quarters.flatMap(q =>
+              bds.slice(0,2).map(bd => {
+                let approvedExps = liExps.filter(e => e['Quarter']===q && e['BD ID']===bd['BD ID'] && e['Status']==='approved');
+                return approvedExps.reduce((s,e) => s + n(e['Amount MMK']), 0);
+              })
+            );
+
+            let totalSpentLI = qDonorAmts.reduce((s,v) => s+v, 0);
+            secSpent += totalSpentLI;
+            grandTotalSpent += totalSpentLI;
+
+            let pctUsed = budgeted > 0 ? totalSpentLI / budgeted : 0;
+
+            rows.push([
+              cell('  ' + li['Description'], FMT.WRAP),
+              numCell(n(li['Unit Cost MMK'])),
+              numCell(n(li['Num Units'])),
+              numCell(budgeted),
+              ...donorBudgets.map(v => numCell(v)),
+              ...qDonorAmts.map(v => numCell(v)),
+              numCell(totalSpentLI, FMT.BOLD),
+              numCell(budgeted - totalSpentLI),
+              { userEnteredValue: { numberValue: pctUsed }, userEnteredFormat: Object.assign({}, FMT.PCT, FMT.RIGHT) },
+            ].slice(0,18));
+          }
+
+          // Section total row
+          let secPct = secBudget > 0 ? secSpent / secBudget : 0;
+          rows.push([
+            cell(`Total ${secName}`, FMT.BOLD, FMT.FILL_TOTAL),
+            cell('', FMT.FILL_TOTAL),
+            cell('', FMT.FILL_TOTAL),
+            numCell(secBudget, FMT.BOLD, FMT.FILL_TOTAL),
+            ...Array(numDonors).fill(cell('', FMT.FILL_TOTAL)),
+            ...Array(numDonors * 4).fill(cell('', FMT.FILL_TOTAL)),
+            numCell(secSpent, FMT.BOLD, FMT.FILL_TOTAL),
+            numCell(secBudget - secSpent, FMT.BOLD, FMT.FILL_TOTAL),
+            { userEnteredValue: { numberValue: secPct }, userEnteredFormat: Object.assign({}, FMT.PCT, FMT.RIGHT, FMT.BOLD, FMT.FILL_TOTAL) },
+          ].slice(0,18));
+          rows.push(emptyRow());
+        }
+
+        // Grand total
+        let grandPct = grandTotalBudget > 0 ? grandTotalSpent / grandTotalBudget : 0;
+        rows.push([
+          cell('TOTAL', FMT.BOLD, FMT.FILL_GRAND),
+          cell('', FMT.FILL_GRAND),
+          cell('', FMT.FILL_GRAND),
+          numCell(grandTotalBudget, FMT.BOLD, FMT.FILL_GRAND),
+          ...Array(numDonors).fill(cell('', FMT.FILL_GRAND)),
+          ...Array(numDonors * 4).fill(cell('', FMT.FILL_GRAND)),
+          numCell(grandTotalSpent, FMT.BOLD, FMT.FILL_GRAND),
+          numCell(grandTotalBudget - grandTotalSpent, FMT.BOLD, FMT.FILL_GRAND),
+          { userEnteredValue: { numberValue: grandPct }, userEnteredFormat: Object.assign({}, FMT.PCT, FMT.RIGHT, FMT.BOLD, FMT.FILL_GRAND) },
+        ].slice(0,18));
+
+        // Blank + signature rows
+        rows.push(emptyRow());
+        rows.push(emptyRow());
+        rows.push([cell('Prepared by', FMT.BOLD), cell(''), cell(''), cell('Approved by', FMT.BOLD), ...Array(14).fill(cell(''))]);
+        rows.push(emptyRow());
+        rows.push([cell('_________________________'), cell(''), cell(''), cell('_________________________'), ...Array(14).fill(cell(''))]);
+        rows.push([cell('Finance Manager'), cell(''), cell(''), cell('Director / Head of Department'), ...Array(14).fill(cell(''))]);
+
+        return rows;
+      }
+
+      // ── Build expenditure log sheet ───────────────────────────────
+      function buildExpSheet(filteredExps, budgetsMap, lineItemsMap, budgetDonorsMap) {
+        let headers = [
+          cell('Exp ID', FMT.BOLD, FMT.FILL_HEADER),
+          cell('Budget', FMT.BOLD, FMT.FILL_HEADER),
+          cell('Line Item', FMT.BOLD, FMT.FILL_HEADER),
+          cell('Donor', FMT.BOLD, FMT.FILL_HEADER),
+          cell('Quarter', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+          cell('Amount MMK', FMT.BOLD, FMT.RIGHT, FMT.FILL_HEADER),
+          cell('Submitted By', FMT.BOLD, FMT.FILL_HEADER),
+          cell('Date', FMT.BOLD, FMT.FILL_HEADER),
+          cell('Approved By', FMT.BOLD, FMT.FILL_HEADER),
+          cell('Approved At', FMT.BOLD, FMT.FILL_HEADER),
+          cell('Status', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+        ];
+        let dataRows = filteredExps.map((e, idx) => {
+          let isApproved = e['Status'] === 'approved';
+          let rowFill = idx % 2 === 0 ? {} : { backgroundColor: { red: 0.969, green: 0.973, blue: 0.984 } };
+          return [
+            cell(e['Exp ID'] || '', rowFill),
+            cell(budgetsMap[e['Budget ID']]?.['Name'] || e['Budget ID'] || '', rowFill),
+            cell(lineItemsMap[e['Line Item ID']]?.['Description'] || '', rowFill, FMT.WRAP),
+            cell(budgetDonorsMap[e['BD ID']]?.['Donor Name'] || '', rowFill),
+            cell(e['Quarter'] || '', FMT.CENTER, rowFill),
+            numCell(Math.round(parseFloat(e['Amount MMK']||0)), rowFill),
+            cell(e['Submitted By'] || '', rowFill),
+            cell((e['Submitted At'] || '').slice(0,10), rowFill),
+            cell(e['Approved By'] || '', rowFill),
+            cell((e['Approved At'] || '').slice(0,10), rowFill),
+            cell(e['Status'] || '', FMT.CENTER,
+              isApproved
+                ? { backgroundColor: { red: 0.851, green: 0.918, blue: 0.827 } }
+                : e['Status'] === 'pending'
+                  ? { backgroundColor: { red: 1, green: 0.949, blue: 0.800 } }
+                  : { backgroundColor: { red: 0.988, green: 0.878, blue: 0.878 } }),
+          ];
+        });
+        return [headers, ...dataRows];
+      }
+
+      // ── Build summary sheet ───────────────────────────────────────
+      function buildSummarySheet(title, rows2D) {
+        return rows2D.map((row, ri) => {
+          if (!row || !row.length) return emptyRow(12);
+          return row.map((v, ci) => {
+            if (typeof v === 'number') return numCell(v);
+            let s = String(v || '');
+            // Section heading detection
+            if (ci === 0 && s.match(/^[A-Z\s]{4,}$/) && ri > 1) return cell(s, FMT.BOLD, FMT.FILL_SUBHDR);
+            if (ci === 0 && s.startsWith('Total') || s === 'TOTAL') return cell(s, FMT.BOLD, FMT.FILL_TOTAL);
+            return cell(s);
+          }).concat(Array(Math.max(0, 12 - row.length)).fill(cell('')));
+        });
+      }
+
+      // ── Column width requests ─────────────────────────────────────
+      function colWidthRequests(sheetId, widths) {
+        return widths.map((px, i) => ({
+          updateDimensionProperties: {
+            range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i+1 },
+            properties: { pixelSize: px },
+            fields: 'pixelSize',
+          }
+        }));
+      }
+
+      // ── Freeze row/col request ────────────────────────────────────
+      function freezeRequest(sheetId, rows=1, cols=1) {
+        return {
+          updateSheetProperties: {
+            properties: { sheetId, gridProperties: { frozenRowCount: rows, frozenColumnCount: cols } },
+            fields: 'gridProperties.frozenRowCount,gridProperties.frozenColumnCount',
+          }
+        };
+      }
+
+      // ── Main createReportSheet ────────────────────────────────────
+      async function createReportSheet(title, sheets) {
+        // sheets: [{ title, rows: [[cellObj,...]] , colWidths: [px,...], freeze: {rows,cols} }]
+
+        let spreadsheetBody = {
+          properties: { title, defaultFormat: { textFormat: { fontFamily: 'Arial', fontSize: 9 } } },
+          sheets: sheets.map((s, i) => ({
+            properties: { sheetId: i, title: s.title, index: i,
+              tabColor: i === 0
+                ? { red: 0.129, green: 0.478, blue: 0.784 }
+                : i === 1
+                  ? { red: 0.204, green: 0.659, blue: 0.325 }
+                  : { red: 0.984, green: 0.631, blue: 0.129 },
+            },
+            data: [{ startRow: 0, startColumn: 0, rowData: s.rows.map(r => ({ values: r })) }],
+          })),
+        };
+
+        let createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(spreadsheetBody),
+        });
+        if (!createRes.ok) {
+          let e = await createRes.json().catch(() => ({}));
+          throw new Error('Sheet create failed: ' + (e.error?.message || createRes.status));
+        }
+        let sheet = await createRes.json();
+        let spreadsheetId = sheet.spreadsheetId;
+
+        // Apply column widths + freeze panes via batchUpdate
+        let batchRequests = [];
+        sheets.forEach((s, i) => {
+          if (s.colWidths) batchRequests.push(...colWidthRequests(i, s.colWidths));
+          if (s.freeze)    batchRequests.push(freezeRequest(i, s.freeze.rows || 0, s.freeze.cols || 0));
+        });
+
+        if (batchRequests.length) {
+          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requests: batchRequests }),
+          });
+        }
+
+        // Move to Finance Reports folder
+        await fetch(
+          `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?addParents=${env.FINANCE_REPORTS_FOLDER_ID}&removeParents=root&fields=id,parents`,
+          { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        return { spreadsheetId, spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, title };
+      }
+
+      // ══════════════════════════════════════════
+      //  REPORT TYPE: budget — one budget full detail
+      // ══════════════════════════════════════════
+      if (reportType === 'budget') {
+        if (!budgetId) return new Response(JSON.stringify({ error: 'Missing budgetId' }), { status: 400, headers });
+        let budget = budgets.find(b => b['Budget ID'] === budgetId);
+        if (!budget) return new Response(JSON.stringify({ error: 'Budget not found' }), { status: 404, headers });
+
+        // Diocese staff can only access their own diocese
+        if (!IS_MGR && u.diocese && budget['Diocese'] && budget['Diocese'] !== u.diocese)
+          return new Response(JSON.stringify({ error: 'Access denied to this diocese' }), { status: 403, headers });
+
+        let bds  = budgetDonors.filter(bd => bd['Budget ID'] === budgetId);
+        let summ = budgetSummary(budgetId);
+        let title = `${budget['Name']} — Report ${dateStr}`;
+
+        // Sheet 1: Summary
+        let summaryData = [
+          ['Budget Report', budget['Name']],
+          ['Programme', budget['Programme ID'] || ''],
+          ['Diocese', budget['Diocese'] || 'Province-wide'],
+          ['Fiscal Year', budget['Fiscal Year'] || ''],
+          ['Period', `${budget['Period Start'] || ''} – ${budget['Period End'] || ''}`],
+          ['Generated', dateStr],
+          [],
+          ['FINANCIAL SUMMARY', ''],
+          ['Total Allocated (MMK)', summ.allocated],
+          ['Total Spent — Approved (MMK)', summ.approved],
+          ['Total Pending (MMK)', summ.pending],
+          ['Balance (MMK)', summ.balance],
+          ['Utilisation', pct(summ.approved, summ.allocated)],
+          [],
+          ['DONOR BREAKDOWN', '', 'Allocated MMK', 'Spent MMK', 'Balance MMK', '%'],
+          ...bds.map(bd => {
+            let bdExps = expenditures.filter(e => e['BD ID'] === bd['BD ID'] && e['Status'] === 'approved');
+            let spent  = bdExps.reduce((s, e) => s + n(e['Amount MMK']), 0);
+            let alloc  = n(bd['Allocated MMK']);
+            return ['', bd['Donor Name'] || '', alloc, spent, alloc - spent, pct(spent, alloc)];
+          }),
+          [],
+          ['QUARTERLY BREAKDOWN', '', 'Q1', 'Q2', 'Q3', 'Q4', 'Total'],
+          ['', 'Approved spend', ...quarters.map(q => summ.qTotals[q]), summ.approved],
+        ];
+
+        // Sheet 2: Line items
+        let liHeaders = ['Line Item', 'Unit Cost MMK', 'Units', 'Budgeted MMK', 'Q1 Actual', 'Q2 Actual', 'Q3 Actual', 'Q4 Actual', 'Total Spent', 'Balance', '%'];
+        let liData = [liHeaders, ...buildDetailRows(budgetId)];
+
+        // Sheet 3: Expenditure log
+        let filteredExps = expenditures.filter(e => e['Budget ID'] === budgetId);
+        let expData = buildExpLog(filteredExps, budgetsMap, lineItemsMap, budgetDonorsMap);
+
+        let lis = lineItems.filter(li => li['Budget ID'] === budgetId && !String(li['Description'] || '').startsWith('[DELETED]'));
+        let abmRows = buildABMSheet(budget, bds, lis, filteredExps, donorsMap);
+        let expRows = buildExpSheet(filteredExps, budgetsMap, lineItemsMap, budgetDonorsMap);
+        let summRows = buildSummarySheet(title, summaryData);
+
+        let ABM_COL_WIDTHS = [340, 90, 70, 100, 100, 100, 80, 80, 80, 80, 80, 80, 80, 80, 100, 100, 60];
+        let EXP_COL_WIDTHS = [100, 200, 220, 120, 60, 100, 100, 90, 100, 90, 80];
+        let SUM_COL_WIDTHS = [200, 140, 100, 100, 100, 100, 80];
+
+        let result = await createReportSheet(title, [
+          { title: 'Budget Detail',    rows: abmRows,  colWidths: ABM_COL_WIDTHS, freeze: { rows: 8, cols: 1 } },
+          { title: 'Summary',         rows: summRows, colWidths: SUM_COL_WIDTHS },
+          { title: 'Expenditure Log', rows: expRows,  colWidths: EXP_COL_WIDTHS, freeze: { rows: 1, cols: 0 } },
+        ]);
+        return new Response(JSON.stringify({ ok: true, ...result }), { status: 200, headers });
+      }
+
+      // ══════════════════════════════════════════
+      //  REPORT TYPE: donor — all budgets for one donor
+      // ══════════════════════════════════════════
+      if (reportType === 'donor') {
+        if (!donorId) return new Response(JSON.stringify({ error: 'Missing donorId' }), { status: 400, headers });
+        let donor = donors.find(d => d['Donor ID'] === donorId);
+        if (!donor) return new Response(JSON.stringify({ error: 'Donor not found' }), { status: 404, headers });
+
+        let donorBDs    = budgetDonors.filter(bd => bd['Donor ID'] === donorId);
+        let donorBudgetIds = [...new Set(donorBDs.map(bd => bd['Budget ID']))];
+        let donorBudgets   = budgets.filter(b => donorBudgetIds.includes(b['Budget ID']));
+        let title = `${donor['Name']} — Donor Report ${dateStr}`;
+
+        // Sheet 1: Summary across all budgets for this donor
+        let totalAlloc   = donorBDs.reduce((s, bd) => s + n(bd['Allocated MMK']), 0);
+        let donorExps    = expenditures.filter(e => donorBDs.some(bd => bd['BD ID'] === e['BD ID']) && e['Status'] === 'approved');
+        let totalSpent   = donorExps.reduce((s, e) => s + n(e['Amount MMK']), 0);
+
+        let summaryData = [
+          ['Donor Report', donor['Name']],
+          ['Report Format', donor['Report Format'] || ''],
+          ['Generated', dateStr],
+          [],
+          ['SUMMARY ACROSS ALL BUDGETS'],
+          ['Total Allocated (MMK)', totalAlloc],
+          ['Total Spent — Approved (MMK)', totalSpent],
+          ['Balance (MMK)', totalAlloc - totalSpent],
+          ['Utilisation', pct(totalSpent, totalAlloc)],
+          [],
+          ['BUDGET BREAKDOWN', '', 'Programme', 'Diocese', 'Allocated MMK', 'Q1', 'Q2', 'Q3', 'Q4', 'Total Spent', 'Balance', '%'],
+          ...donorBudgets.map(b => {
+            let bd   = donorBDs.find(bd => bd['Budget ID'] === b['Budget ID']);
+            let alloc = n(bd?.['Allocated MMK'] || 0);
+            let bExps = expenditures.filter(e => e['BD ID'] === bd?.['BD ID'] && e['Status'] === 'approved');
+            let spent = bExps.reduce((s, e) => s + n(e['Amount MMK']), 0);
+            let qAmts = quarters.map(q => bExps.filter(e => e['Quarter'] === q).reduce((s, e) => s + n(e['Amount MMK']), 0));
+            return [b['Name'], b['Fiscal Year'] || '', b['Programme ID'] || '', b['Diocese'] || '', alloc, ...qAmts, spent, alloc - spent, pct(spent, alloc)];
+          }),
+        ];
+
+        // Sheet 2: Line items across all budgets for this donor
+        let liHeaders = ['Budget', 'Section', 'Line Item', 'Budgeted MMK (this donor)', 'Q1', 'Q2', 'Q3', 'Q4', 'Total Spent', 'Balance', '%'];
+        let liRows = [liHeaders];
+        for (let b of donorBudgets) {
+          let bd  = donorBDs.find(bd => bd['Budget ID'] === b['Budget ID']);
+          if (!bd) continue;
+          let lis = lineItems.filter(li => li['Budget ID'] === b['Budget ID'] && !String(li['Description'] || '').startsWith('[DELETED]'));
+          for (let li of lis) {
+            let splits = {};
+            try { splits = JSON.parse(li['Donor Splits JSON'] || '{}'); } catch (_) {}
+            let donorAmt = splits[bd['BD ID']] || 0;
+            if (!donorAmt) continue;
+            let liExps = expenditures.filter(e => e['Line Item ID'] === li['LI ID'] && e['BD ID'] === bd['BD ID'] && e['Status'] === 'approved');
+            let qAmts  = quarters.map(q => liExps.filter(e => e['Quarter'] === q).reduce((s, e) => s + n(e['Amount MMK']), 0));
+            let spent  = qAmts.reduce((s, v) => s + v, 0);
+            liRows.push([b['Name'], `${li['Section No']}. ${li['Section Name'] || ''}`, li['Description'], donorAmt, ...qAmts, spent, donorAmt - spent, pct(spent, donorAmt)]);
+          }
+        }
+
+        // Sheet 3: Expenditure log for this donor
+        let donorExpAll = expenditures.filter(e => donorBDs.some(bd => bd['BD ID'] === e['BD ID']));
+        let expData = buildExpLog(donorExpAll, budgetsMap, lineItemsMap, budgetDonorsMap);
+
+        let summRows  = buildSummarySheet(title, summaryData);
+        let liCells  = [
+          [cell('Budget',FMT.BOLD,FMT.FILL_HEADER), cell('Section',FMT.BOLD,FMT.FILL_HEADER), cell('Line Item',FMT.BOLD,FMT.FILL_HEADER,FMT.WRAP), cell('Budgeted MMK',FMT.BOLD,FMT.RIGHT,FMT.FILL_HEADER), cell('Q1',FMT.BOLD,FMT.CENTER,FMT.FILL_HEADER), cell('Q2',FMT.BOLD,FMT.CENTER,FMT.FILL_HEADER), cell('Q3',FMT.BOLD,FMT.CENTER,FMT.FILL_HEADER), cell('Q4',FMT.BOLD,FMT.CENTER,FMT.FILL_HEADER), cell('Total Spent',FMT.BOLD,FMT.RIGHT,FMT.FILL_HEADER), cell('Balance',FMT.BOLD,FMT.RIGHT,FMT.FILL_HEADER), cell('%',FMT.BOLD,FMT.CENTER,FMT.FILL_HEADER)],
+          ...liRows.slice(1).map((r,ri) => r.map((v,ci) => typeof v==='number' ? numCell(v) : cell(String(v||''), ri%2===1 ? { backgroundColor:{red:0.969,green:0.973,blue:0.984} } : {}))
+          ),
+        ];
+        let donorExpAll2 = expenditures.filter(e => donorBDs.some(bd => bd['BD ID'] === e['BD ID']));
+        let expRows  = buildExpSheet(donorExpAll2, budgetsMap, lineItemsMap, budgetDonorsMap);
+
+        let result = await createReportSheet(title, [
+          { title: 'Summary',         rows: summRows, colWidths: [200,120,120,120,80,80,80,80,100,100,60] },
+          { title: 'Line Items',      rows: liCells,  colWidths: [180,80,220,100,80,80,80,80,100,100,60], freeze: { rows:1, cols:1 } },
+          { title: 'Expenditure Log', rows: expRows,  colWidths: [100,200,220,120,60,100,100,90,100,90,80], freeze: { rows:1, cols:0 } },
+        ]);
+        return new Response(JSON.stringify({ ok: true, ...result }), { status: 200, headers });
+      }
+
+      // ══════════════════════════════════════════
+      //  REPORT TYPE: consolidated — province-wide
+      // ══════════════════════════════════════════
+      if (reportType === 'consolidated') {
+        let title = `Province Consolidated Finance Report — ${dateStr}`;
+        let totalAlloc  = budgetDonors.reduce((s, bd) => s + n(bd['Allocated MMK']), 0);
+        let totalApproved = expenditures.filter(e => e['Status'] === 'approved').reduce((s, e) => s + n(e['Amount MMK']), 0);
+        let totalPending  = expenditures.filter(e => e['Status'] === 'pending').reduce((s, e) => s + n(e['Amount MMK']), 0);
+
+        // Sheet 1: Province summary
+        let summaryData = [
+          ['Province Consolidated Finance Report'],
+          ['Generated', dateStr],
+          ['Total Budgets', budgets.length],
+          [],
+          ['PROVINCE TOTALS', ''],
+          ['Total Allocated (MMK)', totalAlloc],
+          ['Total Spent — Approved (MMK)', totalApproved],
+          ['Total Pending Approval (MMK)', totalPending],
+          ['Balance (MMK)', totalAlloc - totalApproved],
+          ['Province-wide Utilisation', pct(totalApproved, totalAlloc)],
+          [],
+          ['BY DIOCESE', '', 'Budgets', 'Allocated MMK', 'Spent MMK', 'Balance MMK', '%'],
+        ];
+        let byDiocese = {};
+        budgets.forEach(b => {
+          let d = b['Diocese'] || 'Province-wide';
+          if (!byDiocese[d]) byDiocese[d] = { count: 0, alloc: 0, spent: 0 };
+          byDiocese[d].count++;
+          budgetDonors.filter(bd => bd['Budget ID'] === b['Budget ID']).forEach(bd => { byDiocese[d].alloc += n(bd['Allocated MMK']); });
+          expenditures.filter(e => e['Budget ID'] === b['Budget ID'] && e['Status'] === 'approved').forEach(e => { byDiocese[d].spent += n(e['Amount MMK']); });
+        });
+        Object.entries(byDiocese).forEach(([d, s]) => summaryData.push(['', d, s.count, s.alloc, s.spent, s.alloc - s.spent, pct(s.spent, s.alloc)]));
+
+        summaryData.push([]);
+        summaryData.push(['BY PROGRAMME', '', 'Budgets', 'Allocated MMK', 'Spent MMK', 'Balance MMK', '%']);
+        let byProg = {};
+        budgets.forEach(b => {
+          let p = b['Programme ID'] || 'Unknown';
+          if (!byProg[p]) byProg[p] = { count: 0, alloc: 0, spent: 0 };
+          byProg[p].count++;
+          budgetDonors.filter(bd => bd['Budget ID'] === b['Budget ID']).forEach(bd => { byProg[p].alloc += n(bd['Allocated MMK']); });
+          expenditures.filter(e => e['Budget ID'] === b['Budget ID'] && e['Status'] === 'approved').forEach(e => { byProg[p].spent += n(e['Amount MMK']); });
+        });
+        Object.entries(byProg).forEach(([p, s]) => summaryData.push(['', p, s.count, s.alloc, s.spent, s.alloc - s.spent, pct(s.spent, s.alloc)]));
+
+        summaryData.push([]);
+        summaryData.push(['BY DONOR', '', 'Budgets linked', 'Allocated MMK', 'Spent MMK', 'Balance MMK', '%']);
+        let byDonor = {};
+        budgetDonors.forEach(bd => {
+          let d = bd['Donor Name'] || bd['Donor ID'];
+          if (!byDonor[d]) byDonor[d] = { count: 0, alloc: 0, spent: 0 };
+          byDonor[d].count++;
+          byDonor[d].alloc += n(bd['Allocated MMK']);
+          expenditures.filter(e => e['BD ID'] === bd['BD ID'] && e['Status'] === 'approved').forEach(e => { byDonor[d].spent += n(e['Amount MMK']); });
+        });
+        Object.entries(byDonor).forEach(([d, s]) => summaryData.push(['', d, s.count, s.alloc, s.spent, s.alloc - s.spent, pct(s.spent, s.alloc)]));
+
+        // Sheet 2: All budgets list
+        let allBudgetsData = [
+          ['Budget ID', 'Name', 'Programme', 'Diocese', 'Fiscal Year', 'Allocated MMK', 'Spent MMK', 'Pending MMK', 'Balance MMK', '%', 'Status'],
+          ...budgets.map(b => {
+            let s = budgetSummary(b['Budget ID']);
+            return [b['Budget ID'], b['Name'], b['Programme ID'] || '', b['Diocese'] || '', b['Fiscal Year'] || '', s.allocated, s.approved, s.pending, s.balance, pct(s.approved, s.allocated), b['Status'] || ''];
+          })
+        ];
+
+        // Sheet 3: Full expenditure log
+        let expData = buildExpLog(expenditures, budgetsMap, lineItemsMap, budgetDonorsMap);
+
+        let summRows   = buildSummarySheet(title, summaryData);
+        let budgCells  = [
+          ['Budget ID','Name','Programme','Diocese','Fiscal Year','Allocated MMK','Spent MMK','Pending MMK','Balance MMK','%','Status']
+            .map(h => cell(h, FMT.BOLD, FMT.FILL_HEADER)),
+          ...allBudgetsData.slice(1).map((r,ri) => r.map((v,ci) => {
+            let alt = ri%2===1 ? { backgroundColor:{red:0.969,green:0.973,blue:0.984} } : {};
+            return typeof v==='number' ? numCell(v, alt) : cell(String(v||''), alt);
+          })),
+        ];
+        let expRows2 = buildExpSheet(expenditures, budgetsMap, lineItemsMap, budgetDonorsMap);
+
+        let result = await createReportSheet(title, [
+          { title: 'Province Summary', rows: summRows,  colWidths: [220,140,120,120,120,120,80] },
+          { title: 'All Budgets',      rows: budgCells, colWidths: [100,220,120,100,120,110,100,100,100,60,70], freeze: { rows:1, cols:0 } },
+          { title: 'Expenditure Log',  rows: expRows2,  colWidths: [100,200,220,120,60,100,100,90,100,90,80], freeze: { rows:1, cols:0 } },
+        ]);
+        return new Response(JSON.stringify({ ok: true, ...result }), { status: 200, headers });
+      }
+
+      // ══════════════════════════════════════════
+      //  REPORT TYPE: diocese — one diocese
+      // ══════════════════════════════════════════
+      if (reportType === 'diocese') {
+        let targetDiocese = IS_MGR ? (diocese || u.diocese) : u.diocese;
+        if (!targetDiocese) return new Response(JSON.stringify({ error: 'Diocese not specified' }), { status: 400, headers });
+
+        let dioceseBudgets = budgets.filter(b => b['Diocese'] === targetDiocese);
+        let dioceseBudgetIds = new Set(dioceseBudgets.map(b => b['Budget ID']));
+        let dioceseBDs  = budgetDonors.filter(bd => dioceseBudgetIds.has(bd['Budget ID']));
+        let dioceseExps = expenditures.filter(e => dioceseBudgetIds.has(e['Budget ID']));
+        let title = `${targetDiocese} Diocese — Finance Report ${dateStr}`;
+
+        let totalAlloc  = dioceseBDs.reduce((s, bd) => s + n(bd['Allocated MMK']), 0);
+        let totalSpent  = dioceseExps.filter(e => e['Status'] === 'approved').reduce((s, e) => s + n(e['Amount MMK']), 0);
+        let totalPending= dioceseExps.filter(e => e['Status'] === 'pending').reduce((s, e) => s + n(e['Amount MMK']), 0);
+
+        let summaryData = [
+          ['Diocese Finance Report', targetDiocese],
+          ['Generated', dateStr],
+          [],
+          ['TOTALS'],
+          ['Total Allocated (MMK)', totalAlloc],
+          ['Total Spent (MMK)', totalSpent],
+          ['Pending Approval (MMK)', totalPending],
+          ['Balance (MMK)', totalAlloc - totalSpent],
+          ['Utilisation', pct(totalSpent, totalAlloc)],
+          [],
+          ['BUDGETS', '', 'Programme', 'Fiscal Year', 'Allocated MMK', 'Spent MMK', 'Balance MMK', '%'],
+          ...dioceseBudgets.map(b => {
+            let s = budgetSummary(b['Budget ID']);
+            return [b['Name'], '', b['Programme ID'] || '', b['Fiscal Year'] || '', s.allocated, s.approved, s.balance, pct(s.approved, s.allocated)];
+          }),
+        ];
+
+        // Sheet 2: all line items across all diocese budgets
+        let liHeaders = ['Budget', 'Section', 'Line Item', 'Budgeted MMK', 'Q1', 'Q2', 'Q3', 'Q4', 'Total Spent', 'Balance', '%'];
+        let liRows = [liHeaders];
+        for (let b of dioceseBudgets) {
+          let lis = lineItems.filter(li => li['Budget ID'] === b['Budget ID'] && !String(li['Description'] || '').startsWith('[DELETED]'));
+          for (let li of lis) {
+            let liExps = dioceseExps.filter(e => e['Line Item ID'] === li['LI ID'] && e['Status'] === 'approved');
+            let qAmts  = quarters.map(q => liExps.filter(e => e['Quarter'] === q).reduce((s, e) => s + n(e['Amount MMK']), 0));
+            let spent  = qAmts.reduce((s, v) => s + v, 0);
+            let bud    = n(li['Total MMK']);
+            liRows.push([b['Name'], `${li['Section No']}.`, li['Description'], bud, ...qAmts, spent, bud - spent, pct(spent, bud)]);
+          }
+        }
+
+        // Sheet 3: expenditure log for diocese (all statuses for managers, own submissions for staff)
+        let filteredExps = IS_MGR
+          ? dioceseExps
+          : dioceseExps.filter(e => e['Submitted By'] === u.name);
+        let expData = buildExpLog(filteredExps, budgetsMap, lineItemsMap, budgetDonorsMap);
+
+        let summRows3  = buildSummarySheet(title, summaryData);
+        let liCells3   = [
+          ['Budget','Section','Line Item','Budgeted MMK','Q1','Q2','Q3','Q4','Total Spent','Balance','%']
+            .map(h => cell(h, FMT.BOLD, FMT.FILL_HEADER)),
+          ...liRows.slice(1).map((r,ri) => r.map((v,ci) => {
+            let alt = ri%2===1 ? { backgroundColor:{red:0.969,green:0.973,blue:0.984} } : {};
+            return typeof v==='number' ? numCell(v, alt) : cell(String(v||''), alt);
+          })),
+        ];
+        let expRows3 = buildExpSheet(filteredExps, budgetsMap, lineItemsMap, budgetDonorsMap);
+
+        let result = await createReportSheet(title, [
+          { title: 'Summary',         rows: summRows3, colWidths: [220,140,120,120,120,120,80] },
+          { title: 'Line Items',      rows: liCells3,  colWidths: [180,70,220,100,80,80,80,80,100,100,60], freeze: { rows:1, cols:1 } },
+          { title: 'Expenditure Log', rows: expRows3,  colWidths: [100,200,220,120,60,100,100,90,100,90,80], freeze: { rows:1, cols:0 } },
+        ]);
+        return new Response(JSON.stringify({ ok: true, ...result }), { status: 200, headers });
+      }
+
+      return new Response(JSON.stringify({ error: 'Unknown reportType. Use: budget | donor | consolidated | diocese' }), { status: 400, headers });
+    }
+
+    return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers });
 
     } catch(e) {
       // Catch-all — always return CORS headers so browser doesn't show CORS error
