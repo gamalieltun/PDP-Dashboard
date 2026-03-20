@@ -3606,6 +3606,23 @@ async function submitMyTasks() {
   btn.disabled = false; btn.textContent = 'Save All Tasks →';
 }
 
+
+function switchMyTaskTab(tab) {
+  const isPlanned = tab === 'planned';
+  document.getElementById('mt-tab-planned-content').style.display  = isPlanned ? '' : 'none';
+  document.getElementById('mt-tab-delivered-content').style.display = isPlanned ? 'none' : '';
+  const pBtn = document.getElementById('mt-tab-planned');
+  const dBtn = document.getElementById('mt-tab-delivered');
+  if (pBtn) {
+    pBtn.style.color       = isPlanned ? 'var(--blue)' : 'var(--gray-400)';
+    pBtn.style.borderBottom = isPlanned ? '2px solid var(--blue)' : '2px solid transparent';
+  }
+  if (dBtn) {
+    dBtn.style.color       = isPlanned ? 'var(--gray-400)' : 'var(--green)';
+    dBtn.style.borderBottom = isPlanned ? '2px solid transparent' : '2px solid var(--green)';
+  }
+}
+
 function renderMyTasks() {
   if (!CURRENT_USER) return;
   const name = CURRENT_USER.name;
@@ -3617,14 +3634,12 @@ function renderMyTasks() {
   if (greetEl) greetEl.textContent = `Welcome back, ${name}! 👋`;
   if (subEl)   subEl.textContent   = `CW ${cw} · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}`;
 
-  // Gather my tasks from all programs
+  // Gather MY tasks only — always filter by logged-in user's name
   const myTasks = [];
   DATA.programs.forEach(p => {
     if (!p.taskList) return;
-    // For staff, filter to their assigned programs
-    if (isStaff() && !CURRENT_USER.programs?.includes(p.id)) return;
     p.taskList.forEach(t => {
-      if (!isAdmin() && !isManager() && String(t['Owner']||'') !== name) return;
+      if (String(t['Owner']||'').trim() !== name.trim()) return;
       myTasks.push({ ...t, programName: p.name, programId: p.id, programColor: p.color });
     });
   });
@@ -3634,50 +3649,75 @@ function renderMyTasks() {
 
   if (myTasks.length === 0) {
     listEl.innerHTML = `<div style="text-align:center;padding:32px;color:var(--gray-400);font-size:13px;">No tasks assigned to you yet.</div>`;
-  } else {
-    // Sort: overdue first, then by CW
-    myTasks.sort((a,b) => {
-      const aCW = parseFloat(a['CW'])||99, bCW = parseFloat(b['CW'])||99;
-      const aOv = aCW < cw && a['Status']==='Planned';
-      const bOv = bCW < cw && b['Status']==='Planned';
-      if (aOv && !bOv) return -1;
-      if (!aOv && bOv) return 1;
-      return aCW - bCW;
-    });
-
-    listEl.innerHTML = myTasks.map(t => {
-      const taskCW   = parseFloat(t['CW'])||0;
-      const status   = String(t['Status']||'Planned').trim();
-      const isDel    = status.startsWith('Delivered');
-      const overdue  = taskCW < cw && !isDel;
-      const dotClass = isDel ? 'dot-delivered' : overdue ? 'dot-inprogress' : 'dot-planned';
-      const cwClass  = overdue ? 'task-cw-badge task-cw-overdue' : 'task-cw-badge';
-      const taskKey  = encodeURIComponent(t['Task Name']||'');
-      const projId   = encodeURIComponent(t.programId||'');
-      const newStat  = isDel ? 'Planned' : 'Delivered';
-      const btnLabel = isDel ? '↩ Undo' : '✓ Mark Done';
-      const btnStyle = isDel
-        ? 'font-size:11px;padding:4px 10px;border:1px solid var(--gray-300);border-radius:6px;background:#fff;cursor:pointer;font-family:var(--font);color:var(--gray-600);'
-        : 'font-size:11px;padding:4px 10px;border:1px solid #86efac;border-radius:6px;background:#f0fdf4;cursor:pointer;font-family:var(--font);color:var(--green);font-weight:600;';
-      return `
-        <div class="task-card" id="tc-${taskKey}-${projId}" style="${isDel?'opacity:0.7':''}">
-          <div class="task-status-dot ${dotClass}"></div>
-          <div style="flex:1">
-            <div class="task-name" style="${isDel?'text-decoration:line-through;color:var(--gray-400)':''}">
-              ${t['Task Name']||'Unnamed task'}
-            </div>
-            <div class="task-meta">${t.programName}${t['Project Name'] ? ' · ' + t['Project Name'] : ''} · <span id="ts-${taskKey}-${projId}">${status}</span>${overdue ? ' · ⚠ Overdue' : ''}</div>
-          </div>
-          <div style="text-align:center;margin-right:8px;">
-            <span class="${cwClass}">CW ${taskCW}</span>
-            <div style="font-size:10px;color:var(--gray-400);margin-top:2px;white-space:nowrap;">${taskCW ? cwToDateRange(taskCW) : ''}</div>
-          </div>
-          <button style="${btnStyle}" onclick="quickUpdateTask('${t['Task Name']?.replace(/'/g,"\\'")}','${t.programId}','${newStat}',this)">
-            ${btnLabel}
-          </button>
-        </div>`;
-    }).join('');
+    return;
   }
+
+  // Split into Planned and Delivered
+  const planned   = myTasks.filter(t => !String(t['Status']||'').startsWith('Delivered'));
+  const delivered = myTasks.filter(t =>  String(t['Status']||'').startsWith('Delivered'));
+
+  planned.sort((a,b) => {
+    const aCW = parseFloat(a['CW'])||99, bCW = parseFloat(b['CW'])||99;
+    const aOv = aCW < cw; const bOv = bCW < cw;
+    if (aOv && !bOv) return -1; if (!aOv && bOv) return 1;
+    return aCW - bCW;
+  });
+  delivered.sort((a,b) => (parseFloat(b['CW'])||0) - (parseFloat(a['CW'])||0));
+
+  function taskCard(t) {
+    const taskCW   = parseFloat(t['CW'])||0;
+    const status   = String(t['Status']||'Planned').trim();
+    const isDel    = status.startsWith('Delivered');
+    const overdue  = taskCW < cw && !isDel;
+    const dotClass = isDel ? 'dot-delivered' : overdue ? 'dot-inprogress' : 'dot-planned';
+    const cwClass  = overdue ? 'task-cw-badge task-cw-overdue' : 'task-cw-badge';
+    const taskKey  = encodeURIComponent(t['Task Name']||'');
+    const projId   = encodeURIComponent(t.programId||'');
+    const newStat  = isDel ? 'Planned' : 'Delivered';
+    const btnLabel = isDel ? '↩ Undo' : '✓ Mark Done';
+    const btnStyle = isDel
+      ? 'font-size:11px;padding:4px 10px;border:1px solid var(--gray-300);border-radius:6px;background:#fff;cursor:pointer;font-family:var(--font);color:var(--gray-600);'
+      : 'font-size:11px;padding:4px 10px;border:1px solid #86efac;border-radius:6px;background:#f0fdf4;cursor:pointer;font-family:var(--font);color:var(--green);font-weight:600;';
+    return `
+      <div class="task-card" id="tc-${taskKey}-${projId}" style="${isDel?'opacity:0.7':''}">
+        <div class="task-status-dot ${dotClass}"></div>
+        <div style="flex:1">
+          <div class="task-name" style="${isDel?'text-decoration:line-through;color:var(--gray-400)':''}">
+            ${t['Task Name']||'Unnamed task'}
+          </div>
+          <div class="task-meta">${t.programName}${t['Project Name'] ? ' · ' + t['Project Name'] : ''} · <span id="ts-${taskKey}-${projId}">${status}</span>${overdue ? ' · ⚠ Overdue' : ''}</div>
+        </div>
+        <div style="text-align:center;margin-right:8px;">
+          <span class="${cwClass}">CW ${taskCW}</span>
+          <div style="font-size:10px;color:var(--gray-400);margin-top:2px;white-space:nowrap;">${taskCW ? cwToDateRange(taskCW) : ''}</div>
+        </div>
+        <button style="${btnStyle}" onclick="quickUpdateTask('${t['Task Name']?.replace(/'/g,"\'")}','${t.programId}','${newStat}',this)">
+          ${btnLabel}
+        </button>
+      </div>`;
+  }
+
+  const overdueCount   = planned.filter(t => (parseFloat(t['CW'])||0) < cw).length;
+  const plannedEmpty   = `<div style="text-align:center;padding:24px;color:var(--gray-400);font-size:13px;">All tasks delivered! 🎉</div>`;
+  const deliveredEmpty = `<div style="text-align:center;padding:24px;color:var(--gray-400);font-size:13px;">No delivered tasks yet.</div>`;
+
+  listEl.innerHTML = `
+    <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:2px solid var(--gray-100);">
+      <button id="mt-tab-planned" onclick="switchMyTaskTab('planned')"
+        style="padding:7px 16px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;font-family:var(--font);color:var(--blue);border-bottom:2px solid var(--blue);margin-bottom:-2px;">
+        Planned <span style="background:#eff6ff;color:var(--blue);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">${planned.length}${overdueCount ? ' · ⚠ ' + overdueCount + ' overdue' : ''}</span>
+      </button>
+      <button id="mt-tab-delivered" onclick="switchMyTaskTab('delivered')"
+        style="padding:7px 16px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;font-family:var(--font);color:var(--gray-400);border-bottom:2px solid transparent;margin-bottom:-2px;">
+        Delivered <span style="background:var(--gray-100);color:var(--gray-500);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">${delivered.length}</span>
+      </button>
+    </div>
+    <div id="mt-tab-planned-content">
+      ${planned.length ? planned.map(taskCard).join('') : plannedEmpty}
+    </div>
+    <div id="mt-tab-delivered-content" style="display:none;">
+      ${delivered.length ? delivered.map(taskCard).join('') : deliveredEmpty}
+    </div>`;
 
   // My program progress bars
   const projEl = document.getElementById('my-program-progress');
