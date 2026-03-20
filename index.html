@@ -2500,7 +2500,7 @@ function renderProgress() {
     const wp = ((p.end-p.start+1)/TOTAL_CW)*100;
     const fp = p.total>0?(p.delivered/p.total)*wp:0;
     return `<div class="gantt-row">
-      <div class="gantt-label"><div class="gantt-name">${p.name}</div><div class="gantt-sub">${p.id} · ${cwToDateRange(p.start)} – ${cwToDateRange(p.end)}</div></div>
+      <div class="gantt-label"><div class="gantt-name">${p.name}</div><div class="gantt-sub">${p.id} · CW${p.start}–CW${p.end} · ${cwToDateRange(p.start)} – ${cwToDateRange(p.end)}</div></div>
       <div class="gantt-track">
         <div class="gantt-bar"  style="left:${sp}%;width:${wp}%;background:${p.color}18;border:1px solid ${p.color}44;"></div>
         <div class="gantt-fill" style="left:${sp}%;width:${fp}%;background:${p.color};"></div>
@@ -2575,7 +2575,7 @@ function renderProgress() {
 
         </div>
       </div>
-      <div class="proj-meta">${p.id} · ${p.total} tasks · ${p.delivered} delivered · ${cwToDateRange(p.start)} – ${cwToDateRange(p.end)}</div>
+      <div class="proj-meta">${p.id} · ${p.total} tasks · ${p.delivered} delivered · CW${p.start}–CW${p.end} · ${cwToDateRange(p.start)} – ${cwToDateRange(p.end)}</div>
       <div class="bar"><div class="bar-fill" style="width:${pp}%;background:${p.color}"></div></div>
     </div>
     <div id="ptasks-${p.id}" style="display:block;border:1px solid var(--gray-200);border-top:none;border-radius:0 0 10px 10px;overflow:hidden;margin-top:-1px;margin-bottom:16px;">
