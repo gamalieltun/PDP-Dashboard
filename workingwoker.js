@@ -395,6 +395,7 @@ async function checkAndSendAlert(env, weeklyRows) {
 //   project_created     — new project added under a program
 //   proposal_submitted  — budget proposal submitted
 //   proposal_reviewed   — proposal approved or rejected
+//   expense_submitted   — expense submitted, awaiting approval
 //   expense_reviewed    — expense approved or rejected
 //   checkin_reminder    — weekly Monday reminder
 //   dcr_submitted       — DCR report submitted
@@ -644,6 +645,34 @@ function buildNotificationEmail(event, data, env) {
           row('Amount',      `MMK ${Number(amount||0).toLocaleString()}`),
           row('Status',      badge(status.toUpperCase(), isApproved ? '#16a34a' : '#dc2626')),
           row('Reviewed By', reviewedBy),
+        )}
+      `),
+    };
+  }
+
+  if (event === 'expense_submitted') {
+    const { txId, description, amount, quarter, submittedBy, budgetName, donorName } = data;
+    // Submitter gets a confirmation
+    const submitterEmail  = emailOf(submittedBy, 'expense_submitted');
+    // Managers get an approval request
+    const managerEmails   = emailsOfRole('expense_submitted', 'admin', 'manager', 'finance_manager');
+    const fallbackEmail   = env.ALERT_EMAIL_TO || null;
+    const recipients      = [...new Set([submitterEmail, ...managerEmails, fallbackEmail].filter(Boolean))];
+    return {
+      to:      recipients,
+      subject: `[PDD] Expense submitted for approval: ${description}`,
+      html:    wrap(`
+        <h2 style="margin:0 0 6px;font-size:18px;">Expense submitted for approval</h2>
+        <p style="color:#64748b;margin:0 0 20px;font-size:13px;">Submitted by ${submittedBy} — awaiting Finance Manager review</p>
+        ${table(
+          row('Transaction', txId),
+          row('Budget',      budgetName || '—'),
+          row('Donor',       donorName  || '—'),
+          row('Description', description),
+          row('Amount',      'MMK ' + Number(amount||0).toLocaleString()),
+          row('Quarter',     quarter || '—'),
+          row('Status',      badge('PENDING APPROVAL', '#d97706')),
+          row('Submitted By',submittedBy),
         )}
       `),
     };
@@ -2750,6 +2779,20 @@ export default {
         quarter, amountMmk, description || '',
         u.name, now, '', '', 'pending'
       ]);
+
+      // Notify submitter + managers — non-blocking
+      const expBudget = FIN_MANAGER_ROLES.includes(u.role) ? null :
+        (await readFinSheet(token, 'Budgets').catch(()=>[])).find(b => b['Budget ID'] === (budgetId||''));
+      const expDonorRow = (await readFinSheet(token, 'Budget_Donors').catch(()=>[])).find(bd => bd['BD ID'] === bdId);
+      await sendNotification(env, 'expense_submitted', {
+        txId:        id,
+        description: description || lineItemId,
+        amount:      amountMmk,
+        quarter,
+        submittedBy: u.name,
+        budgetName:  expBudget?.['Name'] || budgetId || '',
+        donorName:   expDonorRow?.['Donor Name'] || donorId || '',
+      }).catch(() => {});
 
       return new Response(JSON.stringify({ ok: true, expId: id }), { status: 200, headers });
     }
