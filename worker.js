@@ -627,11 +627,13 @@ function buildNotificationEmail(event, data, env) {
 
   if (event === 'expense_reviewed') {
     const { txId, description, amount, status, reviewedBy, submittedBy } = data;
-    const submitterEmail = emailOf(submittedBy, 'expense_reviewed');
-    const directorEmails = emailsOfRole('expense_reviewed', 'admin');
-    const isApproved     = status === 'approved';
+    const submitterEmail  = emailOf(submittedBy, 'expense_reviewed');
+    const directorEmails  = emailsOfRole('expense_reviewed', 'admin', 'manager', 'finance_manager');
+    const fallbackEmail   = env.ALERT_EMAIL_TO || null;
+    const recipients      = [...new Set([submitterEmail, ...directorEmails, fallbackEmail].filter(Boolean))];
+    const isApproved      = status === 'approved';
     return {
-      to:      [...new Set([submitterEmail, ...directorEmails].filter(Boolean))],
+      to:      recipients.length > 0 ? recipients : (fallbackEmail ? [fallbackEmail] : []),
       subject: `[PDD] Expense ${status === 'approved' ? 'approved' : 'rejected'}: ${description}`,
       html:    wrap(`
         <h2 style="margin:0 0 6px;font-size:18px;">Expense ${status === 'approved' ? 'approved' : 'rejected'}</h2>
