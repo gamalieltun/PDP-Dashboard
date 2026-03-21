@@ -2749,13 +2749,6 @@ export default {
         u.name, now, '', '', 'pending'
       ]);
 
-      // Notify finance managers — non-blocking
-      await sendNotification(env, 'expense_reviewed', {
-        txId: id, description: description || lineItemId,
-        amount: amountMmk, status: 'pending',
-        reviewedBy: '', submittedBy: u.name,
-      }).catch(() => {});
-
       return new Response(JSON.stringify({ ok: true, expId: id }), { status: 200, headers });
     }
 
@@ -2783,6 +2776,17 @@ export default {
 
       // Update columns K (Approved By), L (Approved At), M (Status)
       await updateFinRange(token, `Expenditures!K${sheetRow}:M${sheetRow}`, [[u.name, now, newStatus]]);
+
+      // Notify submitter — non-blocking
+      const expRow = rows[rowIdx];
+      await sendNotification(env, 'expense_reviewed', {
+        txId: expId,
+        description: expRow[7] || expRow[1] || expId,
+        amount: expRow[6] || '0',
+        status: newStatus,
+        reviewedBy: u.name,
+        submittedBy: expRow[8] || '',
+      }).catch(() => {});
 
       return new Response(JSON.stringify({ ok: true, expId, status: newStatus }), { status: 200, headers });
     }
