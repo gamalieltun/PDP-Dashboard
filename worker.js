@@ -2468,7 +2468,7 @@ export default {
         },
         {
           name: 'Budget_Donors',
-          headers: ['BD ID', 'Budget ID', 'Donor ID', 'Donor Name', 'Allocated MMK', 'Notes'],
+          headers: ['BD ID', 'Budget ID', 'Donor ID', 'Donor Name', 'Allocated MMK', 'Ref Rate', 'Ref Currency', 'Notes'],
         },
         {
           name: 'Line_Items',
@@ -2644,7 +2644,7 @@ export default {
       if (!u || !FIN_MANAGER_ROLES.includes(u.role))
         return new Response(JSON.stringify({ error: 'Finance Manager or Admin only' }), { status: 403, headers });
 
-      const { bdId, budgetId, donorId, donorName, allocatedMmk, notes } = body;
+      const { bdId, budgetId, donorId, donorName, allocatedMmk, refRate, refCurrency, notes } = body;
       if (!budgetId || !donorId || !allocatedMmk)
         return new Response(JSON.stringify({ error: 'Budget ID, donor ID and allocated MMK are required' }), { status: 400, headers });
 
@@ -2657,11 +2657,11 @@ export default {
         const rowIdx = rows.findIndex((r, i) => i > hIdx && r[0] === bdId);
         if (rowIdx < 0) return new Response(JSON.stringify({ error: 'Budget donor not found' }), { status: 404, headers });
         const sheetRow = rowIdx + 1;
-        await updateFinRange(token, `Budget_Donors!A${sheetRow}:F${sheetRow}`, [[bdId, budgetId, donorId, donorName || '', allocatedMmk, notes || '']]);
+        await updateFinRange(token, `Budget_Donors!A${sheetRow}:H${sheetRow}`, [[bdId, budgetId, donorId, donorName || '', allocatedMmk, refRate || '', refCurrency || '', notes || '']]);
         return new Response(JSON.stringify({ ok: true, bdId }), { status: 200, headers });
       } else {
         const id = genId('BD');
-        await appendFin(token, 'Budget_Donors', [id, budgetId, donorId, donorName || '', allocatedMmk, notes || '']);
+        await appendFin(token, 'Budget_Donors', [id, budgetId, donorId, donorName || '', allocatedMmk, refRate || '', refCurrency || '', notes || '']);
         return new Response(JSON.stringify({ ok: true, bdId: id }), { status: 200, headers });
       }
     }
@@ -3077,10 +3077,10 @@ export default {
 
       // ── Build ABM-format Joint Budget sheet ──────────────────────
       function buildABMSheet(budget, bds, lis, exps, donorsMap) {
-        let rows = [];
-        let n = v => Math.round(parseFloat(v || 0));
+        let rows    = [];
+        let nv      = v => Math.round(parseFloat(v || 0));
         let quarters = ['Q1','Q2','Q3','Q4'];
-        let SECTION_NAMES = {
+        let SNAMES  = {
           '1':'Training Costs and Community Mobilization Activities',
           '2':'Program Inputs and Activities',
           '3':'Baseline, Monitoring and Evaluation (include travel for M&E)',
@@ -3090,134 +3090,127 @@ export default {
           '7':'Personnel',
         };
 
-        // Row 1: blank
-        rows.push(emptyRow());
-        // Row 2: title
-        rows.push([cell('Joint Financial Budget & Reporting Template', FMT.BOLD, FMT.CENTER, FMT.FILL_TITLE), ...Array(17).fill(cell(''))]);
-        // Row 3: project name
-        rows.push([cell(budget['Name'] || '', FMT.BOLD, FMT.CENTER, FMT.FILL_TITLE), ...Array(17).fill(cell('', FMT.FILL_TITLE))]);
-        // Row 4: blank
-        rows.push(emptyRow());
-        // Row 5: fiscal year
-        rows.push([cell('Fiscal Year: ' + (budget['Fiscal Year'] || ''), FMT.BOLD), cell('Diocese: ' + (budget['Diocese'] || 'Province-wide'), FMT.BOLD), ...Array(16).fill(cell(''))]);
-        // Row 6: generated date
-        rows.push([cell('Generated: ' + new Date().toISOString().slice(0,10), FMT.BOLD), ...Array(17).fill(cell(''))]);
-        // Row 7: blank
-        rows.push(emptyRow());
+        // FX setup — reads Ref Rate / Ref Currency from Budget_Donors record
+        let fxDonors  = bds.filter(bd => bd['Ref Rate'] && parseFloat(bd['Ref Rate']) > 0 && bd['Ref Currency'] && bd['Ref Currency'] !== 'MMK');
+        let primaryFX = fxDonors[0] || null;
+        let fxRate     = primaryFX ? parseFloat(primaryFX['Ref Rate']) : 0;
+        let fxCur      = primaryFX ? (primaryFX['Ref Currency'] || '') : '';
+        let hasFX      = fxRate > 0 && fxCur;
+        let toFX       = mmk => hasFX ? Math.round(mmk / fxRate) : 0;
 
-        // Header row 1 — main column groups
-        // Cols: A=LINE ITEM, B=Unit cost, C=Nº of, D=Total MMK, E-F=PARTNERS budget, G-N=Q1-Q4 actuals (per donor), O=TOTAL EXPENSE, P=BALANCE, Q=%
-        let donorNames = bds.map(bd => bd['Donor Name'] || donorsMap[bd['Donor ID']]?.['Name'] || bd['Donor ID']);
-        let numDonors  = Math.min(bds.length, 2); // show up to 2 donors in columns
+        let nd = Math.min(bds.length, 2);
+        let dnames = bds.map(bd => bd['Donor Name'] || donorsMap[bd['Donor ID']]?.['Name'] || bd['Donor ID']);
+        let tc = 4 + nd + (nd * 4) + (hasFX ? 5 : 3);
+        let er = n => Array(Math.max(0,n)).fill(cell(''));
 
-        rows.push([
+        // Title block
+        rows.push([...er(tc)]);
+        rows.push([cell('Joint Financial Budget & Reporting Template', FMT.BOLD, FMT.CENTER, FMT.FILL_TITLE), ...er(tc-1).map(()=>cell('',FMT.FILL_TITLE))]);
+        rows.push([cell(budget['Name']||'', FMT.BOLD, FMT.CENTER, FMT.FILL_TITLE), ...er(tc-1).map(()=>cell('',FMT.FILL_TITLE))]);
+        rows.push([...er(tc)]);
+
+        // Exchange rate row
+        if (hasFX) {
+          rows.push([cell('Exchange rate', FMT.BOLD), cell('1 '+fxCur+' = '+fxRate.toLocaleString()+' MMK', FMT.BOLD, FMT.FILL_TITLE), ...er(tc-2)]);
+        } else {
+          rows.push([...er(tc)]);
+        }
+        rows.push([cell('Fiscal Year: '+(budget['Fiscal Year']||''), FMT.BOLD), cell('Diocese: '+(budget['Diocese']||'Province-wide'), FMT.BOLD), ...er(tc-2)]);
+        rows.push([cell('Generated: '+new Date().toISOString().slice(0,10), FMT.BOLD), ...er(tc-1)]);
+        rows.push([...er(tc)]);
+
+        // Column headers
+        let hdr = [
           cell('LINE ITEM CATEGORIES', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
-          cell('Unit Cost MMK', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
+          cell('Unit Cost (MMK)', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER, FMT.WRAP),
           cell('Nº of Units', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
-          cell('TOTAL BUDGET MMK', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
-          ...bds.slice(0,2).flatMap((bd, i) => [
-            cell((donorNames[i]||'Donor '+(i+1))+' Budget', FMT.BOLD, FMT.CENTER, i===0?FMT.FILL_DONOR1:FMT.FILL_DONOR2),
-          ]),
-          ...quarters.flatMap(q => bds.slice(0,2).map((bd, i) =>
-            cell(q+' '+(donorNames[i]||'D'+(i+1)), FMT.BOLD, FMT.CENTER, i===0?FMT.FILL_DONOR1:FMT.FILL_DONOR2)
-          )),
-          cell('TOTAL EXPENSE', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
-          cell('BALANCE', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
-          cell('%', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER),
-        ].slice(0,18));
+          cell('TOTAL BUDGET (MMK)', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER, FMT.WRAP),
+          ...bds.slice(0,2).map((bd,i) => cell((dnames[i]||'Donor'+(i+1))+' Budget MMK', FMT.BOLD, FMT.CENTER, FMT.WRAP, i===0?FMT.FILL_DONOR1:FMT.FILL_DONOR2)),
+          ...quarters.flatMap(q => bds.slice(0,2).map((bd,i) => cell(q+' '+(dnames[i]||'D'+(i+1)), FMT.BOLD, FMT.CENTER, FMT.WRAP, i===0?FMT.FILL_DONOR1:FMT.FILL_DONOR2))),
+          cell('TOTAL EXPENSE (MMK)', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER, FMT.WRAP),
+        ];
+        if (hasFX) hdr.push(cell('TOTAL EXPENSE ('+fxCur+')', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER, FMT.WRAP));
+        hdr.push(cell('BALANCE (MMK)', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER, FMT.WRAP));
+        if (hasFX) hdr.push(cell('BALANCE ('+fxCur+')', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER, FMT.WRAP));
+        hdr.push(cell('%', FMT.BOLD, FMT.CENTER, FMT.FILL_HEADER));
+        rows.push(hdr);
 
         // Sections
-        let sections = [...new Set(lis.map(li => li['Section No'] || '?'))].sort();
-        let grandTotalBudget = 0, grandTotalSpent = 0;
+        let secs = [...new Set(lis.map(li => li['Section No']||'?'))].sort();
+        let gBudget = 0, gSpent = 0;
 
-        for (let sec of sections) {
-          let secName = SECTION_NAMES[sec] || 'Section ' + sec;
-          let secLIs  = lis.filter(li => (li['Section No']||'?') === sec);
+        for (let sec of secs) {
+          let sname = SNAMES[sec] || 'Section '+sec;
+          let sLIs  = lis.filter(li => (li['Section No']||'?') === sec);
+          rows.push([cell(sec+'. '+sname, FMT.BOLD, FMT.FILL_SECTION), ...er(tc-1).map(()=>cell('',FMT.FILL_SECTION))]);
 
-          // Section header row
-          rows.push([
-            cell(`${sec}. ${secName}`, FMT.BOLD, FMT.FILL_SECTION),
-            ...Array(17).fill(cell('', FMT.FILL_SECTION)),
-          ].slice(0,18));
-
-          let secBudget = 0, secSpent = 0;
-
-          for (let li of secLIs) {
+          let sBudget = 0, sSpent = 0;
+          for (let li of sLIs) {
             let liExps = exps.filter(e => e['Line Item ID'] === li['LI ID']);
             let splits = {};
-            try { splits = JSON.parse(li['Donor Splits JSON'] || '{}'); } catch(_){}
+            try { splits = JSON.parse(li['Donor Splits JSON']||'{}'); } catch(_){}
 
-            let budgeted = n(li['Total MMK']);
-            secBudget += budgeted;
-            grandTotalBudget += budgeted;
+            let budgeted = nv(li['Total MMK']);
+            sBudget  += budgeted;
+            gBudget  += budgeted;
 
-            // Per-donor budget splits
-            let donorBudgets = bds.slice(0,2).map(bd => splits[bd['BD ID']] || 0);
+            let dBudgets = bds.slice(0,2).map(bd => nv(splits[bd['BD ID']]||0));
+            let qAmts    = quarters.flatMap(q => bds.slice(0,2).map(bd =>
+              liExps.filter(e => e['Quarter']===q && e['BD ID']===bd['BD ID'] && e['Status']==='approved')
+                    .reduce((s,e) => s+nv(e['Amount MMK']), 0)
+            ));
+            let spent = qAmts.reduce((s,v) => s+v, 0);
+            sSpent  += spent;
+            gSpent  += spent;
+            let pct  = budgeted > 0 ? spent/budgeted : 0;
 
-            // Per-quarter per-donor actuals
-            let qDonorAmts = quarters.flatMap(q =>
-              bds.slice(0,2).map(bd => {
-                let approvedExps = liExps.filter(e => e['Quarter']===q && e['BD ID']===bd['BD ID'] && e['Status']==='approved');
-                return approvedExps.reduce((s,e) => s + n(e['Amount MMK']), 0);
-              })
-            );
-
-            let totalSpentLI = qDonorAmts.reduce((s,v) => s+v, 0);
-            secSpent += totalSpentLI;
-            grandTotalSpent += totalSpentLI;
-
-            let pctUsed = budgeted > 0 ? totalSpentLI / budgeted : 0;
-
-            rows.push([
-              cell('  ' + li['Description'], FMT.WRAP),
-              numCell(n(li['Unit Cost MMK'])),
-              numCell(n(li['Num Units'])),
-              numCell(budgeted),
-              ...donorBudgets.map(v => numCell(v)),
-              ...qDonorAmts.map(v => numCell(v)),
-              numCell(totalSpentLI, FMT.BOLD),
-              numCell(budgeted - totalSpentLI),
-              { userEnteredValue: { numberValue: pctUsed }, userEnteredFormat: Object.assign({}, FMT.PCT, FMT.RIGHT) },
-            ].slice(0,18));
+            let r = [cell('  '+li['Description'], FMT.WRAP), numCell(nv(li['Unit Cost MMK'])), numCell(nv(li['Num Units'])), numCell(budgeted),
+              ...dBudgets.map(v => numCell(v)), ...qAmts.map(v => numCell(v)), numCell(spent, FMT.BOLD)];
+            if (hasFX) r.push(numCell(toFX(spent)));
+            r.push(numCell(budgeted - spent));
+            if (hasFX) r.push(numCell(toFX(budgeted - spent)));
+            r.push({ userEnteredValue:{numberValue:pct}, userEnteredFormat:Object.assign({},FMT.PCT,FMT.RIGHT) });
+            rows.push(r);
           }
 
-          // Section total row
-          let secPct = secBudget > 0 ? secSpent / secBudget : 0;
-          rows.push([
-            cell(`Total ${secName}`, FMT.BOLD, FMT.FILL_TOTAL),
-            cell('', FMT.FILL_TOTAL),
-            cell('', FMT.FILL_TOTAL),
-            numCell(secBudget, FMT.BOLD, FMT.FILL_TOTAL),
-            ...Array(numDonors).fill(cell('', FMT.FILL_TOTAL)),
-            ...Array(numDonors * 4).fill(cell('', FMT.FILL_TOTAL)),
-            numCell(secSpent, FMT.BOLD, FMT.FILL_TOTAL),
-            numCell(secBudget - secSpent, FMT.BOLD, FMT.FILL_TOTAL),
-            { userEnteredValue: { numberValue: secPct }, userEnteredFormat: Object.assign({}, FMT.PCT, FMT.RIGHT, FMT.BOLD, FMT.FILL_TOTAL) },
-          ].slice(0,18));
-          rows.push(emptyRow());
+          let sPct = sBudget > 0 ? sSpent/sBudget : 0;
+          let st = [cell('Total '+sname, FMT.BOLD, FMT.FILL_TOTAL), cell('',FMT.FILL_TOTAL), cell('',FMT.FILL_TOTAL),
+            numCell(sBudget, FMT.BOLD, FMT.FILL_TOTAL),
+            ...Array(nd + nd*4).fill(cell('',FMT.FILL_TOTAL)),
+            numCell(sSpent, FMT.BOLD, FMT.FILL_TOTAL)];
+          if (hasFX) st.push(numCell(toFX(sSpent), FMT.BOLD, FMT.FILL_TOTAL));
+          st.push(numCell(sBudget-sSpent, FMT.BOLD, FMT.FILL_TOTAL));
+          if (hasFX) st.push(numCell(toFX(sBudget-sSpent), FMT.BOLD, FMT.FILL_TOTAL));
+          st.push({ userEnteredValue:{numberValue:sPct}, userEnteredFormat:Object.assign({},FMT.PCT,FMT.RIGHT,FMT.BOLD,FMT.FILL_TOTAL) });
+          rows.push(st);
+          rows.push([...er(tc)]);
         }
 
         // Grand total
-        let grandPct = grandTotalBudget > 0 ? grandTotalSpent / grandTotalBudget : 0;
-        rows.push([
-          cell('TOTAL', FMT.BOLD, FMT.FILL_GRAND),
-          cell('', FMT.FILL_GRAND),
-          cell('', FMT.FILL_GRAND),
-          numCell(grandTotalBudget, FMT.BOLD, FMT.FILL_GRAND),
-          ...Array(numDonors).fill(cell('', FMT.FILL_GRAND)),
-          ...Array(numDonors * 4).fill(cell('', FMT.FILL_GRAND)),
-          numCell(grandTotalSpent, FMT.BOLD, FMT.FILL_GRAND),
-          numCell(grandTotalBudget - grandTotalSpent, FMT.BOLD, FMT.FILL_GRAND),
-          { userEnteredValue: { numberValue: grandPct }, userEnteredFormat: Object.assign({}, FMT.PCT, FMT.RIGHT, FMT.BOLD, FMT.FILL_GRAND) },
-        ].slice(0,18));
+        let gPct = gBudget > 0 ? gSpent/gBudget : 0;
+        let gt = [cell('TOTAL', FMT.BOLD, FMT.FILL_GRAND), cell('',FMT.FILL_GRAND), cell('',FMT.FILL_GRAND),
+          numCell(gBudget, FMT.BOLD, FMT.FILL_GRAND),
+          ...Array(nd + nd*4).fill(cell('',FMT.FILL_GRAND)),
+          numCell(gSpent, FMT.BOLD, FMT.FILL_GRAND)];
+        if (hasFX) gt.push(numCell(toFX(gSpent), FMT.BOLD, FMT.FILL_GRAND));
+        gt.push(numCell(gBudget-gSpent, FMT.BOLD, FMT.FILL_GRAND));
+        if (hasFX) gt.push(numCell(toFX(gBudget-gSpent), FMT.BOLD, FMT.FILL_GRAND));
+        gt.push({ userEnteredValue:{numberValue:gPct}, userEnteredFormat:Object.assign({},FMT.PCT,FMT.RIGHT,FMT.BOLD,FMT.FILL_GRAND) });
+        rows.push(gt);
 
-        // Blank + signature rows
-        rows.push(emptyRow());
-        rows.push(emptyRow());
-        rows.push([cell('Prepared by', FMT.BOLD), cell(''), cell(''), cell('Approved by', FMT.BOLD), ...Array(14).fill(cell(''))]);
-        rows.push(emptyRow());
-        rows.push([cell('_________________________'), cell(''), cell(''), cell('_________________________'), ...Array(14).fill(cell(''))]);
-        rows.push([cell('Finance Manager'), cell(''), cell(''), cell('Director / Head of Department'), ...Array(14).fill(cell(''))]);
+        // FX footnote
+        if (hasFX) {
+          rows.push([...er(tc)]);
+          rows.push([cell('* '+fxCur+' amounts at agreed rate: 1 '+fxCur+' = '+fxRate.toLocaleString()+' MMK', FMT.BOLD), ...er(tc-1)]);
+        }
+
+        // Signature block
+        rows.push([...er(tc)]);
+        rows.push([...er(tc)]);
+        rows.push([cell('Prepared by', FMT.BOLD), ...er(2), cell('Approved by', FMT.BOLD), ...er(tc-4)]);
+        rows.push([...er(tc)]);
+        rows.push([cell('_________________________'), ...er(2), cell('_________________________'), ...er(tc-4)]);
+        rows.push([cell('Finance Manager'), ...er(2), cell('Director / Head of Department'), ...er(tc-4)]);
 
         return rows;
       }
